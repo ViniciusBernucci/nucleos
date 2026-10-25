@@ -157,8 +157,17 @@ Não há build, testes de aplicação ou lint aplicáveis.
 
 ## Commits e diffs
 
-Nenhum commit criado nesta tarefa. Não há diff staged. Os diffs unstaged, os arquivos novos
-e os hashes das cópias estão em
+- `eb337d7` (`skills`), feito pelo usuário, contém as mudanças desta tarefa e as pendências
+  da tarefa anterior.
+- `d54f871`, merge de `origin/developer`, feito pelo Claude a pedido do usuário depois de um
+  `git push` recusado. O remoto trazia `e19a720` (`contexto app`, feito na VPS com os passos
+  6 a 8 do README: `.mcp.json`, `.claude/settings.json` e o bloco "Contexto (memoria
+  local)" no `CLAUDE.md` e no `AGENTS.md`). O conflito em `CLAUDE.md` e `AGENTS.md` foi
+  resolvido mantendo a versão local, porque o bloco do remoto é idêntico ao que já existia
+  nela (comparado sem `\r`). Resultado: uma ocorrência do bloco por arquivo, CRLF preservado
+  e `claude mcp list` mostrando `contexto ... ✓ Connected`.
+
+Os diffs gerados antes do commit, os arquivos novos e os hashes das cópias estão em
 [2026-10-25-skills-claude-codex-antigravity-diffs.md](2026-10-25-skills-claude-codex-antigravity-diffs.md).
 
 `README.md` e `scripts/instalar-contexto.sh` também têm alterações pendentes da tarefa
