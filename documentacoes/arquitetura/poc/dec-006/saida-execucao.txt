@@ -1,0 +1,13 @@
+$ node --test poc.test.mjs  # 2026-10-25T21:02:20+01:00 node v24.22.1 docker 29.8.1
+✔ AC-1: cria, entrega, rotaciona e revoga segredo de tenant sem reiniciar outros tenants (10087.155241ms)
+✔ AC-2: ausencia de segredo em env, inspect e logs (4666.609663ms)
+✔ controle negativo: o scanner detecta segredo vazado via -e (1574.092948ms)
+✔ backup e recuperacao da chave mestra (4526.73675ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 27215.069709
