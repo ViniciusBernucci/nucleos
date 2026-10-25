@@ -109,3 +109,38 @@ Nao aplicavel nesta entrega: a trilha `lessons/` e do dominio C#/.NET e sera red
 - Comandos reais de build/teste devem ser registrados em `CLAUDE.md` (secao "Validacao") pelo coordenador apos a onda 1 (LOC-001 detem o arquivo): `make setup`, `make lint`, `make test`, `make build`.
 - Requisito de ambiente: Node 24.22.1 e uv no `PATH` (ver acima); CI (FND-005) deve usar `actions/setup-node` com `.nvmrc` e instalar uv.
 - Revisor adicional de seguranca em `CODEOWNERS` depende de time/branch protection.
+
+## Correcao rodada 1
+
+Origem: auditoria `documentacoes/reviews/2026-10-25-auditoria-fnd-001.md` (veredito CORRECOES_NECESSARIAS; somente REVIEW-003 com decisao APLICAR). Base da rodada: HEAD `a995596c32a86b2b8448db92f342653566acfc58` na branch `tarefa/fnd-001`, arvore limpa. Arquivo alterado: `scripts/local.sh`.
+
+### O que mudou (REVIEW-003)
+
+- (a) `up` verifica, antes de iniciar qualquer componente, se alguma das 7 portas ja aceita conexao em `127.0.0.1` (`/dev/tcp`, sem depender de `ss`); se sim, imprime `ERRO: porta N (nome) ja esta em escuta` e retorna rc != 0 sem iniciar nada.
+- (b) a espera por saude agora para se o PID iniciado morrer e so conta OK com `kill -0` verdadeiro mais `/healthz` respondendo (portas comprovadamente livres antes da subida, logo a resposta e do processo iniciado). Falha: mensagem com log, `down` e rc 1.
+- (c) `down` so envia `kill -- -PID` se o PID e numerico, existe (`kill -0`) e `ps -o pgid=` e igual ao PID (lider de grupo criado por `setsid`); caso contrario apenas remove o pid-file. `down` sem `.run` retorna 0 sem encerrar o shell chamador.
+
+### Validacoes reais (rodada 1)
+
+| Teste | Resultado |
+| --- | --- |
+| `bash -n scripts/local.sh` | ok |
+| Servidor trivial em 8001 respondendo 200 em `/healthz` + `make up` | rc 2 (make), `ERRO: porta 8001 (tenant-runtime) ja esta em escuta`; 0 pid-files; 0 processos nas demais portas |
+| Fluxo normal `./scripts/local.sh up` / `make health` | 7/7 `OK`, rc 0 |
+| `up` com tudo ja no ar | rc 1, `ERRO: porta 3000 ... 3001 ...` (comportamento esperado) |
+| `down` com pid-file apontando para processo alheio (nao lider de grupo) | processo seguiu vivo; pid-file removido |
+| Apos `down` | 0 portas em escuta (3000-3002, 8001-8004); 0 pid-files |
+| `make lint` | rc 0 |
+| `make test` | rc 0 (turbo 10/10 tasks; pytest `4 passed`) |
+
+Observacao: uma primeira tentativa de teste rodou por engano contra o script antigo (edicao ainda nao aplicada) e os processos foram encerrados; nao e evidencia da correcao. Todos os resultados acima sao do script corrigido. Todos os processos de teste foram encerrados.
+
+### Achados ADIADOS (nao tocados nesta rodada)
+
+- REVIEW-001 (CODEOWNERS sem time / revisor adicional): ADIADO para FND-005 (branch protection, require review from Code Owners).
+- REVIEW-002 (politica de scripts de instalacao pnpm / supply chain): ADIADO para FND-002 / FND-005; verificar semantica do pnpm antes de implementar.
+- REVIEW-004 (pytest travado em 9.0.3; `apps/web/next-env.d.ts` versionado): ADIADO para FND-002, considerado informativo e nao defeito.
+
+### Commit e diff da rodada
+
+Commit unico novo (sem amend) em `tarefa/fnd-001` sobre `a995596c32a86b2b8448db92f342653566acfc58`; SHA em `git log tarefa/fnd-001` (nao pode constar no proprio commit). Diff de `scripts/local.sh`: ver secao "Correcao rodada 1" em [diffs](2026-10-25-fnd-001-scaffolding-monorepo-diffs.md).

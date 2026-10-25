@@ -20,29 +20,61 @@ COMPONENTS=(
   "event-dispatcher:8004:$UV run --frozen --package nucleos-event-dispatcher python -m event_dispatcher"
 )
 
+porta_em_escuta() { # 0 se algo ja aceita conexao em 127.0.0.1:$1
+  (exec 3<>"/dev/tcp/$HOST_ADDR/$1") 2>/dev/null
+}
+
+pgid_de() { ps -o pgid= -p "$1" 2>/dev/null | tr -d ' ' || true; }
+
 up() {
   mkdir -p "$RUN"
+  # (a) porta ocupada: falha antes de iniciar qualquer componente.
+  ocupada=0
+  for c in "${COMPONENTS[@]}"; do
+    IFS=: read -r name port _ <<<"$c"
+    if porta_em_escuta "$port"; then
+      echo "ERRO: porta $port ($name) ja esta em escuta; libere-a antes de 'up'." >&2
+      ocupada=1
+    fi
+  done
+  [ "$ocupada" -eq 0 ] || return 1
+
   for c in "${COMPONENTS[@]}"; do
     IFS=: read -r name port cmd <<<"$c"
     HOST=$HOST_ADDR PORT=$port setsid bash -c "exec $cmd" >"$RUN/$name.log" 2>&1 &
     echo $! >"$RUN/$name.pid"
   done
+
+  # (b) so e OK se o PID iniciado segue vivo e o /healthz responde (portas estavam livres).
+  falha=0
   for c in "${COMPONENTS[@]}"; do
     IFS=: read -r name port _ <<<"$c"
+    pid=$(cat "$RUN/$name.pid")
+    ok=0
     for _ in $(seq 1 60); do
-      curl -fsS "http://$HOST_ADDR:$port/healthz" >/dev/null 2>&1 && break
+      kill -0 "$pid" 2>/dev/null || break
+      if curl -fsS "http://$HOST_ADDR:$port/healthz" >/dev/null 2>&1; then ok=1; break; fi
       sleep 1
     done
+    if [ "$ok" -eq 1 ] && kill -0 "$pid" 2>/dev/null; then
+      continue
+    fi
+    echo "ERRO: $name (pid $pid) nao ficou saudavel na porta $port; veja $RUN/$name.log" >&2
+    falha=1
   done
+  if [ "$falha" -ne 0 ]; then down; return 1; fi
   health
 }
 
 down() {
-  [ -d "$RUN" ] || exit 0
+  [ -d "$RUN" ] || return 0
   for f in "$RUN"/*.pid; do
     [ -e "$f" ] || continue
     pid=$(cat "$f")
-    kill -- "-$pid" 2>/dev/null || kill "$pid" 2>/dev/null || true
+    # (c) so mata se o PID existe e e lider do proprio grupo (criado por setsid).
+    if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null && [ "$(pgid_de "$pid")" = "$pid" ]; then
+      kill -- "-$pid" 2>/dev/null || true
+    fi
     rm -f "$f"
   done
 }

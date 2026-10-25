@@ -1345,3 +1345,110 @@ index 0000000..1507c72
 +  }
 +}
 ```
+
+## Correcao rodada 1
+
+Origem: auditoria `documentacoes/reviews/2026-10-25-auditoria-fnd-001.md` (veredito CORRECOES_NECESSARIAS; somente REVIEW-003 com decisao APLICAR). Base da rodada: HEAD `a995596c32a86b2b8448db92f342653566acfc58` na branch `tarefa/fnd-001`, arvore limpa. Arquivo alterado: `scripts/local.sh`.
+
+### O que mudou (REVIEW-003)
+
+- (a) `up` verifica, antes de iniciar qualquer componente, se alguma das 7 portas ja aceita conexao em `127.0.0.1` (`/dev/tcp`, sem depender de `ss`); se sim, imprime `ERRO: porta N (nome) ja esta em escuta` e retorna rc != 0 sem iniciar nada.
+- (b) a espera por saude agora para se o PID iniciado morrer e so conta OK com `kill -0` verdadeiro mais `/healthz` respondendo (portas comprovadamente livres antes da subida, logo a resposta e do processo iniciado). Falha: mensagem com log, `down` e rc 1.
+- (c) `down` so envia `kill -- -PID` se o PID e numerico, existe (`kill -0`) e `ps -o pgid=` e igual ao PID (lider de grupo criado por `setsid`); caso contrario apenas remove o pid-file. `down` sem `.run` retorna 0 sem encerrar o shell chamador.
+
+### Validacoes reais (rodada 1)
+
+| Teste | Resultado |
+| --- | --- |
+| `bash -n scripts/local.sh` | ok |
+| Servidor trivial em 8001 respondendo 200 em `/healthz` + `make up` | rc 2 (make), `ERRO: porta 8001 (tenant-runtime) ja esta em escuta`; 0 pid-files; 0 processos nas demais portas |
+| Fluxo normal `./scripts/local.sh up` / `make health` | 7/7 `OK`, rc 0 |
+| `up` com tudo ja no ar | rc 1, `ERRO: porta 3000 ... 3001 ...` (comportamento esperado) |
+| `down` com pid-file apontando para processo alheio (nao lider de grupo) | processo seguiu vivo; pid-file removido |
+| Apos `down` | 0 portas em escuta (3000-3002, 8001-8004); 0 pid-files |
+| `make lint` | rc 0 |
+| `make test` | rc 0 (turbo 10/10 tasks; pytest `4 passed`) |
+
+Observacao: uma primeira tentativa de teste rodou por engano contra o script antigo (edicao ainda nao aplicada) e os processos foram encerrados; nao e evidencia da correcao. Todos os resultados acima sao do script corrigido. Todos os processos de teste foram encerrados.
+
+### Achados ADIADOS (nao tocados nesta rodada)
+
+- REVIEW-001 (CODEOWNERS sem time / revisor adicional): ADIADO para FND-005 (branch protection, require review from Code Owners).
+- REVIEW-002 (politica de scripts de instalacao pnpm / supply chain): ADIADO para FND-002 / FND-005; verificar semantica do pnpm antes de implementar.
+- REVIEW-004 (pytest travado em 9.0.3; `apps/web/next-env.d.ts` versionado): ADIADO para FND-002, considerado informativo e nao defeito.
+
+### Commit e diff da rodada
+
+Commit unico novo (sem amend) em `tarefa/fnd-001` sobre `a995596c32a86b2b8448db92f342653566acfc58`; SHA em `git log tarefa/fnd-001` (nao pode constar no proprio commit). Diff de `scripts/local.sh`:
+
+```diff
+diff --git a/scripts/local.sh b/scripts/local.sh
+index e11e7ac..d17ea3f 100755
+--- a/scripts/local.sh
++++ b/scripts/local.sh
+@@ -20,29 +20,61 @@ COMPONENTS=(
+   "event-dispatcher:8004:$UV run --frozen --package nucleos-event-dispatcher python -m event_dispatcher"
+ )
+ 
++porta_em_escuta() { # 0 se algo ja aceita conexao em 127.0.0.1:$1
++  (exec 3<>"/dev/tcp/$HOST_ADDR/$1") 2>/dev/null
++}
++
++pgid_de() { ps -o pgid= -p "$1" 2>/dev/null | tr -d ' ' || true; }
++
+ up() {
+   mkdir -p "$RUN"
++  # (a) porta ocupada: falha antes de iniciar qualquer componente.
++  ocupada=0
++  for c in "${COMPONENTS[@]}"; do
++    IFS=: read -r name port _ <<<"$c"
++    if porta_em_escuta "$port"; then
++      echo "ERRO: porta $port ($name) ja esta em escuta; libere-a antes de 'up'." >&2
++      ocupada=1
++    fi
++  done
++  [ "$ocupada" -eq 0 ] || return 1
++
+   for c in "${COMPONENTS[@]}"; do
+     IFS=: read -r name port cmd <<<"$c"
+     HOST=$HOST_ADDR PORT=$port setsid bash -c "exec $cmd" >"$RUN/$name.log" 2>&1 &
+     echo $! >"$RUN/$name.pid"
+   done
++
++  # (b) so e OK se o PID iniciado segue vivo e o /healthz responde (portas estavam livres).
++  falha=0
+   for c in "${COMPONENTS[@]}"; do
+     IFS=: read -r name port _ <<<"$c"
++    pid=$(cat "$RUN/$name.pid")
++    ok=0
+     for _ in $(seq 1 60); do
+-      curl -fsS "http://$HOST_ADDR:$port/healthz" >/dev/null 2>&1 && break
++      kill -0 "$pid" 2>/dev/null || break
++      if curl -fsS "http://$HOST_ADDR:$port/healthz" >/dev/null 2>&1; then ok=1; break; fi
+       sleep 1
+     done
++    if [ "$ok" -eq 1 ] && kill -0 "$pid" 2>/dev/null; then
++      continue
++    fi
++    echo "ERRO: $name (pid $pid) nao ficou saudavel na porta $port; veja $RUN/$name.log" >&2
++    falha=1
+   done
++  if [ "$falha" -ne 0 ]; then down; return 1; fi
+   health
+ }
+ 
+ down() {
+-  [ -d "$RUN" ] || exit 0
++  [ -d "$RUN" ] || return 0
+   for f in "$RUN"/*.pid; do
+     [ -e "$f" ] || continue
+     pid=$(cat "$f")
+-    kill -- "-$pid" 2>/dev/null || kill "$pid" 2>/dev/null || true
++    # (c) so mata se o PID existe e e lider do proprio grupo (criado por setsid).
++    if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null && [ "$(pgid_de "$pid")" = "$pid" ]; then
++      kill -- "-$pid" 2>/dev/null || true
++    fi
+     rm -f "$f"
+   done
+ }
+```
