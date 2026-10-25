@@ -34,14 +34,16 @@ export class Validator {
 
   /**
    * Poll periodico (ex.: 30 s) ou push de emergencia. Atomico: busca JWKS e revogacao em variaveis locais
-   * valida o formato da resposta e so entao troca o estado e o carimbo. Em falha, mantem o estado anterior, NAO avanca o carimbo,
+   * valida o formato das respostas (JWKS e revogacao) e so entao troca o estado e o carimbo. Em falha, mantem o estado anterior, NAO avanca o carimbo,
    * contabiliza e propaga o erro (fail-closed por idade em validate()).
    */
   refresh() {
     this.networkCalls += 1;
     let keys; let minVer; let revokedJti;
     try {
-      keys = new Map(this.fetchJwks().keys.map((j) => [j.kid, fromPublicJwk(j)]));
+      const j = this.fetchJwks();
+      if (!validate.jwks(j)) throw new Error('resposta de jwks malformada'); // null, {}, keys vazio/nulo ou > 3 chaves
+      keys = new Map(j.keys.map((k) => [k.kid, fromPublicJwk(k)]));
       const r = this.fetchRevocation();
       if (!validate.revocationState(r)) throw new Error('resposta de revogacao malformada'); // null, {} ou min_ver:null
       minVer = r.min_ver;

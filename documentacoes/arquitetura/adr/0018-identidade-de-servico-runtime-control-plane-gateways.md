@@ -29,7 +29,7 @@ Adotar, no MVP, a **opção A: JWT assinado com EdDSA (Ed25519), vida curta, emi
 
    - **Relógio monotônico (requisito do validador de produção).** A idade do estado de revogação deve ser medida com relógio monotônico (por exemplo `process.hrtime`/`performance.now`), separado do relógio de parede usado para `exp`/`iat`; mudança do relógio de parede não pode alongar a janela (no PoC, `now()` injetável com relógio de parede alongou a janela para 170 s reais num recuo; a garantia depende deste requisito).
    - **Snapshot velho do CP: decisão humana pendente, uma das duas opções.** (a) Validar o `generated_at` do CP contra o limite, com relógios sincronizados e tolerância declarada; ou (b) registrar a premissa explícita de que o CP é fonte única e consistente e que réplica atrasada está fora de escopo. Até a decisão, a premissa (b) não é assumida e o limite acima vale só para indisponibilidade.
-   - **Refresh atômico inclui formato.** A resposta de revogação é validada pelo schema `revocation_state` antes de qualquer atribuição; resposta malformada conta como falha e mantém o estado e o carimbo anteriores.
+   - **Refresh atômico inclui formato.** O JWKS (schema `jwks`: 1 a 3 chaves) e a resposta de revogação (schema `revocation_state`) são validados antes de qualquer atribuição; JWKS vazio, nulo ou fora do limite e resposta malformada contam como falha e mantém o estado e o carimbo anteriores.
 8. **Relógio.** NTP obrigatório nos hosts; tolerância de 30 s; alarme se o desvio medido exceder 5 s.
 
 Esta decisão cobre identidade serviço-a-serviço do runtime. Autorização por ferramenta continua no Tool Gateway (ADR-012) e não é derivada apenas do escopo do token.

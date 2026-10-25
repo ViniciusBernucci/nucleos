@@ -19,7 +19,7 @@
 
 ## 3. Resumo da implementação
 
-Recomendação proposta: opção A, JWT EdDSA com TTL de 5 min emitido pelo CP após enrollment com segredo de uso único e prova de posse (`client_assertion`), validação 100% local com JWKS/estado de revogação em cache, duas chaves ativas para rotação e três níveis de revogação (por tenant via `ver`, por chave de assinatura, por `jti`). O PoC executa o fluxo ponta a ponta com 22 testes automatizados (17 originais + 4 da rodada 1 + 1 da rodada 2) e uma demo narrada.
+Recomendação proposta: opção A, JWT EdDSA com TTL de 5 min emitido pelo CP após enrollment com segredo de uso único e prova de posse (`client_assertion`), validação 100% local com JWKS/estado de revogação em cache, duas chaves ativas para rotação e três níveis de revogação (por tenant via `ver`, por chave de assinatura, por `jti`). O PoC executa o fluxo ponta a ponta com 23 testes automatizados (17 originais + 4 da rodada 1 + 1 da rodada 2 + 1 da rodada 3) e uma demo narrada.
 
 ## 4. Mudanças por arquivo
 
@@ -29,7 +29,7 @@ Recomendação proposta: opção A, JWT EdDSA com TTL de 5 min emitido pelo CP a
 | `documentacoes/arquitetura/contratos-propostos/runtime-token.schema.json` | contrato proposto | Header e claims do token (JSON Schema 2020-12) |
 | `documentacoes/arquitetura/contratos-propostos/handshake.schema.json` | contrato proposto | Enrollment, pedido/resposta de token, JWKS, estado de revogação |
 | `documentacoes/arquitetura/poc/dec-004/lib/{jwt,schemas,control-plane,validator,fake-runtime,env}.mjs` | código (PoC) | Ed25519/JWT, CP falso, validador local, runtime falso, cenário |
-| `documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs` | teste | 22 testes (ver Correções rodadas 1 e 2) |
+| `documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs` | teste | 23 testes (ver Correções rodadas 1, 2 e 3) |
 | `documentacoes/arquitetura/poc/dec-004/{demo,bench}.mjs` | código (PoC) | Demo narrada e benchmark |
 | `documentacoes/arquitetura/poc/dec-004/package.json`, `package-lock.json` | config | Dependências de desenvolvimento mínimas, travadas |
 | `documentacoes/arquitetura/poc/dec-004/README.md`, `saida/{test,demo,bench}.txt` | doc/evidência | Como reproduzir; saídas reais |
@@ -54,7 +54,7 @@ Node 24.22.1 (`~/.local/opt/node-v24.22.1-linux-x64`); o `node` padrão do siste
 | Comando (em `documentacoes/arquitetura/poc/dec-004`) | Resultado |
 | --- | --- |
 | `npm install` (autoria) e `npm ci` (reprodução do lock) | 6 pacotes (ajv 8.17.1, ajv-formats 3.0.1 e transitivas); sucesso |
-| `npm test` | 22 testes, 22 aprovados, 0 falhas (rodada 2; 21 na rodada 1, 17 originais) ([saida/test.txt](../arquitetura/poc/dec-004/saida/test.txt)) |
+| `npm test` | 23 testes, 23 aprovados, 0 falhas (rodada 3; 22 na rodada 2, 21 na rodada 1, 17 originais) ([saida/test.txt](../arquitetura/poc/dec-004/saida/test.txt)) |
 | `npm run demo` | casos negativos todos REJEITADOS com o código esperado; rotação e revogação de emergência demonstradas ([saida/demo.txt](../arquitetura/poc/dec-004/saida/demo.txt)) |
 | `npm run bench` | ver abaixo ([saida/bench.txt](../arquitetura/poc/dec-004/saida/bench.txt)) |
 
@@ -114,9 +114,20 @@ Origem: [auditoria r2](../reviews/2026-10-25-auditoria-r2-dec-003-dec-004.md) (H
 | --- | --- | --- |
 | NOVO-004-A | APLICADO (ADR + comentário) | ADR-018 7.1 exige relógio monotônico (`process.hrtime`/`performance.now`) para a idade do estado de revogação, separado do relógio de parede de `exp`/`iat`. O PoC **não** o implementa: segue com `now()` injetável (relógio de parede) e a garantia depende deste requisito do validador de produção (comentário em `validator.mjs`). Sem teste novo. |
 | NOVO-004-B | APLICADO (texto); decisão humana pendente | ADR-018 7.1: a frase "mesmo com o CP ou a rede indisponíveis" foi qualificada para indisponibilidade; CP no ar com dado velho (réplica atrasada) renova o carimbo e **não** é coberto. Registrada como decisão humana: validar `generated_at` (relógios sincronizados e tolerância) ou declarar o CP fonte única e consistente. Sem código; não reabre a escolha de não usar `generated_at` para o carimbo. |
-| NOVO-004-C | APLICADO (código + teste) | `refresh()` monta `keys`, `minVer` e `revokedJti` em locais dentro do `try`, valida a resposta com o schema `revocation_state` já existente e só ao final atribui e avança o carimbo; resposta malformada conta em `refreshFailures` e propaga um erro (não `TypeError`). Teste novo com `null`, `{}` e `{min_ver:null}`: `keys`/`minVer`/`revokedJti` mantêm a mesma referência, carimbo inalterado, `refreshFailures` incrementa, e `validate()` rejeita com `revocation_state_stale` após o limite. Validação de formato do JWKS além do `map` existente não foi acrescentada. |
+| NOVO-004-C | APLICADO (código + teste) | `refresh()` monta `keys`, `minVer` e `revokedJti` em locais dentro do `try`, valida a resposta com o schema `revocation_state` já existente e só ao final atribui e avança o carimbo; resposta malformada conta em `refreshFailures` e propaga um erro (não `TypeError`). Teste novo com `null`, `{}` e `{min_ver:null}`: `keys`/`minVer`/`revokedJti` mantêm a mesma referência, carimbo inalterado, `refreshFailures` incrementa, e `validate()` rejeita com `revocation_state_stale` após o limite. Validação de formato do JWKS não foi acrescentada nesta rodada (feita na rodada 3). |
 
 Validações da rodada 2 (Node 24.22.1, `documentacoes/arquitetura/poc/dec-004`): `npm ci` ok; `npm test` 22/22; `npm run demo` rc 0 (`saida/test.txt` e `saida/demo.txt` regerados). Não executado: `npm run bench` (sem mudança no caminho de validação), benchmark no host alvo, rede/containers/banco. ADR-018 segue **Proposto**.
+
+## 8.3 Correção rodada 3 (2026-10-25, última)
+
+Origem: [auditoria de notas](../reviews/2026-10-25-auditoria-notas-fnd-002-fnd-009-dec-004.md) (HEAD auditado `d65b84292b5f68cb4d3128bacda465c9c24a4847`). Novo commit sem amend (SHA no retorno ao coordenador). Diff: [diffs, seção "Correção rodada 3"](2026-10-25-dec-004-identidade-de-servico-runtime-diffs.md#correcao-rodada-3).
+
+| ID | Decisão | O que foi feito |
+| --- | --- | --- |
+| DEC-004/BUG-001 | APLICADO (código + teste + ADR) | `refresh()` valida o JWKS com o schema `jwks` (1 a 3 chaves) dentro do mesmo `try`, antes de montar o `Map`; JWKS inválido lança `Error('resposta de jwks malformada')`, conta em `refreshFailures` e mantém `keys` e carimbo. Teste novo com `null`, `{}`, `{keys:[]}`, `{keys:null}` e 4 chaves. ADR-018 (frase "Refresh atômico inclui formato") agora cobre JWKS e revogação. Efeito colateral: o limite `maxItems: 3` também é imposto no validador. |
+| DEC-004/QA-bad_issuer | REJEITADO | Não tocado (ramo é defesa em profundidade; hoje coberto pelo schema). |
+
+Validações da rodada 3 (Node 24.22.1, `documentacoes/arquitetura/poc/dec-004`): `npm ci` ok; `npm test` 23/23; `npm run demo` rc 0 (`saida/test.txt` e `saida/demo.txt` regerados; no demo mudam apenas os kids aleatórios). Não executado: `npm run bench` (sem mudança no caminho de validação), benchmark no host alvo, rede/containers/banco. Não houve re-QA independente nesta sessão (pendente). ADR-018 segue **Proposto**; AC-1 (aceite humano) segue pendente.
 
 ## 9. Lessons
 
@@ -129,4 +140,4 @@ Nenhuma lesson criada. Justificativa: o conceito relevante (JWT assinado, JWKS, 
 - Repetir o benchmark no host alvo; revisar o esquema com FND-003 antes de migrar para `packages/contracts`.
 - Adiados com destino: upgrade do `ajv` (FND-003); API de revogação de `jti` (MSG-002/TGW-001); endurecimento de enrollment (PRV-004/MSG-002); benchmark no host alvo.
 - Decisão humana (NOVO-004-B): validar `generated_at` do CP ou declarar o CP fonte única e consistente; requisito de relógio monotônico (NOVO-004-A) a cumprir no validador de produção.
-- Revalidação independente das rodadas 1 e 2, e QA (fora desta sessão).
+- Revalidação independente das rodadas 1, 2 e 3, e QA (fora desta sessão).

@@ -15,17 +15,17 @@
   REJEITADO dispatcher: replay do mesmo jti -> replay
   REJEITADO assinado por chave do atacante -> bad_signature
 == 3. Rotacao sem downtime (duas chaves ativas no JWKS)
-  chave ativa: cp-2cGhgwj3
-  publicada cp-Hn16YEXy; JWKS = [cp-2cGhgwj3,cp-Hn16YEXy]
-  ativada cp-Hn16YEXy; novo token kid=cp-Hn16YEXy
+  chave ativa: cp-OH6-TZ0x
+  publicada cp-WkyYcbDq; JWKS = [cp-OH6-TZ0x,cp-WkyYcbDq]
+  ativada cp-WkyYcbDq; novo token kid=cp-WkyYcbDq
   ACEITO    token antigo (k1) durante a sobreposicao
   ACEITO    token novo (k2)
-  k1 aposentada apos TTL+skew; JWKS = [cp-Hn16YEXy]
+  k1 aposentada apos TTL+skew; JWKS = [cp-WkyYcbDq]
   REJEITADO token antigo (k1) apos aposentadoria -> unknown_kid
   ACEITO    token novo emitido apos aposentadoria
 == 4. Revogacao de emergencia da chave de assinatura
   ACEITO    token vivo antes da revogacao
-  chave cp-Hn16YEXy revogada; nova ativa cp-sqNIg4mr; JWKS = [cp-sqNIg4mr]
+  chave cp-WkyYcbDq revogada; nova ativa cp-QGFcJMAV; JWKS = [cp-QGFcJMAV]
   REJEITADO mesmo token vivo apos revogacao -> unknown_kid
   ACEITO    runtime B reemite e volta a operar (sem novo enrollment)
 == 5. Obsolescencia do estado de revogacao (max_staleness = 90 s, fail-closed)

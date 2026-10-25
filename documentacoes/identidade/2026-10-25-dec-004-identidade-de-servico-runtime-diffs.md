@@ -1228,3 +1228,78 @@ index 0f1fd7e..3293729 100644
 +  rejects(() => gw.validate(tokenFor(env, rt), ctx(TENANT_A)), 'revocation_state_stale'); // nunca TypeError
 +});
 ```
+
+## Correção rodada 3
+
+Diff contra `d65b842` (HEAD da rodada 2; novo commit sem amend). Inclui `README.md`, `lib/validator.mjs` e `test/poc.test.mjs` do PoC; `saida/*.txt` regerados e ADR/entrega alterados só em texto (sem diff).
+
+```diff
+diff --git a/documentacoes/arquitetura/poc/dec-004/README.md b/documentacoes/arquitetura/poc/dec-004/README.md
+index 3b72860..09eb8b7 100644
+--- a/documentacoes/arquitetura/poc/dec-004/README.md
++++ b/documentacoes/arquitetura/poc/dec-004/README.md
+@@ -9,7 +9,7 @@ Runtime falso, Control Plane falso e validadores locais. Sem rede, sem banco, se
+ export PATH="$HOME/.local/opt/node-v24.22.1-linux-x64/bin:$PATH"
+ cd documentacoes/arquitetura/poc/dec-004
+ npm ci            # reproduz as dependências do lock file
+-npm test          # 22 testes (casos negativos, rotação, revogação)
++npm test          # 23 testes (casos negativos, rotação, revogação)
+ npm run demo      # narrativa: negativos, rotação, revogação de emergência
+ npm run bench     # latência da validação local
+ ```
+diff --git a/documentacoes/arquitetura/poc/dec-004/lib/validator.mjs b/documentacoes/arquitetura/poc/dec-004/lib/validator.mjs
+index 014681b..c9fe01d 100644
+--- a/documentacoes/arquitetura/poc/dec-004/lib/validator.mjs
++++ b/documentacoes/arquitetura/poc/dec-004/lib/validator.mjs
+@@ -34,14 +34,16 @@ export class Validator {
+ 
+   /**
+    * Poll periodico (ex.: 30 s) ou push de emergencia. Atomico: busca JWKS e revogacao em variaveis locais
+-   * valida o formato da resposta e so entao troca o estado e o carimbo. Em falha, mantem o estado anterior, NAO avanca o carimbo,
++   * valida o formato das respostas (JWKS e revogacao) e so entao troca o estado e o carimbo. Em falha, mantem o estado anterior, NAO avanca o carimbo,
+    * contabiliza e propaga o erro (fail-closed por idade em validate()).
+    */
+   refresh() {
+     this.networkCalls += 1;
+     let keys; let minVer; let revokedJti;
+     try {
+-      keys = new Map(this.fetchJwks().keys.map((j) => [j.kid, fromPublicJwk(j)]));
++      const j = this.fetchJwks();
++      if (!validate.jwks(j)) throw new Error('resposta de jwks malformada'); // null, {}, keys vazio/nulo ou > 3 chaves
++      keys = new Map(j.keys.map((k) => [k.kid, fromPublicJwk(k)]));
+       const r = this.fetchRevocation();
+       if (!validate.revocationState(r)) throw new Error('resposta de revogacao malformada'); // null, {} ou min_ver:null
+       minVer = r.min_ver;
+diff --git a/documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs b/documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs
+index 3293729..a693986 100644
+--- a/documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs
++++ b/documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs
+@@ -346,3 +346,27 @@ test('REFRESH atomico: resposta de revogacao malformada (null, {}, min_ver:null)
+   env.now.advance(61); // 91 s desde o ultimo refresh bom
+   rejects(() => gw.validate(tokenFor(env, rt), ctx(TENANT_A)), 'revocation_state_stale'); // nunca TypeError
+ });
++
++test('REFRESH atomico: JWKS malformado (null, {}, keys vazio, keys:null, 4 chaves) nao troca estado nem avanca carimbo', () => {
++  const env = makeEnv();
++  let resp = null; let usar = false;
++  const gw = new Validator({
++    audience: 'tool-gateway', now: env.now, fetchJwks: () => (usar ? resp : env.cp.jwks()),
++    fetchRevocation: () => env.cp.revocationState(),
++  });
++  const rt = env.enrollRuntime(TENANT_A);
++  const keysAntes = gw.keys; const minVer = gw.minVer; const carimbo = gw.lastRefreshOk;
++  const k = env.cp.jwks().keys[0];
++  usar = true;
++  let falhas = 0;
++  for (const m of [null, {}, { keys: [] }, { keys: null }, { keys: [k, k, k, k] }]) {
++    resp = m; env.now.advance(10);
++    assert.throws(() => gw.refresh(), (e) => e instanceof Error && !(e instanceof TypeError));
++    falhas += 1;
++    assert.equal(gw.keys, keysAntes);
++    assert.equal(gw.minVer, minVer);
++    assert.equal(gw.lastRefreshOk, carimbo);
++    assert.equal(gw.refreshFailures, falhas);
++  }
++  assert.doesNotThrow(() => gw.validate(tokenFor(env, rt), ctx(TENANT_A))); // chaves em cache continuam validas
++});
+```

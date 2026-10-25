@@ -346,3 +346,27 @@ test('REFRESH atomico: resposta de revogacao malformada (null, {}, min_ver:null)
   env.now.advance(61); // 91 s desde o ultimo refresh bom
   rejects(() => gw.validate(tokenFor(env, rt), ctx(TENANT_A)), 'revocation_state_stale'); // nunca TypeError
 });
+
+test('REFRESH atomico: JWKS malformado (null, {}, keys vazio, keys:null, 4 chaves) nao troca estado nem avanca carimbo', () => {
+  const env = makeEnv();
+  let resp = null; let usar = false;
+  const gw = new Validator({
+    audience: 'tool-gateway', now: env.now, fetchJwks: () => (usar ? resp : env.cp.jwks()),
+    fetchRevocation: () => env.cp.revocationState(),
+  });
+  const rt = env.enrollRuntime(TENANT_A);
+  const keysAntes = gw.keys; const minVer = gw.minVer; const carimbo = gw.lastRefreshOk;
+  const k = env.cp.jwks().keys[0];
+  usar = true;
+  let falhas = 0;
+  for (const m of [null, {}, { keys: [] }, { keys: null }, { keys: [k, k, k, k] }]) {
+    resp = m; env.now.advance(10);
+    assert.throws(() => gw.refresh(), (e) => e instanceof Error && !(e instanceof TypeError));
+    falhas += 1;
+    assert.equal(gw.keys, keysAntes);
+    assert.equal(gw.minVer, minVer);
+    assert.equal(gw.lastRefreshOk, carimbo);
+    assert.equal(gw.refreshFailures, falhas);
+  }
+  assert.doesNotThrow(() => gw.validate(tokenFor(env, rt), ctx(TENANT_A))); // chaves em cache continuam validas
+});

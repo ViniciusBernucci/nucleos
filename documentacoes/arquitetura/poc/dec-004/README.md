@@ -9,7 +9,7 @@ Runtime falso, Control Plane falso e validadores locais. Sem rede, sem banco, se
 export PATH="$HOME/.local/opt/node-v24.22.1-linux-x64/bin:$PATH"
 cd documentacoes/arquitetura/poc/dec-004
 npm ci            # reproduz as dependências do lock file
-npm test          # 22 testes (casos negativos, rotação, revogação)
+npm test          # 23 testes (casos negativos, rotação, revogação)
 npm run demo      # narrativa: negativos, rotação, revogação de emergência
 npm run bench     # latência da validação local
 ```
