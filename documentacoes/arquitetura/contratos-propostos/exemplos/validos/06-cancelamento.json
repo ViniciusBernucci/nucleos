@@ -1,0 +1,1 @@
+{"schema_version":"1.0","received_at":"2026-10-25T12:00:05Z","occurred_at":"2026-10-25T12:00:00Z","provider":"simulator","simulated":true,"provider_event_id":"sim_evt_0006","event_type":"subscription.canceled","subscription":{"provider_subscription_id":"sim_sub_001"}}
