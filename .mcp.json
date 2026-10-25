@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "contexto": {
+      "command": "node",
+      "args": ["../contexto/contexto.mjs", "mcp"]
+    }
+  }
+}

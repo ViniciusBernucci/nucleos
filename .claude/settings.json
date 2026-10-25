@@ -1,0 +1,6 @@
+{
+  "enabledMcpjsonServers": ["contexto"],
+  "permissions": {
+    "allow": ["mcp__contexto"]
+  }
+}
