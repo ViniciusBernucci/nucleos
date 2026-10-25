@@ -6,7 +6,7 @@
 Decidir como usuários se autenticam preservando tenant resolvido no servidor por membership. Escopo: ADR-016, PoC descartável de login + sessão + revogação, medição de RAM. Fora do escopo: código de produção (`packages/`), e-mail transacional, WebAuthn, PoC das opções 4 e 5, aceite do ADR (só o usuário).
 
 ## Resumo
-Opção líder proposta: autenticação própria (argon2id + TOTP + sessão opaca em PostgreSQL). PoC: 13/13 verificações PASS, incluindo a sessão revogada falhando na requisição seguinte (logout 13,9 ms; rejeição seguinte 15,6 ms; revoke-all; revogação sob carga com 0 requisições aceitas após o UPDATE). RAM medida: Node 91,8 MiB RSS, Postgres 40,3 MiB, Keycloak 26.0 dev 520,6 MiB, Kratos v1.3.1 34,4 MiB. Hash de senha, seed MFA e migração de opção estão declarados no ADR.
+Opção líder proposta: autenticação própria (argon2id + TOTP + sessão opaca em PostgreSQL). PoC: 13/13 verificações PASS, incluindo a sessão revogada falhando na requisição seguinte (rejeição da requisição seguinte: faixa observada 5,4-16 ms, varia por máquina/execução; hash argon2id: faixa observada 58-258 ms; revoke-all; revogação durante sequência de requisições, com um worker sequencial e não sob concorrência, com 0 requisições aceitas após o UPDATE). RAM medida: Node ~90-92 MiB RSS, Postgres faixa observada 31-40 MiB (varia por execução), Keycloak 26.0 dev 520,6 MiB, Kratos v1.3.1 34,4 MiB. Hash de senha, seed MFA e migração de opção estão declarados no ADR.
 
 ## Mudanças por arquivo
 - `documentacoes/arquitetura/adr/0016-autenticacao-de-usuarios-sessao-opaca-propria-vs-idp.md` (novo) e linha em `adr/README.md`.
@@ -29,7 +29,16 @@ TOTP implementado com `node:crypto` para evitar dependência; PoC usa npm por se
 Sem impacto em produção. Risco: PoC local não cobre rate limit, CSRF, cookies, recuperação de senha. Rollback: reverter o commit.
 
 ## Commit e diffs
-Commit único local em `tarefa/dec-002` (SHA informado ao coordenador na resposta; um commit não pode conter o próprio SHA). Diff dos arquivos de código/configuração do PoC em [diffs](2026-10-25-dec-002-autenticacao-adr-016-diffs.md). Os arquivos em `documentacoes/` e `lessons/` listados acima foram excluídos do patch por regra.
+Commit 1 (entrega original, HEAD `7d45e87`) e commit 2 (correção rodada 1, SHA informado ao coordenador). Entrega original: commit único local em `tarefa/dec-002` (SHA informado ao coordenador na resposta; um commit não pode conter o próprio SHA). Diff dos arquivos de código/configuração do PoC em [diffs](2026-10-25-dec-002-autenticacao-adr-016-diffs.md). Os arquivos em `documentacoes/` e `lessons/` listados acima foram excluídos do patch por regra.
+
+## Correção rodada 1
+Origem: [auditoria](../reviews/2026-10-25-auditoria-dec-002.md) da review DEC-002 (REVIEW-001..005). Aplicado, todo documental exceto um rótulo:
+- REVIEW-001/002: ADR-016, Consequências, requisitos obrigatórios da implementação real (TOTP de uso único por time-step, limite de tentativas por conta/IP com resposta uniforme, validação de entrada, limite de corpo, 400/413 nunca 500, testes no IAM-003); frase explícita de que o PoC não implementa nenhum.
+- REVIEW-003: células sem marcador agora marcadas `[inferência]`; afirmação do Keycloak sobre import de hash argon2id marcada como não verificada; célula TOTP do Kratos rebaixada a `[inferência]` (fonte 1 não confirmada para MFA); ressalva de AC-1 parcial mantida.
+- REVIEW-004: valores pontuais trocados por faixas observadas (argon2id 58-258 ms; rejeição 5,4-16 ms; Postgres 31-40 MiB, com 30,6 MiB na reexecução desta rodada, fora da faixa anterior de 34-40).
+- REVIEW-005 (a) AAD com `user_id` na cifra da seed; (b) frase de que cookie/CSRF/fixação não foram exercitados (Bearer não é tratado como defeito); (c) timeout ocioso, rotação em troca de senha/MFA, limpeza de sessões expiradas; (d) rótulo "sob carga" trocado por "durante sequência de requisições (um worker)" em `poc.mjs` (comentário e `check`) e nesta entrega.
+- Rejeitados/adiados, sem alteração: correção de código do PoC para REVIEW-002 (REJEITADO, PoC descartável); REVIEW-005(b) como defeito (REJEITADO); REVIEW-005(e) (REJEITADO); remoção de variáveis mortas de `poc.mjs` (REVIEW-005(d), ADIADO). A lesson não foi renumerada (ação do coordenador na integração).
+- Validação: `./run.sh` com Node 24.22.1 e Docker, `POC_PG_PORT=55491` (a porta padrão 55432 estava ocupada por outro container do host, não tocado): `RESULTADO 13/13 PASS`; `saida-poc.txt` regenerada; container `poc-dec002-pg` destruído (`docker ps -a --filter name=poc-dec002` vazio). `medir-ram-idp.sh` não reexecutado (sem mudança). ADR segue Proposto. Diff em [diffs](2026-10-25-dec-002-autenticacao-adr-016-diffs.md#correção-rodada-1-commit-2-da-tarefa).
 
 ## Lessons
 [00 - Sessão opaca e revogação](../../lessons/00%20-%20Sessao%20opaca%20e%20revogacao.md); índice [lessons/README.md](../../lessons/README.md).

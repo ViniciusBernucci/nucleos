@@ -1,18 +1,18 @@
-argon2id (m=19456 KiB,t=2,p=1): hash em 257.7 ms
+argon2id (m=19456 KiB,t=2,p=1): hash em 140.7 ms
 PASS  login com senha errada -> 401
 PASS  login sem TOTP -> 401 mfa_invalido
-PASS  login com senha + TOTP -> 200 e token opaco  (131.5 ms)
+PASS  login com senha + TOTP -> 200 e token opaco  (72.7 ms)
 PASS  token em claro nao esta gravado (so sha256)
-PASS  GET /me com sessao valida -> 200 e org por membership  (11.3 ms)
+PASS  GET /me com sessao valida -> 200 e org por membership  (8.5 ms)
 PASS  X-Tenant-Id de outra org (sem membership) -> 403
-PASS  logout: requisicao seguinte com o token revogado -> 401  (revogacao 13.9 ms; rejeicao 15.6 ms)
+PASS  logout: requisicao seguinte com o token revogado -> 401  (revogacao 19.3 ms; rejeicao 5.6 ms)
 PASS  outra sessao do mesmo usuario segue valida apos logout de A
 PASS  revoke-all: sessao B rejeitada na requisicao seguinte -> 401  (1 sessao(oes) revogada(s))
-PASS  revogacao sob carga: nenhuma requisicao INICIADA apos o UPDATE foi aceita  (52 req, 33 rejeitadas, 0 aceitas apos revogar)
+PASS  revogacao durante sequencia de requisicoes (um worker): nenhuma requisicao INICIADA apos o UPDATE foi aceita  (43 req, 23 rejeitadas, 0 aceitas apos revogar)
 PASS  sessao expirada -> 401
 PASS  hash de senha e PHC argon2id
 PASS  seed TOTP nao aparece em claro no banco
 b32 da seed nao e impressa; tamanho seed cifrada = 48 bytes (12 iv + 16 tag + 20)
-MEDIDA_RAM node_rss_mib=91.8 heap_used_mib=12.1
+MEDIDA_RAM node_rss_mib=89.9 heap_used_mib=13.4
 RESULTADO 13/13 PASS
-MEDIDA_RAM postgres_container: 40.34MiB / 7.751GiB
+MEDIDA_RAM postgres_container: 30.62MiB / 7.751GiB

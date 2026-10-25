@@ -35,7 +35,7 @@ Adotar a **opção 1: autenticação própria no NestJS**, com:
 
 ### Como migrar de opção
 
-- **Para IdP (Kratos/Keycloak/Clerk/Auth0)**: manter `users.id` como identificador estável e criar `identity_links(user_id, issuer, subject)`. O `iss`/`sub` do IdP é mapeado para `users.id`; `memberships` continua sendo a fonte do tenant. Hashes argon2id (PHC) são importáveis no Keycloak (via provedor de credencial/import) e no Kratos (importação de identidades com hash argon2 é suportada em formato PHC — **não verificado neste PoC**); caso o destino não aceite, usar migração "preguiçosa": no primeiro login válido, reenviar a senha ao novo IdP. Seeds TOTP exigem decifrar e reimportar (ou reenrolar o MFA).
+- **Para IdP (Kratos/Keycloak/Clerk/Auth0)**: manter `users.id` como identificador estável e criar `identity_links(user_id, issuer, subject)`. O `iss`/`sub` do IdP é mapeado para `users.id`; `memberships` continua sendo a fonte do tenant. Hashes argon2id (PHC) seriam importáveis no Keycloak (via provedor de credencial/import — **não verificado neste PoC**) e no Kratos (importação de identidades com hash argon2 é suportada em formato PHC — **não verificado neste PoC**); caso o destino não aceite, usar migração "preguiçosa": no primeiro login válido, reenviar a senha ao novo IdP. Seeds TOTP exigem decifrar e reimportar (ou reenrolar o MFA).
 - **Do IdP de volta**: exportar `iss/sub` e exigir redefinição de senha; o contrato da aplicação (sessão → `user_id` → membership) não muda, só o verificador de credencial.
 - Sobrepor sessões durante a transição: ambos os verificadores aceitos por uma janela, sessões antigas expiram pelo TTL.
 
@@ -54,16 +54,16 @@ Pesos registrados (1 = baixo, 3 = alto) refletem a prioridade deste projeto, dec
 
 | Critério (peso) | 1. Próprio | 2. Kratos | 3. Keycloak | 4. Auth.js/Better Auth | 5. Gerenciado (Clerk) |
 | --- | --- | --- | --- | --- | --- |
-| Revogação imediata (3) | A [PoC]: requisição seguinte rejeitada (13/13 PASS) | A [inferência]: campo `active` da sessão existe [fonte 1]; endpoint de revogação não confirmado na página consultada | A [inferência] não medido | P [inferência]: depende de sessão em banco vs. JWT | P [inferência]: não medido |
-| MFA TOTP/WebAuthn (2) | TOTP A [PoC]; WebAuthn N (evolução) | TOTP citado [fonte 1] | A [inferência] | P [inferência] | MFA só em Pro/Business [fonte 3] |
-| Caminho SSO OIDC/SAML (2) | P: trabalho próprio ou migrar de opção | não confirmado | A [inferência] | P [inferência] | 1 conexão SSO incluída; extras US$ 75/mês [fonte 3] |
-| RAM no cenário A (3) | Node 92 MiB RSS + Postgres 40 MiB [PoC] (o Node já existe; custo marginal ~ código) | 34 MiB [PoC, `dsn=memory`, v1.3.1] + Postgres | 521 MiB [PoC, dev, H2, v26.0]; 1250 MB base [fonte 2] | 0 serviços extras [inferência] | 0 [inferência] |
-| Propriedade de dados/LGPD (3) | A: tudo no nosso banco | A (self-hosted) | A (self-hosted) | A | N [inferência]: dados em terceiro |
-| Lock-in (2) | baixo | médio [inferência] | médio [inferência] | médio [inferência] | alto [inferência] |
+| Revogação imediata (3) | A [PoC]: requisição seguinte rejeitada (13/13 PASS; revogação testada em sequência de requisições com um worker, não sob concorrência) | A [inferência]: campo `active` da sessão existe [fonte 1]; endpoint de revogação não confirmado na página consultada | A [inferência] não medido | P [inferência]: depende de sessão em banco vs. JWT | P [inferência]: não medido |
+| MFA TOTP/WebAuthn (2) | TOTP A [PoC]; WebAuthn N (evolução) | TOTP suportado [inferência]: a fonte 1 trata de sessões e não foi confirmada para MFA; validar na página de MFA/TOTP do Ory | A [inferência] | P [inferência] | MFA só em Pro/Business [fonte 3] |
+| Caminho SSO OIDC/SAML (2) | P [inferência]: trabalho próprio ou migrar de opção | não confirmado [inferência] | A [inferência] | P [inferência] | 1 conexão SSO incluída; extras US$ 75/mês [fonte 3] |
+| RAM no cenário A (3) | Node ~92 MiB RSS + Postgres 31-40 MiB (faixa observada) [PoC] (o Node já existe; custo marginal ~ código) | 34 MiB [PoC, `dsn=memory`, v1.3.1] + Postgres | 521 MiB [PoC, dev, H2, v26.0]; 1250 MB base [fonte 2] | 0 serviços extras [inferência] | 0 [inferência] |
+| Propriedade de dados/LGPD (3) | A [inferência]: tudo no nosso banco | A [inferência] (self-hosted) | A [inferência] (self-hosted) | A [inferência] | N [inferência]: dados em terceiro |
+| Lock-in (2) | baixo [inferência] | médio [inferência] | médio [inferência] | médio [inferência] | alto [inferência] |
 | Integração com organização/membership (3) | A [PoC]: sessão -> membership no central | P [inferência]: mapear identidade -> membership | P [inferência]: mapear `sub` -> membership | P [inferência] | P [inferência] |
 | Custo por MAU (1) | 0 licença; custo de engenharia | 0 licença | 0 licença | 0 | grátis até 50.000 usuários retidos, depois US$ 0,02 cada [fonte 3] |
 
-Medições (reprodutíveis): [`saida-poc.txt`](../poc/dec-002/saida-poc.txt), [`saida-ram-idp.txt`](../poc/dec-002/saida-ram-idp.txt). Argon2id: ~258 ms por hash nesta máquina. Latência do `UPDATE` de revogação ~14 ms, rejeição seguinte ~16 ms (local, 127.0.0.1).
+Medições (reprodutíveis): [`saida-poc.txt`](../poc/dec-002/saida-poc.txt), [`saida-ram-idp.txt`](../poc/dec-002/saida-ram-idp.txt). Argon2id: faixa observada 58-258 ms por hash; varia por máquina e aquecimento. Rejeição da requisição seguinte à revogação: faixa observada 5,4-16 ms (local, 127.0.0.1; varia por execução). RAM do Postgres: faixa observada 31-40 MiB (34-40 em execuções anteriores; 30,6 na reexecução da correção). A cobertura de AC-1 é parcial: as células das opções 2-5 são majoritariamente [inferência] e dependem de aceite humano.
 
 Fontes consultadas em 2026-10-25:
 
@@ -84,6 +84,14 @@ Segurança de autenticação passa a ser nossa responsabilidade (rate limit, blo
 ## Consequências
 
 Tickets IAM-003, IAM-004 e WEB-001 devem implementar o modelo de `schema.sql` do PoC (código do PoC **não** é reutilizável como está). Requer controles do threat model (DEC-001): limitação de tentativas, cookies seguros, CSRF. Segredo da KEK segue DEC-006.
+
+Requisitos obrigatórios para a implementação real (o PoC **não** implementa nenhum deles):
+
+- **TOTP de uso único e limite de tentativas** (REVIEW-001): guardar o último time-step aceito por usuário e rejeitar passo <= último (RFC 6238, 5.2); limite de tentativas com bloqueio progressivo por conta e por IP, para senha e para TOTP, com resposta uniforme; IAM-003 deve ter teste de replay de código e de excesso de tentativas.
+- **Entrada malformada e corpo** (REVIEW-002): validar formato (UUID de tenant, schema do corpo), impor limite de tamanho de corpo e responder 400/413, nunca 500, para entrada de cliente; teste em IAM-003. (No PoC, JSON inválido e `X-Tenant-Id` inválido geram 500 e o corpo é lido sem limite.)
+- **AES-GCM com AAD**: cifrar a seed TOTP usando `user_id` como AAD, para impedir troca de seed entre linhas.
+- **Cookie/CSRF**: o PoC usa Bearer; cookie `HttpOnly`/`Secure`/`SameSite`, CSRF e fixação de sessão por cookie **não foram exercitados** e devem ter teste em WEB-001/IAM-003.
+- **Ciclo de vida da sessão**: timeout ocioso, rotação/revogação de sessões em troca de senha e de MFA, e limpeza de sessões expiradas.
 
 ## Quando revisar
 

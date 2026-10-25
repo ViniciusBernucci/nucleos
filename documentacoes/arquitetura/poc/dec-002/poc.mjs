@@ -60,7 +60,7 @@ const ra = await call('/revoke-all', { method: 'POST', token: tokenB });
 const afterAll = await call('/me', { token: tokenB });
 check('revoke-all: sessao B rejeitada na requisicao seguinte -> 401', ra.status === 200 && afterAll.status === 401, `(${ra.body.revoked} sessao(oes) revogada(s))`);
 
-// Revogacao sob concorrencia: 200 requisicoes em voo; mede o instante da ultima aceita vs revogacao.
+// Revogacao durante sequencia de requisicoes: UM worker sequencial (nao ha concorrencia); mede o instante da ultima aceita vs revogacao.
 const l3 = await call('/login', { method: 'POST', body: { email, password: pw, totp: totp(totpSecret) } });
 let revokedAt = null, acceptedAfter = 0, rejected = 0, total = 0, run = true;
 const worker = (async () => { while (run) {
@@ -74,7 +74,7 @@ const other = await call('/login', { method: 'POST', body: { email, password: pw
 await pool.query('UPDATE sessions SET revoked_at = now() WHERE token_hash = $1', [crypto.createHash('sha256').update(l3.body.token).digest()]);
 revokedAt = performance.now();
 await new Promise((r) => setTimeout(r, 150)); run = false; await worker;
-check('revogacao sob carga: nenhuma requisicao INICIADA apos o UPDATE foi aceita', acceptedAfter === 0 && rejected > 0,
+check('revogacao durante sequencia de requisicoes (um worker): nenhuma requisicao INICIADA apos o UPDATE foi aceita', acceptedAfter === 0 && rejected > 0,
   `(${total} req, ${rejected} rejeitadas, ${acceptedAfter} aceitas apos revogar)`);
 void other;
 

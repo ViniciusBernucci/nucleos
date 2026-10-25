@@ -363,3 +363,32 @@ index 0000000..e76bb47
 +  });
 +}
 ```
+
+## Correção rodada 1 (commit 2 da tarefa)
+
+Diff de código do PoC desta rodada (somente comentário e rótulo do `check`, sem mudança de lógica). `saida-poc.txt` foi regenerada por `./run.sh` (saída de evidência, não patch). Alterações em `documentacoes/` (ADR, entrega) e `lessons/` excluídas por regra. Base do diff: HEAD `7d45e87`. Voltar: [entrega](2026-10-25-dec-002-autenticacao-adr-016.md).
+
+```diff
+diff --git a/documentacoes/arquitetura/poc/dec-002/poc.mjs b/documentacoes/arquitetura/poc/dec-002/poc.mjs
+index 2f60c4f..482cf86 100644
+--- a/documentacoes/arquitetura/poc/dec-002/poc.mjs
++++ b/documentacoes/arquitetura/poc/dec-002/poc.mjs
+@@ -60,7 +60,7 @@ const ra = await call('/revoke-all', { method: 'POST', token: tokenB });
+ const afterAll = await call('/me', { token: tokenB });
+ check('revoke-all: sessao B rejeitada na requisicao seguinte -> 401', ra.status === 200 && afterAll.status === 401, `(${ra.body.revoked} sessao(oes) revogada(s))`);
+ 
+-// Revogacao sob concorrencia: 200 requisicoes em voo; mede o instante da ultima aceita vs revogacao.
++// Revogacao durante sequencia de requisicoes: UM worker sequencial (nao ha concorrencia); mede o instante da ultima aceita vs revogacao.
+ const l3 = await call('/login', { method: 'POST', body: { email, password: pw, totp: totp(totpSecret) } });
+ let revokedAt = null, acceptedAfter = 0, rejected = 0, total = 0, run = true;
+ const worker = (async () => { while (run) {
+@@ -74,7 +74,7 @@ const other = await call('/login', { method: 'POST', body: { email, password: pw
+ await pool.query('UPDATE sessions SET revoked_at = now() WHERE token_hash = $1', [crypto.createHash('sha256').update(l3.body.token).digest()]);
+ revokedAt = performance.now();
+ await new Promise((r) => setTimeout(r, 150)); run = false; await worker;
+-check('revogacao sob carga: nenhuma requisicao INICIADA apos o UPDATE foi aceita', acceptedAfter === 0 && rejected > 0,
++check('revogacao durante sequencia de requisicoes (um worker): nenhuma requisicao INICIADA apos o UPDATE foi aceita', acceptedAfter === 0 && rejected > 0,
+   `(${total} req, ${rejected} rejeitadas, ${acceptedAfter} aceitas apos revogar)`);
+ void other;
+ 
+```
