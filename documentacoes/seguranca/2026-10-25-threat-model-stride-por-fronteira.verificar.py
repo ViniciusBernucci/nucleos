@@ -15,6 +15,7 @@ import sys
 MODEL = "documentacoes/seguranca/2026-10-25-threat-model-stride-por-fronteira.md"
 NON_TICKET = {"SEC", "RISK", "ADR", "AB"}
 TICKET_RE = re.compile(r"\b(?!(?:SEC|RISK|ADR|AB)-)([A-Z]{2,5})-(\d{3})(?:\.\.(\d{3}))?\b")
+THREAT_COLS = 8  # ID, STRIDE, Ameaca, Ativo, Controle do ADR, Controle novo, Ticket, SEC
 THREAT_RE = re.compile(r"^\| (T-F(\d+)-([STRIDE])(\d?)) \|")
 ANCHORS_FRONTIER = {
     "F13": ["PRV-008"],
@@ -128,6 +129,9 @@ def main(root):
                 fail(f"ID duplicado: {tid}")
             if f"F{m.group(2)}" != cur:
                 fail(f"{tid} fora da secao da sua fronteira ({cur})")
+            ncols = len(cells(l))
+            if ncols != THREAT_COLS:
+                fail(f"{tid}: {ncols} colunas em vez de {THREAT_COLS}")
             threats[tid] = l
             front_rows.setdefault(cur, []).append((m.group(3), l, tid))
 

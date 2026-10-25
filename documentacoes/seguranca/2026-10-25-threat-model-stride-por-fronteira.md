@@ -82,7 +82,7 @@ Legenda: S spoofing · T tampering · R repudiation · I information disclosure 
 | ID | STRIDE | Ameaça | Ativo | Controle do ADR | Controle novo | Ticket | SEC |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | T-F3-S | S | Runtime usa credencial do control DB | Control DB | Runtime sem acesso ao banco de controle (6.1, 7) | Credenciais distintas por serviço | IAM-002, DAT-005 | SEC-03 |
-| T-F3-T | T | Alteração de membership/política | Membership é a fonte do tenant (5.1) | Metadados mínimos (6.1.9) | Migrations por identidade própria; histórico imutável | IAM-002, IAM-006 | SEC-03 |
+| T-F3-T | T | Alteração de membership/política | A3 | Membership é a fonte do tenant (5.1) | Migrations por identidade própria; histórico imutável | IAM-002, IAM-006 | SEC-03 |
 | T-F3-R | R | Mudança administrativa sem autor | Auditoria | Acesso excepcional auditado (5.1) | Auditoria append-only | IAM-008, IAM-009 | SEC-13 |
 | T-F3-I | I | Cópia de dados privados para o control DB | A1 | Metadados mínimos (6.1.9) | Revisão de esquema contra dados privados | IAM-002, DEC-013 | SEC-03 |
 | T-F3-D | D | Consulta pesada trava o banco | Disponibilidade | — | Timeouts e pool por serviço | IAM-002 | SEC-18 |
