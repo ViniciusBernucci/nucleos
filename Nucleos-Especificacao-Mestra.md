@@ -5,6 +5,8 @@ Data de consolidação: 2026-09-22
 Responsável pelo produto: Vinícius  
 Finalidade: entrada autossuficiente para um agente elaborar épicos, funcionalidades, histórias, tarefas, dependências, sprints, validação e publicação do software.
 
+> **Nota de substituição (2026-10-25) — status: Substituída em parte.** A **stack tecnológica** descrita neste documento (.NET 10) foi substituída pelas decisões do [ADR de arquitetura de 2026-10-25](documentacoes/transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md) (NestJS/TypeScript, Python, React/Next.js; ver [ADR-004..006](documentacoes/arquitetura/adr/README.md)). O restante (visão de produto, domínio, requisitos funcionais e regras de negócio) permanece como insumo, sujeito à consolidação da segunda parte do planejamento. Nenhum conteúdo original foi apagado. Origem: tarefa FND-008; questões Q-01 e Q-07 do [README do backlog](documentacoes/backlog/README.md).
+
 > Este documento especifica trabalho a realizar. Não afirma que funcionalidades, integrações, testes ou infraestrutura já estejam implementados. O planejamento deve cobrir o produto completo; as etapas são marcos internos de construção, não uma redução para MVP.
 
 ## 1. Como usar e interpretar este documento
