@@ -1,6 +1,6 @@
 # Migracoes SQL forward-only no PostgreSQL (multi-database)
 
-Criada em 2026-10-25. Ultima atualizacao: 2026-10-25 (correcao rodada 1: exemplo autossuficiente e lint estatico). Exemplos: Node 24.22.1, `pg` 8.23.1, Python 3.13 e `psycopg` 3.3.4, PostgreSQL 16 com pgvector 0.8.7.
+Criada em 2026-10-25. Ultima atualizacao: 2026-10-25 (correcao rodada 2: lint por tokenizador e defesa xact_start). Exemplos: Node 24.22.1, `pg` 8.23.1, Python 3.13 e `psycopg` 3.3.4, PostgreSQL 16 com pgvector 0.8.7.
 
 ## Objetivo, pre-requisitos e posicao na trilha
 
@@ -65,7 +65,7 @@ Saida esperada: `[ { version: '0001', name: 'exemplo' } ]`. O exemplo ignora o q
 
 ## Padrao do projeto (da PoC)
 
-Veja `migrateTenant` e `migrateBatch` em [`runner.mjs`](../documentacoes/arquitetura/poc/dec-003/runner.mjs): `pg_try_advisory_lock` por database, uma conexao curta por tenant, checksum SHA-256, lote fail-fast e retomada pelo mesmo comando. `assertTransactional` rejeita, antes de executar, migrations com `BEGIN`/`COMMIT`/`END`/`ROLLBACK`/`SAVEPOINT`, `CONCURRENTLY` ou `VACUUM`: um `COMMIT` dentro do arquivo encerraria a transacao do runner e deixaria a migration meio aplicada e sem registro (o tenant ficaria preso). Limite: o lint e textual e nao enxerga SQL dinamico (`DO`/`EXECUTE`). Identificadores (nomes de banco) so por allowlist + `escapeIdentifier`; valores sempre por parametros (`$1`). No Python use `psycopg.sql.Identifier` para identificadores. Decisao e evidencias: [ADR-017](../documentacoes/arquitetura/adr/0017-acesso-a-dados-e-migrations-multi-database.md) e [entrega DEC-003](../documentacoes/dados/2026-10-25-dec-003-acesso-a-dados-e-migrations.md).
+Veja `migrateTenant` e `migrateBatch` em [`runner.mjs`](../documentacoes/arquitetura/poc/dec-003/runner.mjs): `pg_try_advisory_lock` por database, uma conexao curta por tenant, checksum SHA-256, lote fail-fast e retomada pelo mesmo comando. `assertTransactional` rejeita, antes de executar, migrations com `BEGIN`/`COMMIT`/`END`/`ROLLBACK`/`SAVEPOINT`, `CONCURRENTLY` ou `VACUUM`: um `COMMIT` dentro do arquivo encerraria a transacao do runner e deixaria a migration meio aplicada e sem registro (o tenant ficaria preso). Ele usa `stripSql`, um tokenizador de uma passada: uma regex em cadeia que remove comentarios antes dos literais erra, porque `SELECT '-- x'; COMMIT;` perderia o `COMMIT` junto com um falso comentario. O tokenizador varre da esquerda para a direita e o primeiro construto que abre manda: `--` ate o fim da linha, `/* */` aninhado (como o PostgreSQL), `'...'` (com `''`; `E'...'` tambem com `\`), `"..."` e `$tag$...$tag$` (so fora de identificador; `$1` e parametro). Construto nao terminado e rejeitado (fail-closed). Limites: assume `standard_conforming_strings=on`; nao enxerga SQL dinamico (`DO`/`EXECUTE`, `set_config`); coluna chamada `vacuum`/`concurrently` da falso positivo. Defesa em profundidade: o runner compara `xact_start` (`pg_stat_activity`) antes e depois do SQL e, se mudou, nao registra a versao; isso so detecta (o `COMMIT` interno ja ocorreu), a prevencao e o lint mais a revisao. Identificadores (nomes de banco) so por allowlist + `escapeIdentifier`; valores sempre por parametros (`$1`). No Python use `psycopg.sql.Identifier` para identificadores. Decisao e evidencias: [ADR-017](../documentacoes/arquitetura/adr/0017-acesso-a-dados-e-migrations-multi-database.md) e [entrega DEC-003](../documentacoes/dados/2026-10-25-dec-003-acesso-a-dados-e-migrations.md).
 
 ## Erros comuns e quando nao se aplica
 
@@ -73,6 +73,8 @@ Veja `migrateTenant` e `migrateBatch` em [`runner.mjs`](../documentacoes/arquite
 - Interpolar nome vindo de entrada externa em `CREATE DATABASE`/`SELECT ... FROM`.
 - Usar `CREATE INDEX CONCURRENTLY` ou `VACUUM` dentro da transacao do runner (nao funciona; o runner da PoC os rejeita; exigem fluxo proprio, fora de escopo).
 - Escrever `COMMIT`/`BEGIN` no arquivo da migration (rejeitado pelo lint do runner).
+- Tratar comentarios como removiveis por regex antes de literais: `'-- x'` e `$$--$$` contem `--` sem ser comentario (use um tokenizador de uma passada).
+- Confiar no lint contra SQL dinamico ou `standard_conforming_strings=off`: nao cobre; a revisao humana e o gate.
 - Advisory lock de sessao com pooler em modo transacao (o lock se perde).
 - Nao se aplica quando ha um unico banco pequeno e uma ferramenta pronta ja atende.
 

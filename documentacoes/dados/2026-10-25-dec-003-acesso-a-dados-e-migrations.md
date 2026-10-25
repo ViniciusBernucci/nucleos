@@ -6,7 +6,7 @@
 - **Tarefa:** DEC-003 do lote 2026-10-25-ep00-ep01-fundacao — [ENT-DEC-003](../backlog/EP-00-decisoes-pocs-e-threat-model/tickets.md#ent-dec-003)
 - **Branch:** `tarefa/dec-003`
 - **Base / commit inicial:** `4be3ce391a51b9e24cd85f7c894d841636dcd50f` (base informada pelo manifesto); `HEAD` inicial igual à base; árvore da worktree limpa
-- **Estado da entrega:** correção da rodada 1 aplicada (seção 11), pendente de revalidação independente. ADR-017 em status **Proposto**
+- **Estado da entrega:** correções das rodadas 1 (seção 11) e 2 (seção 12) aplicadas, pendentes de revalidação independente. ADR-017 em status **Proposto**
 - **Autores conhecidos:** Claude Sonnet 5.5 (executor); solicitante: Vinícius
 
 ## 2. Objetivo, contexto e escopo
@@ -35,7 +35,7 @@ Resultados (ver [saída completa](../arquitetura/poc/dec-003/evidencia/saida-poc
 | --- | --- | --- |
 | `documentacoes/arquitetura/adr/0017-acesso-a-dados-e-migrations-multi-database.md` | doc | ADR-017 (Proposto) |
 | `documentacoes/arquitetura/adr/README.md` | doc | linha ADR-017 no índice |
-| `documentacoes/arquitetura/poc/dec-003/run.sh`, `runner.mjs`, `poc.mjs` | código | PoC (rodada 1: `assertTransactional` no runner; cenário H e `assertDbName` em `provision()` no `poc.mjs`) |
+| `documentacoes/arquitetura/poc/dec-003/run.sh`, `runner.mjs`, `poc.mjs` | código | PoC (rodada 1: `assertTransactional` no runner; rodada 2: tokenizador `stripSql`, defesa `xact_start`, cenário H1b; cenário H e `assertDbName` em `provision()` no `poc.mjs`) |
 | `documentacoes/arquitetura/poc/dec-003/migrations/0001..0003*.up.sql` | migração | base, vetor+HNSW, tsvector+GIN |
 | `documentacoes/arquitetura/poc/dec-003/package.json`, `package-lock.json` | config | dependência única `pg` 8.23.1 |
 | `documentacoes/arquitetura/poc/dec-003/py/pyproject.toml`, `uv.lock`, `check_tenant.py` | config/código | `psycopg[binary]` 3.3.4 |
@@ -72,7 +72,8 @@ Não executado: `make lint/test/build` (a PoC não está nos workspaces; linters
 - Início: branch `tarefa/dec-003`, `HEAD` `4be3ce391a51b9e24cd85f7c894d841636dcd50f`, árvore limpa, base idem.
 - Commit inicial da tarefa, já existente: `45eb1465ee43fc27f8739edcbee19a64fe123932`, `docs(dados): ADR-017 e PoC de migrations multi-database (DEC-003)`.
 - Correção da rodada 1: um commit adicional (sem amend) em `tarefa/dec-003`, mensagem `fix(dados): lint de transacao no runner e exemplo executavel (DEC-003 rodada 1)`. Seu SHA não pode constar dentro do próprio commit; é informado no relatório de integração e conferível por `git log -2`.
-- Diffs de código, migrations e configuração (commit inicial e correção da rodada 1): [arquivo de diffs](2026-10-25-dec-003-acesso-a-dados-e-migrations-diffs.md). Lock files, evidência e documentos de registro não têm diff textual incluído (regra anti-recursão); estão listados na seção 4.
+- Correção da rodada 2: um segundo commit adicional (sem amend), mensagem `fix(dados): tokenizador no lint de transacao e defesa xact_start (DEC-003 rodada 2)`; SHA informado no relatório de integração (`git log -3`).
+- Diffs de código, migrations e configuração (commit inicial e correções das rodadas 1 e 2): [arquivo de diffs](2026-10-25-dec-003-acesso-a-dados-e-migrations-diffs.md). Lock files, evidência e documentos de registro não têm diff textual incluído (regra anti-recursão); estão listados na seção 4.
 
 ## 9. Lessons
 
@@ -97,3 +98,14 @@ Aplicadas somente as decisões APLICAR do auditor:
 - **Validação:** `run.sh` completo, Node v24.22.1, exit 0: todas as asserções (A–H) passaram, `check_tenant.py` OK em 2 bancos, container destruído (`docker ps -a --filter name=dec003` vazio). `saida-poc.txt` regenerada com essa execução (nesta execução: sequencial 1564 ms, concorrência 4 419 ms). Revalidação independente ainda pendente.
 - **Arquivos tocados:** `runner.mjs`, `poc.mjs`, `evidencia/saida-poc.txt`, ADR-017, procedimento, lesson 00, esta entrega e o arquivo de diffs. `lessons/README.md` não mudou (texto de pré-requisito está só na lesson).
 - **Lesson atualizada:** [00 - Migracoes SQL forward-only no PostgreSQL](../../lessons/00%20-%20Migracoes%20SQL%20forward-only%20no%20PostgreSQL.md).
+
+## 12. Correção rodada 2 (auditoria [2026-10-25-auditoria-r2-dec-003-dec-004](../reviews/2026-10-25-auditoria-r2-dec-003-dec-004.md), NOVO-003-A / REVIEW-001)
+
+Problema real: o lint da rodada 1 removia comentários por regex antes de literais, identificadores e dollar-quote. Cinco variantes (`'-- x'`, `'/*'`/`'*/'`, `"--"`, `$$--$$`, `E'\''`) escondiam um `COMMIT` e eram aprovadas; fim a fim, `b1` persistia e `schema_migrations` ficava vazia (reproduzido pelo auditor).
+
+- **Tokenizador de uma passada** (`stripSql` em `runner.mjs`, usado por `assertTransactional`): comentários `--` e `/* */` aninhados, `'...'` com `''` e, para `E'...'`, `\`; `"..."` com `""`; `$tag$...$tag$` só fora de identificador (`$1` não abre); literal, comentário ou dollar-quote não terminado lança erro (fail-closed). `SET standard_conforming_strings` é rejeitado.
+- **Defesa em profundidade:** `migrateTenant` lê `xact_start` de `pg_stat_activity` após o `BEGIN` e após o SQL; se mudou, lança erro e não registra a versão. **Só detecta**: o `COMMIT` interno já ocorreu (o teste confirma que `b1` permanece). Para testar, `migrateTenant` aceita a opção `lint` (injetável; padrão `assertTransactional`), usada apenas para contornar o lint no teste.
+- **Testes (`poc.mjs`, cenário H1b):** as cinco variantes, comentário aninhado `/* /* */ */ ;` e `SET standard_conforming_strings` rejeitados; fim a fim no Postgres, a variante `'-- x'` é rejeitada antes de executar, `b1` ausente e nenhuma versão registrada; casos legítimos (`/* /* */ COMMIT; */`, `E'a\'b; COMMIT'`, `'it''s; COMMIT'`, `$a$ COMMIT; $a$`, `"x"" COMMIT;"`, `foo$$bar`) não geram falso positivo; cinco construtos não terminados rejeitados; `xact_start` detecta o `COMMIT` interno com o lint contornado e a versão não é registrada. Os demais casos de H1/H2/H3 foram mantidos.
+- **Documentado, não corrigido:** `standard_conforming_strings=off` (por `set_config`/`ALTER ROLE`) e SQL dinâmico (`DO`/`EXECUTE`) fora do alcance do lint, gate é a revisão; falso positivo de `concurrently`/`vacuum` como nome de coluna mantido (decisão REJEITAR do auditor). ADR-017 segue **Proposto**; ADR, procedimento e lesson 00 atualizados (numeração da lesson não alterada).
+- **Validação:** `./run.sh` completo (Node v24.22.1, Docker descartável em 127.0.0.1, container destruído; `docker ps -a --filter name=dec003` vazio): exit 0, todas as asserções A–H e H1b passaram, `check_tenant.py` OK em 2 bancos. `evidencia/saida-poc.txt` regenerada. Não executado: `make lint/test/build` (não existem para a PoC). Revalidação independente (rodada 3, última) pendente.
+- **Arquivos tocados:** `runner.mjs`, `poc.mjs`, `evidencia/saida-poc.txt`, ADR-017, procedimento, lesson 00, esta entrega e o arquivo de diffs.

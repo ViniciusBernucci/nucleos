@@ -560,3 +560,177 @@ index 754ba7c..6b2ed2a 100644
    await client.connect();
    const applied = [];
 ```
+
+## Correção rodada 2 (commit adicional sobre `96b7bc4`)
+
+Diff real de `runner.mjs` e `poc.mjs` (NOVO-003-A). Excluídos por regra anti-recursão: `saida-poc.txt` regenerada, ADR, procedimento, lesson e entrega.
+
+```diff
+diff --git a/documentacoes/arquitetura/poc/dec-003/poc.mjs b/documentacoes/arquitetura/poc/dec-003/poc.mjs
+index d6ad839..9b4bdca 100644
+--- a/documentacoes/arquitetura/poc/dec-003/poc.mjs
++++ b/documentacoes/arquitetura/poc/dec-003/poc.mjs
+@@ -93,6 +93,42 @@ assert.ok(Object.values(afterResume).every((v) => v === '0001,0002,0003'));
+   }
+   // sem falso positivo: palavras em comentario, literal, corpo de funcao e CASE ... END
+   assertTransactional(mk('0001', 'ok', "-- COMMIT aqui e so comentario\nSELECT 'COMMIT; VACUUM', CASE WHEN true THEN 1 END; CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1; END $$"));
++  // NOVO-003-A (rodada 2): lint por tokenizador; as cinco variantes que escondiam COMMIT atras de literal/identificador/dollar-quote
++  const tail = ' COMMIT; CREATE TABLE b2(x int); SELECT 1/0;';
++  const evasoes = {
++    "literal com --": "CREATE TABLE b1(x int); SELECT '-- x';" + tail,
++    "literal com /* e */": "CREATE TABLE b1(x int); SELECT '/*';" + tail + " SELECT '*/'",
++    'identificador "--"': 'CREATE TABLE b1(x int); SELECT 1 AS "--";' + tail,
++    'dollar-quote com --': 'CREATE TABLE b1(x int); SELECT $$--$$;' + tail,
++    "E'\\'' (escape de aspa)": "CREATE TABLE b1(x int); SELECT E'\\'';" + tail,
++    'comentario aninhado fechado': 'CREATE TABLE b1(x int); /* /* */ */ ;' + tail,
++    'SET standard_conforming_strings': 'SET standard_conforming_strings = off',
++  };
++  for (const [nome, sql] of Object.entries(evasoes)) {
++    assert.throws(() => assertTransactional(mk('0001', 'evasao', sql)), /proibido|nao e suportado/, nome);
++  }
++  // fim a fim no Postgres: rejeitado ANTES de executar, b1 nunca criada, nenhuma versao registrada
++  await assert.rejects(() => migrateTenant(base, 'poc_tenant_neg', [mk('0001', 'evasao', evasoes['literal com --'])]), /controle de transacao proibido.*COMMIT/);
++  assert.equal(await tableExists('b1'), false);
++  assert.deepEqual(await appliedVersions(base, 'poc_tenant_neg'), []);
++  // comentarios (inclusive aninhados) e literais legitimos nao sao falso positivo; nao terminados sao rejeitados (fail-closed)
++  for (const ok of ['/* /* */ COMMIT; */ SELECT 1', "SELECT E'a\\'b; COMMIT'", "SELECT 'it''s; COMMIT'", 'SELECT $a$ COMMIT; $a$, $1', 'SELECT 1 AS "x"" COMMIT;"', 'SELECT 1 AS foo$$bar']) {
++    assertTransactional(mk('0001', 'ok', ok));
++  }
++  for (const bad of ["SELECT 'abc; COMMIT", 'SELECT "abc', 'SELECT 1 /* x /* y */', 'SELECT $$ abc', "SELECT E'abc\\'"]) {
++    assert.throws(() => assertTransactional(mk('0001', 'aberto', bad)), /nao terminado/, bad);
++  }
++  // defesa em profundidade (so detecta): com o lint contornado de proposito, COMMIT interno e detectado e a versao NAO e registrada
++  await assert.rejects(
++    () => migrateTenant(base, 'poc_tenant_neg', [mk('0001', 'escapou', 'CREATE TABLE b1(x int); COMMIT; CREATE TABLE b2(x int);')], { lint: () => {} }),
++    /encerrou ou reiniciou a transacao/,
++  );
++  assert.deepEqual(await appliedVersions(base, 'poc_tenant_neg'), [], 'versao nao registrada');
++  assert.equal(await tableExists('b1'), true, 'limite honesto: deteccao nao desfaz o COMMIT interno');
++  {
++    const c = connect(base, 'poc_tenant_neg'); await c.connect(); await c.query('DROP TABLE b1, b2'); await c.end(); // limpeza do estado parcial que a deteccao nao desfaz
++  }
++  log('[H1b] tokenizador: 5 evasoes + aninhado + SET standard_conforming_strings rejeitados (unit e fim a fim, b1 ausente); construtos nao terminados rejeitados; defesa xact_start detecta COMMIT interno e nao registra versao');
+   log('[H1] COMMIT/BEGIN/ROLLBACK/SAVEPOINT/END/CONCURRENTLY/VACUUM rejeitados antes de executar; comentarios, literais e corpos $$ nao geram falso positivo');
+   // H2: erro SQL real (divisao por zero) no 2o statement: rollback total, nada registrado, retomada com migration corrigida
+   const bad2 = mk('0001', 'erro_real', 'CREATE TABLE b1(x int); CREATE TABLE b2(x int); SELECT 1/0;');
+diff --git a/documentacoes/arquitetura/poc/dec-003/runner.mjs b/documentacoes/arquitetura/poc/dec-003/runner.mjs
+index 6b2ed2a..9bf97e9 100644
+--- a/documentacoes/arquitetura/poc/dec-003/runner.mjs
++++ b/documentacoes/arquitetura/poc/dec-003/runner.mjs
+@@ -30,24 +30,83 @@ export function loadMigrations(dir) {
+ }
+ 
+ const TX_CONTROL = /^(begin|start|commit|end|rollback|abort|savepoint|release|prepare)\b/i;
+-const NO_TX = /\b(concurrently|vacuum)\b/i;
++const NO_TX = /\b(concurrently|vacuum)\b/i; // falso positivo aceito: coluna chamada "concurrently"/"vacuum" tambem e rejeitada (falha visivel e barata)
++const SCS = /\bstandard_conforming_strings\b/i;
++const IDENT_CHAR = /[A-Za-z0-9_$\u0080-￿]/;
++const DOLLAR_TAG = /^\$(?:[A-Za-z_\u0080-￿][A-Za-z0-9_\u0080-￿]*)?\$/;
++
++/**
++ * Tokenizador de UMA passada (estado unico, na ordem de aparicao, como o servidor): devolve o SQL com comentarios
++ * trocados por espaco, literais por '' e identificadores entre aspas por "". Fail-closed: literal, comentario
++ * ou dollar-quote nao terminado lanca erro. Assume standard_conforming_strings=on (padrao): em '...' a barra
++ * invertida e comum; so E'...' trata \ como escape.
++ */
++export function stripSql(sql, file = 'migration') {
++  const n = sql.length;
++  let out = '';
++  let i = 0;
++  const unterminated = (what) => { throw new Error(`${file}: ${what} nao terminado; migration rejeitada pelo lint`); };
++  while (i < n) {
++    const c = sql[i];
++    const next = sql[i + 1];
++    if (c === '-' && next === '-') {
++      while (i < n && sql[i] !== '\n') i++;
++      out += ' ';
++    } else if (c === '/' && next === '*') {
++      let depth = 1;
++      i += 2;
++      while (depth > 0) {
++        if (i >= n) unterminated('comentario /* */');
++        if (sql[i] === '/' && sql[i + 1] === '*') { depth++; i += 2; } else if (sql[i] === '*' && sql[i + 1] === '/') { depth--; i += 2; } else i++;
++      }
++      out += ' ';
++    } else if (c === "'") {
++      // E'...' (prefixo E/e que nao faz parte de um identificador maior) aceita \ como escape
++      const escapes = /^[eE]$/.test(sql[i - 1] ?? '') && !IDENT_CHAR.test(sql[i - 2] ?? ' ');
++      i++;
++      for (;;) {
++        if (i >= n) unterminated("literal '...'");
++        if (escapes && sql[i] === '\\') i += 2;
++        else if (sql[i] === "'" && sql[i + 1] === "'") i += 2;
++        else if (sql[i] === "'") { i++; break; } else i++;
++      }
++      out += "''";
++    } else if (c === '"') {
++      i++;
++      for (;;) {
++        if (i >= n) unterminated('identificador "..."');
++        if (sql[i] === '"' && sql[i + 1] === '"') i += 2;
++        else if (sql[i] === '"') { i++; break; } else i++;
++      }
++      out += '""';
++    } else if (c === '$' && !IDENT_CHAR.test(sql[i - 1] ?? ' ')) {
++      const tag = DOLLAR_TAG.exec(sql.slice(i, i + 80))?.[0]; // $1 (parametro) nao casa: exige $tag$ ou $$
++      if (!tag) { out += c; i++; continue; }
++      const end = sql.indexOf(tag, i + tag.length);
++      if (end < 0) unterminated(`dollar-quote ${tag}`);
++      i = end + tag.length;
++      out += "''";
++    } else {
++      out += c;
++      i++;
++    }
++  }
++  return out;
++}
+ 
+ /**
+  * Lint estatico: o runner envolve cada migration em BEGIN/COMMIT; SQL que controla transacao ou que nao roda
+  * dentro de uma (CONCURRENTLY, VACUUM) quebraria a atomicidade e e rejeitado ANTES de executar. Sem escape.
+- * Limite: e textual; nao enxerga SQL dinamico (DO/EXECUTE); a revisao da migration continua sendo gate.
++ * Limites: e textual; nao enxerga SQL dinamico (DO/EXECUTE, set_config) nem standard_conforming_strings=off
++ * (o SET literal e rejeitado, mas nao uma troca por set_config/ALTER ROLE); a revisao da migration continua sendo gate.
+  */
+ export function assertTransactional(m) {
+-  const text = m.sql
+-    .replace(/--[^\n]*/g, ' ')
+-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+-    .replace(/\$([A-Za-z_]\w*)?\$[\s\S]*?\$\1\$/g, ' ')
+-    .replace(/'(?:[^']|'')*'/g, "''")
+-    .replace(/"(?:[^"]|"")*"/g, '""');
++  const text = stripSql(m.sql, m.file);
+   for (const stmt of text.split(';')) {
+     const t = stmt.trim();
+     if (TX_CONTROL.test(t)) throw new Error(`${m.file}: controle de transacao proibido na migration (${t.split(/\s+/)[0].toUpperCase()}); o runner ja envolve cada migration em transacao`);
+     if (NO_TX.test(t)) throw new Error(`${m.file}: comando que nao roda dentro de transacao (${t.match(NO_TX)[1].toUpperCase()}) nao e suportado pelo runner`);
++    if (SCS.test(t)) throw new Error(`${m.file}: alterar standard_conforming_strings e proibido (o lint assume o padrao 'on')`);
+   }
+ }
+ 
+@@ -66,9 +125,9 @@ async function acquireLock(client, timeoutMs) {
+ }
+ 
+ /** Migra UM tenant. Retorna { applied: [...], skipped: n, ms }. Cada migration = 1 transacao (SQL + registro). */
+-export async function migrateTenant(base, database, migrations, { failAfter, lockTimeoutMs = 10000, holdMs = 0 } = {}) {
++export async function migrateTenant(base, database, migrations, { failAfter, lockTimeoutMs = 10000, holdMs = 0, lint = assertTransactional } = {}) {
+   const t0 = performance.now();
+-  for (const m of migrations) assertTransactional(m); // antes de abrir conexao ou executar qualquer SQL
++  for (const m of migrations) lint(m); // antes de abrir conexao ou executar SQL; `lint` e injetavel so para testar a defesa em profundidade
+   const client = connect(base, database);
+   await client.connect();
+   const applied = [];
+@@ -89,7 +148,11 @@ export async function migrateTenant(base, database, migrations, { failAfter, loc
+       const s0 = performance.now();
+       await client.query('BEGIN');
+       try {
++        const xactStart = () => client.query('SELECT xact_start::text AS t FROM pg_stat_activity WHERE pid = pg_backend_pid()').then((r) => r.rows[0].t);
++        const before = await xactStart();
+         await client.query(m.sql);
++        // Defesa em profundidade: so DETECTA (o COMMIT interno ja ocorreu); nao registra a versao se a transacao mudou.
++        if ((await xactStart()) !== before) throw new Error(`${database}: migration ${m.file} encerrou ou reiniciou a transacao; versao nao registrada (estado parcial possivel: investigar)`);
+         if (holdMs) await new Promise((res) => setTimeout(res, holdMs));
+         if (failAfter === m.version) throw new Error(`falha induzida em ${database} apos ${m.file}`);
+         await client.query(
+```
