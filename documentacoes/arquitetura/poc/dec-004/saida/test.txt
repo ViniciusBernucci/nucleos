@@ -1,0 +1,29 @@
+
+> poc-dec-004-identidade-de-servico@0.0.0 test
+> node --test test/*.test.mjs
+
+✔ caminho feliz: enrollment, emissao e validacao local (14.206445ms)
+✔ enrollment: segredo de uso unico, expiravel e sem chave privada na mensagem (3.615348ms)
+✔ NEGATIVO: token expirado (alem da tolerancia de 30 s) (3.101ms)
+✔ NEGATIVO: audiencia errada (token do gateway de IA nao vale no tool-gateway) (3.030627ms)
+✔ NEGATIVO: tenant adulterado no payload (assinatura nao confere) (2.104185ms)
+✔ NEGATIVO: token valido de A apresentado em contexto de B (SEC-07) (1.883197ms)
+✔ NEGATIVO: claims sub e tenant_id divergentes, assinados pela chave real (1.472733ms)
+✔ NEGATIVO: versao de credencial revogada; B nao e afetado (SEC-15) (5.974392ms)
+✔ NEGATIVO: replay de jti (dispatcher e uso unico; CP rejeita client_assertion repetida) (4.291082ms)
+✔ NEGATIVO: escopo nao permitido na emissao e ausente na validacao (2.461118ms)
+✔ NEGATIVO: forjados (alg none, HS256, chave propria, kid desconhecido, lixo) (3.175313ms)
+✔ NEGATIVO: TTL acima do maximo e iat no futuro (1.478412ms)
+✔ ROTACAO sem downtime com duas chaves (JWKS com kid) (5.677542ms)
+✔ ROTACAO: validador que ainda nao atualizou o JWKS faz refresh limitado por kid desconhecido (4.902224ms)
+✔ REVOGACAO DE EMERGENCIA da chave de assinatura: tokens da chave comprometida caem na hora (4.054004ms)
+✔ REVOGACAO pontual de jti (5.461584ms)
+✔ VALIDACAO LOCAL: nenhuma chamada de rede por requisicao (295.312548ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 934.723888

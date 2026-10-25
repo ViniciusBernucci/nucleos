@@ -1,0 +1,28 @@
+== 1. Caminho feliz
+  ACEITO    token valido de A no tool-gateway
+== 2. Casos negativos
+  REJEITADO tenant adulterado no payload -> bad_signature
+  REJEITADO token de A em contexto de B -> tenant_mismatch
+  REJEITADO audiencia errada (ai-gateway no tool-gateway) -> bad_audience
+  REJEITADO expirado (331 s apos emissao) -> expired
+  REJEITADO versao revogada (ver 1 < min 2) -> version_revoked
+  ACEITO    B continua valido apos revogar A (SEC-15)
+  ACEITO    dispatcher: 1o uso do token
+  REJEITADO dispatcher: replay do mesmo jti -> replay
+  REJEITADO assinado por chave do atacante -> bad_signature
+== 3. Rotacao sem downtime (duas chaves ativas no JWKS)
+  chave ativa: cp-ra1_t-HR
+  publicada cp-NAMPSfC8; JWKS = [cp-ra1_t-HR,cp-NAMPSfC8]
+  ativada cp-NAMPSfC8; novo token kid=cp-NAMPSfC8
+  ACEITO    token antigo (k1) durante a sobreposicao
+  ACEITO    token novo (k2)
+  k1 aposentada apos TTL+skew; JWKS = [cp-NAMPSfC8]
+  REJEITADO token antigo (k1) apos aposentadoria -> unknown_kid
+  ACEITO    token novo emitido apos aposentadoria
+== 4. Revogacao de emergencia da chave de assinatura
+  ACEITO    token vivo antes da revogacao
+  chave cp-NAMPSfC8 revogada; nova ativa cp-5wDqZMfA; JWKS = [cp-5wDqZMfA]
+  REJEITADO mesmo token vivo apos revogacao -> unknown_kid
+  ACEITO    runtime B reemite e volta a operar (sem novo enrollment)
+
+chamadas de rede do tool-gateway ao CP (refresh/poll) em toda a demo: 6

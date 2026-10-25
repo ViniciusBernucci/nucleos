@@ -1,0 +1,5 @@
+node v24.22.1 | AMD EPYC Processor (with IBPB) | 4 vCPU | N=20000
+validate (tool-gateway, reutilizavel)          p50=231.0us p95=631.0us p99=5391.0us media=418.7us
+chamadas de rede durante a medicao: 0
+validate (dispatcher, uso unico + cache jti)   p50=420.6us p95=1681.0us p99=8700.9us media=721.2us
+emissao no CP (assinar token + verificar assertion) p50=1086.2us p95=11550.3us p99=31582.4us media=2892.5us

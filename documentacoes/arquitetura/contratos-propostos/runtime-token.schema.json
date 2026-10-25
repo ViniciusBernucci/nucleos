@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nucleos.invalid/contratos-propostos/runtime-token.schema.json",
+  "title": "PROPOSTO (ADR-018) - Claims do token de servico do runtime",
+  "description": "PROPOSTA. Nao e contrato vigente: o pacote packages/contracts pertence a FND-003 e so adota este esquema apos aceite humano do ADR-018. JWT EdDSA (Ed25519), vida curta, emitido pelo Control Plane.",
+  "$defs": {
+    "uuid": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$" },
+    "audience": { "enum": ["dispatcher", "tool-gateway", "ai-gateway"] },
+    "header": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["alg", "typ", "kid"],
+      "properties": {
+        "alg": { "const": "EdDSA" },
+        "typ": { "const": "nucleos-runtime+jwt" },
+        "kid": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9_-]+$" }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["iss", "sub", "aud", "scope", "tenant_id", "jti", "iat", "exp", "ver"],
+      "properties": {
+        "iss": { "const": "nucleos-control-plane" },
+        "sub": { "type": "string", "pattern": "^runtime:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", "description": "runtime:<tenant_id>; deve ser igual a runtime: + tenant_id (checagem semantica no validador)" },
+        "aud": { "$ref": "#/$defs/audience", "description": "Uma unica audiencia por token; sem array." },
+        "scope": { "type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*:[a-z][a-z0-9_.-]*$" } },
+        "tenant_id": { "$ref": "#/$defs/uuid" },
+        "jti": { "type": "string", "minLength": 16, "maxLength": 64, "pattern": "^[A-Za-z0-9_-]+$" },
+        "iat": { "type": "integer", "minimum": 0 },
+        "exp": { "type": "integer", "minimum": 0, "description": "exp - iat <= 600 (checagem semantica: TTL maximo 10 min; padrao 300 s)" },
+        "ver": { "type": "integer", "minimum": 1, "description": "Versao da credencial do runtime; rejeitada se < ver_minima do tenant." }
+      }
+    }
+  },
+  "type": "object",
+  "required": ["header", "claims"],
+  "additionalProperties": false,
+  "properties": {
+    "header": { "$ref": "#/$defs/header" },
+    "claims": { "$ref": "#/$defs/claims" }
+  }
+}
