@@ -7,13 +7,13 @@ Complemento do [ADR-017](../arquitetura/adr/0017-acesso-a-dados-e-migrations-mul
 1. Crie `migrations/NNNN_descricao_curta.up.sql` com o próximo número livre (4 dígitos, minúsculas, `_`). Nunca reutilize número nem renomeie um arquivo já mesclado.
 2. Escreva SQL compatível com o código **anterior** (expand): colunas novas nulas ou com default, tabelas novas, índices. Remoções e mudanças incompatíveis só em migration posterior (contract), após a versão nova do código estar em todos os runtimes.
 3. Siga as convenções: `uuid` PK, `timestamptz`, `numeric` para dinheiro/custo, `text` + `CHECK` para enums, `snake_case`, sem `tenant_id` redundante.
-4. Não use `BEGIN/COMMIT` no arquivo (o runner envolve cada migration em transação) e não coloque segredos, nomes de tenant ou dados reais.
+4. Não use `BEGIN`/`COMMIT`/`END`/`ROLLBACK`/`SAVEPOINT`, `CONCURRENTLY` nem `VACUUM` no arquivo: o runner envolve cada migration em transação e **rejeita esses comandos antes de executar** (lint textual; não vê SQL dinâmico em `DO`/`EXECUTE`, então a revisão da migration segue sendo obrigatória). Não coloque segredos, nomes de tenant ou dados reais.
 5. Teste em banco descartável: `documentacoes/arquitetura/poc/dec-003/run.sh` aplica o conjunto a 20 bancos. A migration deve passar duas vezes seguidas (a segunda não aplica nada).
 6. Nunca edite uma migration já aplicada: o checksum SHA-256 diverge e o runner aborta (`checksum divergente`).
 
 ## O que acontece numa falha
 
-Cada migration roda em uma transação junto com seu registro em `schema_migrations`. Falhou, reverte inteira: o banco fica na última versão registrada. O lote para no primeiro erro, não toca os bancos seguintes e lista falhas e não iniciados. Após corrigir a causa, rode o **mesmo comando**: bancos concluídos são pulados, o banco falho continua da migration pendente (PoC: banco 12 reaplicou 0002 e 0003; os demais bancos terminaram).
+Cada migration roda em uma transação junto com seu registro em `schema_migrations`. Falhou (erro SQL real ou falha induzida), reverte inteira: o banco fica na última versão registrada. Isso vale porque o lint estático impede que a migration encerre a transação por conta própria (um `COMMIT` interno deixaria a migration meio aplicada e sem registro). O lote para no primeiro erro, não toca os bancos seguintes e lista falhas e não iniciados. Após corrigir a causa, rode o **mesmo comando**: bancos concluídos são pulados, o banco falho continua da migration pendente (PoC: banco 12 reaplicou 0002 e 0003; os demais bancos terminaram).
 
 ## Reverter por roll-forward
 

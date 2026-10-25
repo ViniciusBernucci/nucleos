@@ -29,6 +29,28 @@ export function loadMigrations(dir) {
     });
 }
 
+const TX_CONTROL = /^(begin|start|commit|end|rollback|abort|savepoint|release|prepare)\b/i;
+const NO_TX = /\b(concurrently|vacuum)\b/i;
+
+/**
+ * Lint estatico: o runner envolve cada migration em BEGIN/COMMIT; SQL que controla transacao ou que nao roda
+ * dentro de uma (CONCURRENTLY, VACUUM) quebraria a atomicidade e e rejeitado ANTES de executar. Sem escape.
+ * Limite: e textual; nao enxerga SQL dinamico (DO/EXECUTE); a revisao da migration continua sendo gate.
+ */
+export function assertTransactional(m) {
+  const text = m.sql
+    .replace(/--[^\n]*/g, ' ')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\$([A-Za-z_]\w*)?\$[\s\S]*?\$\1\$/g, ' ')
+    .replace(/'(?:[^']|'')*'/g, "''")
+    .replace(/"(?:[^"]|"")*"/g, '""');
+  for (const stmt of text.split(';')) {
+    const t = stmt.trim();
+    if (TX_CONTROL.test(t)) throw new Error(`${m.file}: controle de transacao proibido na migration (${t.split(/\s+/)[0].toUpperCase()}); o runner ja envolve cada migration em transacao`);
+    if (NO_TX.test(t)) throw new Error(`${m.file}: comando que nao roda dentro de transacao (${t.match(NO_TX)[1].toUpperCase()}) nao e suportado pelo runner`);
+  }
+}
+
 export function connect(base, database) {
   return new Client({ ...base, database: assertDbName(database) });
 }
@@ -46,6 +68,7 @@ async function acquireLock(client, timeoutMs) {
 /** Migra UM tenant. Retorna { applied: [...], skipped: n, ms }. Cada migration = 1 transacao (SQL + registro). */
 export async function migrateTenant(base, database, migrations, { failAfter, lockTimeoutMs = 10000, holdMs = 0 } = {}) {
   const t0 = performance.now();
+  for (const m of migrations) assertTransactional(m); // antes de abrir conexao ou executar qualquer SQL
   const client = connect(base, database);
   await client.connect();
   const applied = [];

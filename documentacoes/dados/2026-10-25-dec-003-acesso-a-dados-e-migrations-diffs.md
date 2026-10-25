@@ -1,6 +1,6 @@
 # DEC-003 diffs — 2026-10-25
 
-Diffs da tarefa (PoC: código, migrations e configuração). Entrega: [DEC-003](2026-10-25-dec-003-acesso-a-dados-e-migrations.md). Excluídos por regra: `documentacoes/` de registro e `lessons/`, `saida-poc.txt`, `schema-snapshot.json` e os lock files (hashes na entrega). Nenhum commit existe ainda; o commit único da tarefa contém exatamente estes arquivos mais os documentos listados na entrega.
+Diffs da tarefa (PoC: código, migrations e configuração). Entrega: [DEC-003](2026-10-25-dec-003-acesso-a-dados-e-migrations.md). Excluídos por regra: `documentacoes/` de registro e `lessons/`, `saida-poc.txt`, `schema-snapshot.json` e os lock files (hashes na entrega). Os diffs abaixo (até a seção Correção rodada 1) correspondem ao commit inicial da tarefa (`45eb146`, `docs(dados): ADR-017 e PoC de migrations multi-database (DEC-003)`), que contém exatamente estes arquivos mais os documentos listados na entrega; o SHA não pode constar dentro do próprio commit e é informado no relatório de integração (conferível por `git log`). A correção da rodada 1 é um commit adicional, com o diff real ao final deste arquivo.
 
 ```diff
 diff --git a/documentacoes/arquitetura/poc/dec-003/migrations/0001_base.up.sql b/documentacoes/arquitetura/poc/dec-003/migrations/0001_base.up.sql
@@ -445,4 +445,118 @@ index 0000000..754ba7c
 +    await c.end();
 +  }
 +}
+```
+
+## Correção rodada 1 (commit adicional sobre `45eb146`)
+
+Diff real de código e testes da correção (REVIEW-001, REVIEW-003a da auditoria). Excluídos por regra: `saida-poc.txt` regenerada, lesson, ADR, procedimento e entrega (listados na entrega, seção 11).
+
+```diff
+diff --git a/documentacoes/arquitetura/poc/dec-003/poc.mjs b/documentacoes/arquitetura/poc/dec-003/poc.mjs
+index 7918983..d6ad839 100644
+--- a/documentacoes/arquitetura/poc/dec-003/poc.mjs
++++ b/documentacoes/arquitetura/poc/dec-003/poc.mjs
+@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
+ import { writeFileSync } from 'node:fs';
+ import { randomUUID } from 'node:crypto';
+ import pg from 'pg';
+-import { appliedVersions, connect, loadMigrations, migrateBatch, migrateTenant } from './runner.mjs';
++import { appliedVersions, assertDbName, assertTransactional, connect, loadMigrations, migrateBatch, migrateTenant } from './runner.mjs';
+ 
+ const base = { host: process.env.PGHOST, port: Number(process.env.PGPORT), user: process.env.PGUSER, password: process.env.PGPASSWORD };
+ assert.equal(base.host, '127.0.0.1', 'PoC so roda contra 127.0.0.1');
+@@ -22,7 +22,7 @@ async function admin(fn) {
+ async function provision(names) {
+   await admin(async (c) => {
+     for (const n of names) {
+-      const id = c.escapeIdentifier(n);
++      const id = c.escapeIdentifier(assertDbName(n));
+       await c.query(`DROP DATABASE IF EXISTS ${id} WITH (FORCE)`);
+       await c.query(`CREATE DATABASE ${id}`);
+     }
+@@ -72,6 +72,43 @@ assert.deepEqual(r12.applied, ['0002', '0003']);
+ assert.deepEqual(r11.applied, []);
+ assert.ok(Object.values(afterResume).every((v) => v === '0001,0002,0003'));
+ 
++// ---- Cenario H: garantia de atomicidade (REVIEW-001/003a da auditoria DEC-003) ----
++{
++  await provision(['poc_tenant_neg']);
++  const mk = (version, name, sql) => ({ version, name, file: `${version}_${name}.up.sql`, sql, checksum: String(version).padEnd(64, '0') });
++  const tableExists = async (t) => {
++    const c = connect(base, 'poc_tenant_neg'); await c.connect();
++    const r = await c.query('SELECT to_regclass($1) AS t', [t]); await c.end();
++    return r.rows[0].t !== null;
++  };
++  // H1: COMMIT interno rejeitado antes de executar: nada criado, nenhuma versao registrada
++  await assert.rejects(
++    () => migrateTenant(base, 'poc_tenant_neg', [mk('0001', 'commit_interno', 'CREATE TABLE b1(x int); COMMIT; CREATE TABLE b2(x int);')]),
++    /controle de transacao proibido.*COMMIT/,
++  );
++  assert.equal(await tableExists('b1'), false);
++  assert.deepEqual(await appliedVersions(base, 'poc_tenant_neg'), []);
++  for (const bad of ['BEGIN; SELECT 1', 'ROLLBACK', 'SAVEPOINT s1', 'END', 'CREATE INDEX CONCURRENTLY i ON t(x)', 'VACUUM']) {
++    await assert.rejects(() => migrateTenant(base, 'poc_tenant_neg', [mk('0001', 'ruim', bad)]), /proibido|nao roda dentro|nao e suportado/, bad);
++  }
++  // sem falso positivo: palavras em comentario, literal, corpo de funcao e CASE ... END
++  assertTransactional(mk('0001', 'ok', "-- COMMIT aqui e so comentario\nSELECT 'COMMIT; VACUUM', CASE WHEN true THEN 1 END; CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1; END $$"));
++  log('[H1] COMMIT/BEGIN/ROLLBACK/SAVEPOINT/END/CONCURRENTLY/VACUUM rejeitados antes de executar; comentarios, literais e corpos $$ nao geram falso positivo');
++  // H2: erro SQL real (divisao por zero) no 2o statement: rollback total, nada registrado, retomada com migration corrigida
++  const bad2 = mk('0001', 'erro_real', 'CREATE TABLE b1(x int); CREATE TABLE b2(x int); SELECT 1/0;');
++  await assert.rejects(() => migrateTenant(base, 'poc_tenant_neg', [bad2]), /division by zero/);
++  assert.equal(await tableExists('b1'), false);
++  assert.equal(await tableExists('b2'), false);
++  assert.deepEqual(await appliedVersions(base, 'poc_tenant_neg'), []);
++  const fixed = mk('0001', 'erro_real', 'CREATE TABLE b1(x int); CREATE TABLE b2(x int);');
++  assert.deepEqual((await migrateTenant(base, 'poc_tenant_neg', [fixed])).applied, ['0001']);
++  assert.equal(await tableExists('b2'), true);
++  log('[H2] erro SQL real no 2o statement: rollback total (b1 e b2 ausentes, nenhuma versao registrada); retomada com a migration corrigida aplicou 0001');
++  // H3: provisioner recusa nome fora da allowlist antes de qualquer SQL
++  await assert.rejects(() => provision(['x"; DROP DATABASE postgres; --']), /nome de database invalido/);
++  log('[H3] provision() rejeita nome fora da allowlist antes de qualquer SQL');
++}
++
+ // ---- Cenario B: idempotencia ----
+ const b = await migrateBatch(base, dbs, migrations, { concurrency: 1 });
+ log(`\n[B] reexecucao idempotente: tempo=${ms(b.ms)} aplicadas=${b.results.reduce((s, r) => s + r.applied.length, 0)}`);
+diff --git a/documentacoes/arquitetura/poc/dec-003/runner.mjs b/documentacoes/arquitetura/poc/dec-003/runner.mjs
+index 754ba7c..6b2ed2a 100644
+--- a/documentacoes/arquitetura/poc/dec-003/runner.mjs
++++ b/documentacoes/arquitetura/poc/dec-003/runner.mjs
+@@ -29,6 +29,28 @@ export function loadMigrations(dir) {
+     });
+ }
+ 
++const TX_CONTROL = /^(begin|start|commit|end|rollback|abort|savepoint|release|prepare)\b/i;
++const NO_TX = /\b(concurrently|vacuum)\b/i;
++
++/**
++ * Lint estatico: o runner envolve cada migration em BEGIN/COMMIT; SQL que controla transacao ou que nao roda
++ * dentro de uma (CONCURRENTLY, VACUUM) quebraria a atomicidade e e rejeitado ANTES de executar. Sem escape.
++ * Limite: e textual; nao enxerga SQL dinamico (DO/EXECUTE); a revisao da migration continua sendo gate.
++ */
++export function assertTransactional(m) {
++  const text = m.sql
++    .replace(/--[^\n]*/g, ' ')
++    .replace(/\/\*[\s\S]*?\*\//g, ' ')
++    .replace(/\$([A-Za-z_]\w*)?\$[\s\S]*?\$\1\$/g, ' ')
++    .replace(/'(?:[^']|'')*'/g, "''")
++    .replace(/"(?:[^"]|"")*"/g, '""');
++  for (const stmt of text.split(';')) {
++    const t = stmt.trim();
++    if (TX_CONTROL.test(t)) throw new Error(`${m.file}: controle de transacao proibido na migration (${t.split(/\s+/)[0].toUpperCase()}); o runner ja envolve cada migration em transacao`);
++    if (NO_TX.test(t)) throw new Error(`${m.file}: comando que nao roda dentro de transacao (${t.match(NO_TX)[1].toUpperCase()}) nao e suportado pelo runner`);
++  }
++}
++
+ export function connect(base, database) {
+   return new Client({ ...base, database: assertDbName(database) });
+ }
+@@ -46,6 +68,7 @@ async function acquireLock(client, timeoutMs) {
+ /** Migra UM tenant. Retorna { applied: [...], skipped: n, ms }. Cada migration = 1 transacao (SQL + registro). */
+ export async function migrateTenant(base, database, migrations, { failAfter, lockTimeoutMs = 10000, holdMs = 0 } = {}) {
+   const t0 = performance.now();
++  for (const m of migrations) assertTransactional(m); // antes de abrir conexao ou executar qualquer SQL
+   const client = connect(base, database);
+   await client.connect();
+   const applied = [];
 ```

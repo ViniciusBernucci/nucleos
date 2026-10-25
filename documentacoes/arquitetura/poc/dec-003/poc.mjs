@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import pg from 'pg';
-import { appliedVersions, connect, loadMigrations, migrateBatch, migrateTenant } from './runner.mjs';
+import { appliedVersions, assertDbName, assertTransactional, connect, loadMigrations, migrateBatch, migrateTenant } from './runner.mjs';
 
 const base = { host: process.env.PGHOST, port: Number(process.env.PGPORT), user: process.env.PGUSER, password: process.env.PGPASSWORD };
 assert.equal(base.host, '127.0.0.1', 'PoC so roda contra 127.0.0.1');
@@ -22,7 +22,7 @@ async function admin(fn) {
 async function provision(names) {
   await admin(async (c) => {
     for (const n of names) {
-      const id = c.escapeIdentifier(n);
+      const id = c.escapeIdentifier(assertDbName(n));
       await c.query(`DROP DATABASE IF EXISTS ${id} WITH (FORCE)`);
       await c.query(`CREATE DATABASE ${id}`);
     }
@@ -71,6 +71,43 @@ log(summarize(afterResume));
 assert.deepEqual(r12.applied, ['0002', '0003']);
 assert.deepEqual(r11.applied, []);
 assert.ok(Object.values(afterResume).every((v) => v === '0001,0002,0003'));
+
+// ---- Cenario H: garantia de atomicidade (REVIEW-001/003a da auditoria DEC-003) ----
+{
+  await provision(['poc_tenant_neg']);
+  const mk = (version, name, sql) => ({ version, name, file: `${version}_${name}.up.sql`, sql, checksum: String(version).padEnd(64, '0') });
+  const tableExists = async (t) => {
+    const c = connect(base, 'poc_tenant_neg'); await c.connect();
+    const r = await c.query('SELECT to_regclass($1) AS t', [t]); await c.end();
+    return r.rows[0].t !== null;
+  };
+  // H1: COMMIT interno rejeitado antes de executar: nada criado, nenhuma versao registrada
+  await assert.rejects(
+    () => migrateTenant(base, 'poc_tenant_neg', [mk('0001', 'commit_interno', 'CREATE TABLE b1(x int); COMMIT; CREATE TABLE b2(x int);')]),
+    /controle de transacao proibido.*COMMIT/,
+  );
+  assert.equal(await tableExists('b1'), false);
+  assert.deepEqual(await appliedVersions(base, 'poc_tenant_neg'), []);
+  for (const bad of ['BEGIN; SELECT 1', 'ROLLBACK', 'SAVEPOINT s1', 'END', 'CREATE INDEX CONCURRENTLY i ON t(x)', 'VACUUM']) {
+    await assert.rejects(() => migrateTenant(base, 'poc_tenant_neg', [mk('0001', 'ruim', bad)]), /proibido|nao roda dentro|nao e suportado/, bad);
+  }
+  // sem falso positivo: palavras em comentario, literal, corpo de funcao e CASE ... END
+  assertTransactional(mk('0001', 'ok', "-- COMMIT aqui e so comentario\nSELECT 'COMMIT; VACUUM', CASE WHEN true THEN 1 END; CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN 1; END $$"));
+  log('[H1] COMMIT/BEGIN/ROLLBACK/SAVEPOINT/END/CONCURRENTLY/VACUUM rejeitados antes de executar; comentarios, literais e corpos $$ nao geram falso positivo');
+  // H2: erro SQL real (divisao por zero) no 2o statement: rollback total, nada registrado, retomada com migration corrigida
+  const bad2 = mk('0001', 'erro_real', 'CREATE TABLE b1(x int); CREATE TABLE b2(x int); SELECT 1/0;');
+  await assert.rejects(() => migrateTenant(base, 'poc_tenant_neg', [bad2]), /division by zero/);
+  assert.equal(await tableExists('b1'), false);
+  assert.equal(await tableExists('b2'), false);
+  assert.deepEqual(await appliedVersions(base, 'poc_tenant_neg'), []);
+  const fixed = mk('0001', 'erro_real', 'CREATE TABLE b1(x int); CREATE TABLE b2(x int);');
+  assert.deepEqual((await migrateTenant(base, 'poc_tenant_neg', [fixed])).applied, ['0001']);
+  assert.equal(await tableExists('b2'), true);
+  log('[H2] erro SQL real no 2o statement: rollback total (b1 e b2 ausentes, nenhuma versao registrada); retomada com a migration corrigida aplicou 0001');
+  // H3: provisioner recusa nome fora da allowlist antes de qualquer SQL
+  await assert.rejects(() => provision(['x"; DROP DATABASE postgres; --']), /nome de database invalido/);
+  log('[H3] provision() rejeita nome fora da allowlist antes de qualquer SQL');
+}
 
 // ---- Cenario B: idempotencia ----
 const b = await migrateBatch(base, dbs, migrations, { concurrency: 1 });

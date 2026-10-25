@@ -20,7 +20,7 @@ Qual ferramenta e quais convenções garantem migração idempotente e segura de
    - uma conexão curta por tenant (abrir, migrar, fechar); nunca pool nem cliente retido por tenant;
    - `pg_try_advisory_lock(hashtext('nucleos:schema_migrations'))` por database (advisory lock é local ao database, portanto tenants não disputam entre si; dois runners no mesmo tenant serializam);
    - tabela `schema_migrations(version, name, checksum char(64) SHA-256 do arquivo, applied_at, execution_ms)` em cada tenant;
-   - cada migration = uma transação que contém o SQL **e** o registro em `schema_migrations`; falha faz `ROLLBACK` completo;
+   - cada migration = uma transação que contém o SQL **e** o registro em `schema_migrations`; falha faz `ROLLBACK` completo, desde que a migration não controle a transação: o runner rejeita estaticamente, antes de executar, `BEGIN`/`START`/`COMMIT`/`END`/`ROLLBACK`/`ABORT`/`SAVEPOINT`/`RELEASE`/`PREPARE TRANSACTION`, `CONCURRENTLY` e `VACUUM` (lint textual, sem escape; não cobre SQL dinâmico `DO`/`EXECUTE`, portanto a revisão da migration continua sendo gate; o lint é requisito do runner de produção em DAT-*);
    - arquivo já aplicado com checksum diferente, ou versão aplicada sem arquivo, **aborta**; migration aplicada nunca é editada;
    - lote: concorrência limitada e configurável (padrão 1 em produção até haver medição própria); ao primeiro erro **não inicia novos bancos** (fail-fast) e relata falhas e bancos não iniciados; retomar = reexecutar o mesmo comando;
    - nomes de database/role vêm de allowlist (`^[a-z][a-z0-9_]{0,62}$`) e são escapados com `escapeIdentifier`; nenhuma entrada externa vira identificador por interpolação.
@@ -58,14 +58,23 @@ Qual ferramenta e quais convenções garantem migração idempotente e segura de
 - Runner próprio é código a manter e testar (precisa de lint, testes e revisão de segurança em produção).
 - Sem *down*: erro exige migration corretiva e, para dados, backup/restauração (ADR em DEC-009/backups).
 - Lote fail-fast atrasa os bancos posteriores quando um tenant falha; um tenant "quebrado" bloqueia a onda até ser tratado ou excluído explicitamente (política de exclusão por tenant fica para DAT-004).
-- `ADD COLUMN ... GENERATED ... STORED` e criação de índice reescrevem/bloqueiam a tabela; em tabelas grandes usar `CREATE INDEX CONCURRENTLY` (não pode rodar em transação; exigirá marcador de migration sem transação, ainda não implementado).
+- `ADD COLUMN ... GENERATED ... STORED` e criação de índice reescrevem/bloqueiam a tabela; em tabelas grandes usar `CREATE INDEX CONCURRENTLY` (não pode rodar em transação; o runner da PoC o rejeita; exigirá fluxo/marcador de migration sem transação, ainda não implementado).
 
 ## Consequências
 
 - Tickets IAM-002, DAT-002, DAT-003 e DAT-004 partem deste contrato; o código de produção do runner nascerá em `packages/`/`services/` por DAT-*, não nesta PoC.
 - O provisioner precisa de privilégio para `CREATE DATABASE` e `CREATE EXTENSION` em processo segregado.
 - Migrations passam a ter checksum registrado: pipelines devem impedir alteração de arquivos já mesclados.
-- Medidas da PoC (máquina local, tmpfs, `fsync=off`, bancos vazios): 20 bancos x 3 migrations em 2,4 s sequencial e 1,2 s com concorrência 4; reexecução sem pendências 1,3 s (custo de conexão e verificação). Não extrapolar para produção.
+- Medidas da PoC (máquina local, tmpfs, `fsync=off`, bancos vazios): 20 bancos x 3 migrations, em execuções locais distintas: 1,6 a 3,8 s sequencial e 0,4 a 1,2 s com concorrência 4; reexecução sem pendências 0,7 a 1,3 s (custo de conexão e verificação). Os valores variam por execução; não extrapolar para produção.
+
+## Requisitos adiados para o runner de produção (DAT-002)
+
+Achados da auditoria DEC-003 classificados como ADIAR; a PoC não os corrige e o código dela não deve ser copiado sem eles:
+
+- **Ganchos de teste:** `failAfter`/`holdMs` em `migrateTenant` são só da PoC; o runner de produção deve injetá-los apenas em teste (falha induzível por configuração).
+- **Erro de conexão no `ROLLBACK`:** se a conexão cair, `ROLLBACK` lança e mascara a causa; usar `ROLLBACK ... .catch(() => {})` preservando o erro original e testar com `pg_terminate_backend` (o servidor desfaz a transação ao perder a sessão, sem impacto em dados).
+- **Checksum sobre bytes:** o hash da PoC cobre a string decodificada (CRLF/BOM mudam o digest; mecanismo evidente, não reproduzido); o runner de produção calcula o hash sobre os bytes e o repositório fixa `*.up.sql text eol=lf` em `.gitattributes`, com teste de CRLF.
+- **Imagem:** fixar o digest da imagem do PostgreSQL quando o banco entrar em CI (FND-*/DAT-*); hoje a PoC usa a tag `pg16` em container local descartável.
 
 ## Quando revisar
 
