@@ -126,3 +126,16 @@ O ADR de 2026-10-25 **não foi alterado**. A decomposição revelou sete lacunas
 ### Atualização em disco
 
 Este backlog é um artefato vivo: ao replanejar, preservar os IDs, registrar a mudança e o motivo, e atualizar `plano-de-sprints.md`, `rastreabilidade.md` e o README do épico afetado no mesmo commit.
+
+## 8. Replanejamento do lote 2026-10-25
+
+Planejamento de EP-00 e EP-01 em [`planejamento-ia/lote-2026-10-25-ep00-ep01-fundacao.md`](../planejamento-ia/lote-2026-10-25-ep00-ep01-fundacao.md). IDs preservados; nenhum ticket foi alterado. Decisões do usuário em 2026-10-25:
+
+| Item | Resolução |
+| --- | --- |
+| Q-01 | Stack vigente é TypeScript (+ Python): `CLAUDE.md`, `AGENTS.md` e a trilha `lessons/` serão atualizados pela tarefa local LOC-001 (aprovação para a alteração prevista em FND-008) |
+| Q-07 | Confirmado por consequência: o ADR de 2026-10-25 substitui a stack .NET |
+| Q-04 / H-04 | GitHub Actions confirmado (remoto é GitHub) |
+| Q-05 | Revisor independente de segurança = o usuário; responsável legal/DPO segue em aberto |
+| ADR-016..026 | Nascem "propostos"; só o usuário os aceita |
+| DEC-005 | Bloqueada até haver VPS (Q-03) |
