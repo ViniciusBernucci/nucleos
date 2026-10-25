@@ -186,9 +186,12 @@ estas regras e as secoes anteriores deste arquivo.
 - **Commits:** continua valendo "nao crie commits sem pedido explicito". O orquestrador so
   faz commits locais nas branches de tarefa e `revisao/` quando o pedido de execucao
   autorizar commits de forma explicita; nunca em `main`/`master`.
-- **Validacao:** ainda nao ha codigo nem comandos de lint, build ou teste. Os comandos reais
-  serao declarados aqui apos ENT-FND-001 (monorepo `pnpm` e `uv`). Ate la, gate de build/teste
-  de codigo fica BLOCKED; entrega somente de documentacao registra NA com justificativa.
+- **Validacao:** comandos reais (ENT-FND-001, na raiz): `make setup`, `make lint`, `make test`,
+  `make build`; `make up`/`make health`/`make down` sobem e checam `/healthz` em `127.0.0.1`.
+  Exigem Node 24.22.1 e `uv` no `PATH` (instalados em escopo de usuario, ver
+  `documentacoes/engenharia/2026-10-25-fnd-001-scaffolding-monorepo.md`). Linters, hooks e CI
+  ainda nao existem (FND-002/FND-005); entrega somente de documentacao registra NA com
+  justificativa.
 - **Dados:** nao ha banco nem servico de producao declarado. Nenhum teste ou script acessa
   banco ou servico real sem um ambiente isolado declarado nesta secao. Ambiente isolado de PoC
   declarado: containers descartaveis (Docker/Compose) publicados somente em `127.0.0.1`, sem
