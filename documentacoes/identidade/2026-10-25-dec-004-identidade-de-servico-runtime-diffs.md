@@ -1129,3 +1129,102 @@ index d962861..0f1fd7e 100644
 +  assert.doesNotThrow(() => gw.validate(tokenFor(env, rt), ctx(TENANT_A)));
 +});
 ```
+
+## Correção rodada 2
+
+Diff contra `066504a` (HEAD da rodada 1; novo commit sem amend). Inclui `lib/validator.mjs`, `test/poc.test.mjs` e `README.md` do PoC; `saida/*.txt` regerados e ADR/entrega alterados só em texto (sem diff).
+
+```diff
+diff --git a/documentacoes/arquitetura/poc/dec-004/README.md b/documentacoes/arquitetura/poc/dec-004/README.md
+index 3c5d72e..3b72860 100644
+--- a/documentacoes/arquitetura/poc/dec-004/README.md
++++ b/documentacoes/arquitetura/poc/dec-004/README.md
+@@ -9,7 +9,7 @@ Runtime falso, Control Plane falso e validadores locais. Sem rede, sem banco, se
+ export PATH="$HOME/.local/opt/node-v24.22.1-linux-x64/bin:$PATH"
+ cd documentacoes/arquitetura/poc/dec-004
+ npm ci            # reproduz as dependências do lock file
+-npm test          # 21 testes (casos negativos, rotação, revogação)
++npm test          # 22 testes (casos negativos, rotação, revogação)
+ npm run demo      # narrativa: negativos, rotação, revogação de emergência
+ npm run bench     # latência da validação local
+ ```
+diff --git a/documentacoes/arquitetura/poc/dec-004/lib/validator.mjs b/documentacoes/arquitetura/poc/dec-004/lib/validator.mjs
+index b73d709..014681b 100644
+--- a/documentacoes/arquitetura/poc/dec-004/lib/validator.mjs
++++ b/documentacoes/arquitetura/poc/dec-004/lib/validator.mjs
+@@ -19,6 +19,8 @@ export class Validator {
+     this.singleUse = o.singleUse ?? false; // dispatcher: token de uso unico
+     this.cooldown = o.unknownKidRefreshCooldownS ?? 10;
+     this.maxStalenessS = o.maxStalenessS ?? 90; // proposto (ADR-018, decisao 7): 3x o poll de 30 s; decisao humana
++    // PoC: now() injetavel (relogio de parede em producao). O validador de producao DEVE medir esta idade com relogio
++    // monotonico (ADR-018 7.1); recuo do relogio de parede alonga a janela alem de max_staleness.
+     this.lastRefreshOk = -Infinity; // relogio LOCAL do ultimo refresh bem-sucedido (nao confia em generated_at do CP)
+     this.refreshFailures = 0;
+     this.keys = new Map();
+@@ -32,22 +34,25 @@ export class Validator {
+ 
+   /**
+    * Poll periodico (ex.: 30 s) ou push de emergencia. Atomico: busca JWKS e revogacao em variaveis locais
+-   * e so entao troca o estado e o carimbo. Em falha, mantem o estado anterior, NAO avanca o carimbo,
++   * valida o formato da resposta e so entao troca o estado e o carimbo. Em falha, mantem o estado anterior, NAO avanca o carimbo,
+    * contabiliza e propaga o erro (fail-closed por idade em validate()).
+    */
+   refresh() {
+     this.networkCalls += 1;
+-    let keys; let r;
++    let keys; let minVer; let revokedJti;
+     try {
+       keys = new Map(this.fetchJwks().keys.map((j) => [j.kid, fromPublicJwk(j)]));
+-      r = this.fetchRevocation();
++      const r = this.fetchRevocation();
++      if (!validate.revocationState(r)) throw new Error('resposta de revogacao malformada'); // null, {} ou min_ver:null
++      minVer = r.min_ver;
++      revokedJti = new Set(r.revoked_jti ?? []);
+     } catch (e) {
+       this.refreshFailures += 1;
+       throw e;
+     }
+     this.keys = keys;
+-    this.minVer = r.min_ver;
+-    this.revokedJti = new Set(r.revoked_jti ?? []);
++    this.minVer = minVer;
++    this.revokedJti = revokedJti;
+     this.lastRefreshOk = this.now();
+   }
+ 
+diff --git a/documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs b/documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs
+index 0f1fd7e..3293729 100644
+--- a/documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs
++++ b/documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs
+@@ -319,3 +319,30 @@ test('REFRESH atomico: falha em fetchRevocation mantem o estado anterior e nao a
+   assert.equal(gw.refreshFailures, 1);
+   assert.doesNotThrow(() => gw.validate(tokenFor(env, rt), ctx(TENANT_A)));
+ });
++
++test('REFRESH atomico: resposta de revogacao malformada (null, {}, min_ver:null) nao troca estado nem avanca carimbo', () => {
++  const env = makeEnv();
++  let resp = null; let usar = false;
++  const gw = new Validator({
++    audience: 'tool-gateway', now: env.now, fetchJwks: () => env.cp.jwks(),
++    fetchRevocation: () => (usar ? resp : env.cp.revocationState()),
++  });
++  const rt = env.enrollRuntime(TENANT_A);
++  env.cp.publishNextKey();
++  const keysAntes = gw.keys; const minVer = gw.minVer; const jtis = gw.revokedJti; const carimbo = gw.lastRefreshOk;
++  usar = true;
++  let falhas = 0;
++  for (const m of [null, {}, { generated_at: 1, min_ver: null }]) {
++    resp = m; env.now.advance(10);
++    assert.throws(() => gw.refresh(), (e) => e instanceof Error && !(e instanceof TypeError));
++    falhas += 1;
++    assert.equal(gw.keys, keysAntes);
++    assert.equal(gw.minVer, minVer);
++    assert.equal(gw.revokedJti, jtis);
++    assert.equal(gw.lastRefreshOk, carimbo);
++    assert.equal(gw.refreshFailures, falhas);
++  }
++  assert.doesNotThrow(() => gw.validate(tokenFor(env, rt), ctx(TENANT_A))); // ainda dentro do limite
++  env.now.advance(61); // 91 s desde o ultimo refresh bom
++  rejects(() => gw.validate(tokenFor(env, rt), ctx(TENANT_A)), 'revocation_state_stale'); // nunca TypeError
++});
+```

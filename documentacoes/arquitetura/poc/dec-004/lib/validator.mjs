@@ -19,6 +19,8 @@ export class Validator {
     this.singleUse = o.singleUse ?? false; // dispatcher: token de uso unico
     this.cooldown = o.unknownKidRefreshCooldownS ?? 10;
     this.maxStalenessS = o.maxStalenessS ?? 90; // proposto (ADR-018, decisao 7): 3x o poll de 30 s; decisao humana
+    // PoC: now() injetavel (relogio de parede em producao). O validador de producao DEVE medir esta idade com relogio
+    // monotonico (ADR-018 7.1); recuo do relogio de parede alonga a janela alem de max_staleness.
     this.lastRefreshOk = -Infinity; // relogio LOCAL do ultimo refresh bem-sucedido (nao confia em generated_at do CP)
     this.refreshFailures = 0;
     this.keys = new Map();
@@ -32,22 +34,25 @@ export class Validator {
 
   /**
    * Poll periodico (ex.: 30 s) ou push de emergencia. Atomico: busca JWKS e revogacao em variaveis locais
-   * e so entao troca o estado e o carimbo. Em falha, mantem o estado anterior, NAO avanca o carimbo,
+   * valida o formato da resposta e so entao troca o estado e o carimbo. Em falha, mantem o estado anterior, NAO avanca o carimbo,
    * contabiliza e propaga o erro (fail-closed por idade em validate()).
    */
   refresh() {
     this.networkCalls += 1;
-    let keys; let r;
+    let keys; let minVer; let revokedJti;
     try {
       keys = new Map(this.fetchJwks().keys.map((j) => [j.kid, fromPublicJwk(j)]));
-      r = this.fetchRevocation();
+      const r = this.fetchRevocation();
+      if (!validate.revocationState(r)) throw new Error('resposta de revogacao malformada'); // null, {} ou min_ver:null
+      minVer = r.min_ver;
+      revokedJti = new Set(r.revoked_jti ?? []);
     } catch (e) {
       this.refreshFailures += 1;
       throw e;
     }
     this.keys = keys;
-    this.minVer = r.min_ver;
-    this.revokedJti = new Set(r.revoked_jti ?? []);
+    this.minVer = minVer;
+    this.revokedJti = revokedJti;
     this.lastRefreshOk = this.now();
   }
 
