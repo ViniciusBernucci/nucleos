@@ -10,7 +10,7 @@ export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 export TURBO_TELEMETRY_DISABLED=1
 export DO_NOT_TRACK=1
 
-.PHONY: setup lint test build up down health check-env
+.PHONY: setup lint test build up down health check-env compose-up compose-down compose-reset compose-smoke
 
 setup:
 	@node -e "const v=require('fs').readFileSync('.nvmrc','utf8').trim().split('.')[0]; if(process.versions.node.split('.')[0]!==v){console.error('Node '+v+'.x requerido (.nvmrc); atual '+process.version);process.exit(1)}"
@@ -41,3 +41,17 @@ health:
 
 check-env:
 	./scripts/check-no-env.sh
+
+# --- Docker Compose de desenvolvimento (FND-004). PERFIS="runtime observability" (core sempre incluido).
+PERFIS ?=
+compose-up:
+	./infrastructure/docker/scripts/dev.sh up $(PERFIS)
+
+compose-down:
+	./infrastructure/docker/scripts/dev.sh down
+
+compose-reset:
+	./infrastructure/docker/scripts/reset.sh $(PERFIS)
+
+compose-smoke:
+	./infrastructure/docker/scripts/smoke.sh $(if $(findstring runtime,$(PERFIS)),--runtime) $(if $(findstring observability,$(PERFIS)),--observability)

@@ -1,0 +1,259 @@
+# Ambiente de desenvolvimento local (FND-004). NAO e producao (veja compose.staging/prod em FND-006).
+# Uso: scripts/dev.sh up [core|runtime|observability ...]  (gera segredos descartaveis em .env.local)
+# Imagens: tag fixa + digest (verificados em 2026-10-25; ver documentacoes/infraestrutura/).
+# Portas: SEMPRE "127.0.0.1:<host>:<container>"; nenhuma porta em 0.0.0.0.
+name: nucleos-dev
+
+x-seguro: &seguro
+  security_opt: ["no-new-privileges:true"]
+  restart: unless-stopped
+
+x-app-node: &app-node
+  <<: *seguro
+  image: node:24.22.1-bookworm-slim@sha256:55fb5f5a527ea2c5c4a95f963e48ef90aa38c7b346054fdc8ee9957a2b55d205
+  profiles: ["runtime"]
+  user: "${DEV_UID:?execute scripts/gerar-segredos.sh}:${DEV_GID:?}"
+  working_dir: /workspace
+  networks: [interna]
+  environment: &app-env
+    HOST: 0.0.0.0
+    HOME: /tmp
+    NEXT_TELEMETRY_DISABLED: "1"
+  depends_on: &app-deps
+    postgres: {condition: service_healthy}
+    redis: {condition: service_healthy}
+    minio: {condition: service_healthy}
+
+x-app-python: &app-python
+  <<: *seguro
+  image: python:3.13.17-slim-bookworm@sha256:e32be0e55814a08977501ca863271d9bd02443710db8f2afaf8372e2c4508530
+  profiles: ["runtime"]
+  user: "${DEV_UID:?execute scripts/gerar-segredos.sh}:${DEV_GID:?}"
+  working_dir: /workspace
+  networks: [interna]
+  depends_on: *app-deps
+  volumes: ["../../:/workspace:ro"]
+
+services:
+  # ---------------------------------------------------------------- perfil core
+  postgres:
+    <<: *seguro
+    image: pgvector/pgvector:0.8.7-pg18-trixie@sha256:9d9c930220cb9bf2f956d10a8f909cf9973d9672ca0278aef2c1e6facccad2e0
+    profiles: ["core"]
+    environment:
+      POSTGRES_USER: nucleos_dev
+      POSTGRES_DB: nucleos_dev
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?execute scripts/gerar-segredos.sh}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    ports: ["127.0.0.1:${PG_HOST_PORT:-15432}:5432"]
+    networks: [interna, publicada]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nucleos_dev -d nucleos_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  redis:
+    <<: *seguro
+    image: redis:8.8.3-alpine@sha256:dc95ea2fcf5d5c4253be0f967c28143d0f625846197eed2fd32c748eb99abfca
+    profiles: ["core"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?execute scripts/gerar-segredos.sh}
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes"]
+    volumes: [redis-data:/data]
+    ports: ["127.0.0.1:${REDIS_HOST_PORT:-16379}:6379"]
+    networks: [interna, publicada]
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    <<: *seguro
+    # MinIO nao publica mais imagens oficiais (minio/minio e quay.io/minio/minio ausentes em 2026-10-25);
+    # usa-se a imagem Chainguard do mesmo software (RELEASE.2026-10-23T20-06-51Z). Decisao: DEC-009.
+    image: cgr.dev/chainguard/minio:latest@sha256:268d68a2a3b6fc65f905a61f84d7eab6345ce6bff14f551e2b028ec31e6a1341
+    profiles: ["core"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?execute scripts/gerar-segredos.sh}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?execute scripts/gerar-segredos.sh}
+    command: ["server", "/data", "--address", ":9000", "--console-address", ":9001"]
+    volumes: [minio-data:/data]
+    ports:
+      - "127.0.0.1:${MINIO_HOST_PORT:-19000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_HOST_PORT:-19001}:9001"
+    networks: [interna, publicada]
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /minio/health/live HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && read -r l <&3 && [[ $$l == *' 200'* ]]"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio-init:
+    image: cgr.dev/chainguard/minio-client:latest@sha256:59f1924e417b6fcfdc0aca321e3bdebe8a56fd0efa7da80037d5eb65a203d687
+    profiles: ["core"]
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    # Imagem distroless (sem shell): MC_HOST_local define o alias; uma tarefa por container.
+    environment:
+      MC_HOST_local: http://${MINIO_ROOT_USER:?}:${MINIO_ROOT_PASSWORD:?}@minio:9000
+    entrypoint: ["mc"]
+    command: ["mb", "--ignore-existing", "local/nucleos-dev-seed"]
+    volumes: ["./seeds/minio:/seeds:ro"]
+    networks: [interna]
+    depends_on:
+      minio: {condition: service_healthy}
+
+  minio-seed:
+    image: cgr.dev/chainguard/minio-client:latest@sha256:59f1924e417b6fcfdc0aca321e3bdebe8a56fd0efa7da80037d5eb65a203d687
+    profiles: ["core"]
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      MC_HOST_local: http://${MINIO_ROOT_USER:?}:${MINIO_ROOT_PASSWORD:?}@minio:9000
+    entrypoint: ["mc"]
+    command: ["mirror", "--overwrite", "/seeds", "local/nucleos-dev-seed"]
+    volumes: ["./seeds/minio:/seeds:ro"]
+    networks: [interna]
+    depends_on:
+      minio-init: {condition: service_completed_successfully}
+
+  mailpit:
+    <<: *seguro
+    image: axllent/mailpit:v1.32.0@sha256:0790692be935ea4420d085694f7985b1f692ca6a8771ab0e0bd8ba75ac180498
+    profiles: ["core"]
+    ports:
+      - "127.0.0.1:${MAILPIT_SMTP_HOST_PORT:-11025}:1025"
+      - "127.0.0.1:${MAILPIT_UI_HOST_PORT:-18025}:8025"
+    networks: [interna, publicada]
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  proxy:
+    <<: *seguro
+    image: caddy:2.11.7-alpine@sha256:eb4d35b7452d1ab6171fbdbe8d9275b2301dad6dad92115d91e19fb9b24d510f
+    profiles: ["core"]
+    volumes:
+      - ./caddy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+    ports: ["127.0.0.1:${PROXY_HOST_PORT:-18080}:8080"]
+    networks: [interna, publicada]
+    depends_on:
+      mailpit: {condition: service_healthy}
+      minio: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ------------------------------------------------------------- perfil runtime
+  # Modo watch: node --watch reinicia ao mudar dist/ (compile em paralelo com `pnpm --filter ... exec tsc -w`);
+  # web usa `next dev` (HMR). Servicos Python (stdlib) nao tem watcher: `docker compose restart <servico>`.
+  # Requer `make build` previo (dist/) e `make setup` (node_modules). Nao publicam portas: so via proxy.
+  web:
+    <<: *app-node
+    volumes: ["../../:/workspace"]
+    working_dir: /workspace/apps/web
+    environment: {<<: *app-env, PORT: "3000"}
+    command: ["node", "node_modules/next/dist/bin/next", "dev", "-H", "0.0.0.0", "-p", "3000"]
+    healthcheck: &hc-node3000
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  api:
+    <<: *app-node
+    volumes: ["../../:/workspace:ro"]
+    environment: {<<: *app-env, PORT: "3001"}
+    command: ["node", "--watch", "apps/api/dist/main.js"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  tenant-provisioner:
+    <<: *app-node
+    volumes: ["../../:/workspace:ro"]
+    environment: {<<: *app-env, PORT: "3002"}
+    command: ["node", "--watch", "apps/tenant-provisioner/dist/main.js"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  tenant-runtime:
+    <<: *app-python
+    environment: {HOST: 0.0.0.0, PORT: "8001", PYTHONPATH: /workspace/services/tenant-runtime/src, PYTHONDONTWRITEBYTECODE: "1"}
+    command: ["python", "-m", "tenant_runtime"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8001/healthz', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  ai-gateway:
+    <<: *app-python
+    environment: {HOST: 0.0.0.0, PORT: "8002", PYTHONPATH: /workspace/services/ai-gateway/src, PYTHONDONTWRITEBYTECODE: "1"}
+    command: ["python", "-m", "ai_gateway"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8002/healthz', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  tool-gateway:
+    <<: *app-python
+    environment: {HOST: 0.0.0.0, PORT: "8003", PYTHONPATH: /workspace/services/tool-gateway/src, PYTHONDONTWRITEBYTECODE: "1"}
+    command: ["python", "-m", "tool_gateway"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8003/healthz', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  event-dispatcher:
+    <<: *app-python
+    environment: {HOST: 0.0.0.0, PORT: "8004", PYTHONPATH: /workspace/services/event-dispatcher/src, PYTHONDONTWRITEBYTECODE: "1"}
+    command: ["python", "-m", "event_dispatcher"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8004/healthz', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ------------------------------------------------------- perfil observability
+  # Imagem distroless (sem shell): sem healthcheck do Compose; o smoke consulta o health_check publicado.
+  otel-collector:
+    <<: *seguro
+    image: otel/opentelemetry-collector:0.163.2@sha256:63e5e8eccf4268be02388ba9f2dc36b80b5e47721291293411c0e83152d75bda
+    profiles: ["observability"]
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes: ["./otel/collector.dev.yaml:/etc/otelcol/config.yaml:ro"]
+    ports:
+      - "127.0.0.1:${OTLP_GRPC_HOST_PORT:-14317}:4317"
+      - "127.0.0.1:${OTLP_HTTP_HOST_PORT:-14318}:4318"
+      - "127.0.0.1:${OTEL_HEALTH_HOST_PORT:-13133}:13133"
+    networks: [interna, publicada]
+
+networks:
+  # interna: trafego servico-a-servico, sem rota para fora (internal: true).
+  interna:
+    internal: true
+  # publicada: unica rede com saida/publicacao; so serve para os binds em 127.0.0.1.
+  publicada: {}
+
+volumes:
+  postgres-data: {}
+  redis-data: {}
+  minio-data: {}
