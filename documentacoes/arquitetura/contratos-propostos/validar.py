@@ -4,6 +4,11 @@
 Uso: python3 documentacoes/arquitetura/contratos-propostos/validar.py
 Requer: python3 e a biblioteca jsonschema (testado com 3.2.0, Draft-07). Sem rede, sem banco.
 Saida: 0 se tudo conforme; 1 caso contrario.
+
+Divergencia de motor de regex: em Python, `re.search` com `$` aceita uma quebra de linha final
+("abc\\n" casa `^[a-z]+$`), enquanto em ECMA-262 (ajv, alvo de FND-003) `$` so casa no fim da
+entrada. Por isso o `pattern` e validado aqui com `re.fullmatch`, equivalente a ECMA para os
+padroes `^...$` do contrato. O schema NAO muda. Rodar a suite com ajv fica para FND-003.
 """
 import json
 import re
@@ -12,12 +17,20 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from jsonschema import Draft7Validator, FormatChecker
+from jsonschema import Draft7Validator, FormatChecker, ValidationError, validators
 
 AQUI = Path(__file__).resolve().parent
 RFC3339 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$")
 
 checker = FormatChecker()
+
+
+def _pattern(validator, patrn, instance, schema):
+    if validator.is_type(instance, "string") and not re.fullmatch(patrn, instance):
+        yield ValidationError(f"{instance!r} does not match {patrn!r} (fullmatch)")
+
+
+Draft7Validator = validators.extend(Draft7Validator, {"pattern": _pattern})
 
 
 @checker.checks("date-time")

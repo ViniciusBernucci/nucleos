@@ -6,7 +6,7 @@
 - **Tarefa:** DEC-012 do lote 2026-10-25-ep00-ep01-fundacao — [ENT-DEC-012](../backlog/EP-00-decisoes-pocs-e-threat-model/tickets.md#ent-dec-012)
 - **Branch:** `tarefa/dec-012`
 - **Base / commit inicial:** `4be3ce391a51b9e24cd85f7c894d841636dcd50f` (base do manifesto); `HEAD` inicial igual à base; árvore da worktree limpa
-- **Estado da entrega:** pronta para revisão independente (não revisada pelo autor); ADR em status **Proposto**
+- **Estado da entrega:** correção da rodada 1 aplicada; aguarda revalidação por revisor independente; ADR em status **Proposto**
 - **Autores conhecidos:** Claude Sonnet 5.5 (executor); solicitante: Vinícius
 
 ## 2. Objetivo, contexto e escopo
@@ -18,7 +18,7 @@
 
 ## 3. Resumo da implementação
 
-ADR-026 (Proposto) com fatos de Stripe, Asaas e Mercado Pago consultados em 2026-10-25 com URL, decisão de contrato único, idempotência, tratamento de ordem não garantida, matriz de transição e recomendação não vinculante de provedor. Schema Draft-07 com regras condicionais (falha exige código e tentativa; simulador exige `simulated: true`). Matriz legível por máquina; `validar.py` verifica schema, 6 exemplos válidos, 11 inválidos, completude da matriz (todo par evento × estado) e a invariante de que eventos de pagamento nunca levam a estado destrutivo.
+ADR-026 (Proposto) com fatos de Stripe, Asaas e Mercado Pago consultados em 2026-10-25 com URL, decisão de contrato único, idempotência, tratamento de ordem não garantida, matriz de transição e recomendação não vinculante de provedor. Schema Draft-07 com regras condicionais (falha exige código e tentativa; simulador exige `simulated: true`). Matriz legível por máquina; `validar.py` verifica schema, 6 exemplos válidos, 13 inválidos (11 originais + 2 da correção da rodada 1), completude da matriz (todo par evento × estado) e a invariante de que eventos de pagamento nunca levam a estado destrutivo.
 
 ## 4. Mudanças por arquivo
 
@@ -29,7 +29,7 @@ ADR-026 (Proposto) com fatos de Stripe, Asaas e Mercado Pago consultados em 2026
 | `documentacoes/arquitetura/contratos-propostos/matriz-evento-transicao.json` | config (contrato) | matriz evento × estado → estado |
 | `documentacoes/arquitetura/contratos-propostos/validar.py` | teste | validação do schema, exemplos e matriz |
 | `documentacoes/arquitetura/contratos-propostos/exemplos/validos/*.json` (6) | teste | exemplos aceitos |
-| `documentacoes/arquitetura/contratos-propostos/exemplos/invalidos/*.json` (11) | teste | exemplos rejeitados |
+| `documentacoes/arquitetura/contratos-propostos/exemplos/invalidos/*.json` (13) | teste | exemplos rejeitados |
 | `documentacoes/faturamento/2026-10-25-dec-012-adr-026-subscription-event.md` e `-diffs.md` | doc | esta entrega |
 
 Sem migrações, sem alteração de `CLAUDE.md`, `lessons/` ou índice de ADR.
@@ -66,3 +66,28 @@ Nenhuma lesson criada. Justificativa: a entrega é decisória/documental (ADR, c
 - Índice `documentacoes/arquitetura/adr/README.md` não atualizado (evita conflito de merge com os demais ADR do lote); o coordenador deve acrescentar a linha ADR-026 na integração.
 - Humano: aceitar ADR-026; fechar Q-06 após verificar preços, Pix/boleto, NF, disponibilidade, nomes de eventos do Asaas/Mercado Pago e algoritmo do `x-signature`; definir carência e retenção; aprovar estados do tenant.
 - FND-003 deve migrar o schema para `packages/contracts`.
+
+## 11. Correção rodada 1 (auditoria REVIEW-001..007)
+
+Origem: [auditoria](../reviews/2026-10-25-auditoria-dec-012.md) (veredito CORRECOES_NECESSARIAS). `HEAD` de partida: `a790676ea63133ceb13f9fd891e62993a16fd1e3`. Aplicado somente o que o auditor decidiu APLICAR; um novo commit local (sem amend), cujo SHA é informado no retorno ao coordenador. Diff da rodada (código/contrato): [arquivo de diffs, seção "Correção rodada 1"](2026-10-25-dec-012-adr-026-subscription-event-diffs.md#correção-rodada-1). O diff das mudanças no ADR e neste documento fica fora do patch (só documentação).
+
+| ID | Decisão | O que foi feito |
+| --- | --- | --- |
+| REVIEW-001 | APLICAR | ADR Decisão 4: reconciliação obrigatória antes de transições que alteram acesso (`payment.succeeded`, `subscription.activated`/`subscription.resumed` -> ACTIVE, `subscription.suspended_by_provider` -> SUSPENDED, `subscription.canceled` -> CANCELED_RETAINED); falha na consulta => evento registrado, não aplicado e reenfileirado. Trade-offs atualizado. Matriz e schema inalterados. Teste de reordenação ADIADO (FND-003/EP-09, contra o simulador). |
+| REVIEW-004 | APLICAR | `minLength: 1` em `payment.failure_code`, `subscription.provider_status`, `raw_payload_ref`; inválido `12-failure-code-vazio.json`. |
+| REVIEW-005 | APLICAR parcial | `validar.py` estende o `Draft7Validator` com `pattern` por `re.fullmatch` (docstring explica a divergência Python x ECMA-262); inválido `13-quebra-de-linha-final-em-campos-com-pattern.json` (`provider_event_id`, `subscription.plan_code`, `payment.currency` com `\n` final). Schema não alterado nos patterns. ajv ADIADO para FND-003. |
+| REVIEW-006 | APLICAR | Mapeamento `unpaid`/`paused` -> `subscription.suspended_by_provider` rotulado como inferência do projeto; dependência da configuração do Dashboard registrada; [S2] citada só para nomes de evento/estado. Não reabri [S2] (aceito o relato do revisor). |
+| REVIEW-007 | APLICAR | Mercado Pago: "recomenda URLs separadas para teste e credenciais de teste [M1]". |
+| REVIEW-002 | ADIAR | Dedupe secundário Stripe: retomar no adaptador (EP-09) ou ao escolher Stripe em Q-06. Não tocado. |
+| REVIEW-003 | REJEITAR | AC-2 coberto por composição; lacuna de Asaas/Mercado Pago declarada. Não tocado. |
+
+Validações da rodada:
+
+| Comando | Resultado |
+| --- | --- |
+| `python3 -I documentacoes/arquitetura/contratos-propostos/validar.py` | 39 verificações OK, 0 falhas; "RESULTADO: TUDO CONFORME", saída 0 (6 válidos aceitos, 13 inválidos rejeitados) |
+| Mutação: remover `minLength` de `failure_code` | inválido 12 aceito -> FALHA, "RESULTADO: FALHOU (1)", saída 1; schema restaurado |
+| Mutação: remover a extensão `fullmatch` (pattern nativo) | inválido 13 aceito -> FALHA, "RESULTADO: FALHOU (1)", saída 1; script restaurado |
+| Teste negativo próprio por campo (derivado do válido 03, `python3 -I`) | `provider_event_id`, `plan_code`, `currency` com `\n` final, `provider_status` vazio e `raw_payload_ref` vazio: todos REJEITADOS; controle válido: ACEITO |
+
+Nota honesta: o exemplo 13 combina três campos num só arquivo; a prova por campo é o teste negativo próprio acima (não versionado). Não executado: ajv/validador ECMA (sem dependência Node, ADIADO), nova consulta às fontes dos provedores. `adr/README.md` segue pendência do coordenador. Sem lessons (mesma justificativa da seção 9). Sem pendências novas além das adiadas acima.

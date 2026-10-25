@@ -676,3 +676,92 @@ index 0000000..32a9251
 +print(f"\n{'RESULTADO: FALHOU (' + str(len(falhas)) + ')' if falhas else 'RESULTADO: TUDO CONFORME'}")
 +sys.exit(1 if falhas else 0)
 ```
+
+## Correção rodada 1
+
+Diff da rodada 1 contra o `HEAD` `a790676` (schema, `validar.py` e dois novos exemplos inválidos; ADR e documentos ficam fora do patch). Resumo e validações: [documento de entrega, seção 11](2026-10-25-dec-012-adr-026-subscription-event.md#11-correção-rodada-1-auditoria-review-001007).
+
+```diff
+diff --git a/documentacoes/arquitetura/contratos-propostos/exemplos/invalidos/12-failure-code-vazio.json b/documentacoes/arquitetura/contratos-propostos/exemplos/invalidos/12-failure-code-vazio.json
+new file mode 100644
+index 0000000..7e15da4
+--- /dev/null
++++ b/documentacoes/arquitetura/contratos-propostos/exemplos/invalidos/12-failure-code-vazio.json
+@@ -0,0 +1 @@
++{"schema_version":"1.0","received_at":"2026-10-25T12:00:05Z","occurred_at":"2026-10-25T12:00:00Z","provider":"stripe","simulated":false,"provider_event_id":"evt_example_0003","event_type":"payment.failed","subscription":{"provider_subscription_id":"sub_example_1","provider_status":"past_due"},"payment":{"provider_invoice_id":"in_example_2","amount_minor":9900,"currency":"BRL","failure_code":"","attempt_count":1,"next_retry_at":"2026-10-28T12:00:00Z"}}
+diff --git a/documentacoes/arquitetura/contratos-propostos/exemplos/invalidos/13-quebra-de-linha-final-em-campos-com-pattern.json b/documentacoes/arquitetura/contratos-propostos/exemplos/invalidos/13-quebra-de-linha-final-em-campos-com-pattern.json
+new file mode 100644
+index 0000000..a830906
+--- /dev/null
++++ b/documentacoes/arquitetura/contratos-propostos/exemplos/invalidos/13-quebra-de-linha-final-em-campos-com-pattern.json
+@@ -0,0 +1 @@
++{"schema_version":"1.0","received_at":"2026-10-25T12:00:05Z","occurred_at":"2026-10-25T12:00:00Z","provider":"stripe","simulated":false,"provider_event_id":"abc\n","event_type":"payment.failed","subscription":{"provider_subscription_id":"sub_example_1","provider_status":"past_due","plan_code":"a\n"},"payment":{"provider_invoice_id":"in_example_2","amount_minor":9900,"currency":"USD\n","failure_code":"card_declined","attempt_count":1,"next_retry_at":"2026-10-28T12:00:00Z"}}
+diff --git a/documentacoes/arquitetura/contratos-propostos/subscription-event.schema.json b/documentacoes/arquitetura/contratos-propostos/subscription-event.schema.json
+index 3f2fb79..8059665 100644
+--- a/documentacoes/arquitetura/contratos-propostos/subscription-event.schema.json
++++ b/documentacoes/arquitetura/contratos-propostos/subscription-event.schema.json
+@@ -31,7 +31,7 @@
+         "provider_customer_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+         "tenant_id": { "type": "string", "format": "uuid", "description": "Presente quando o vinculo ja existe no Control Plane; senao o CP resolve por provider_subscription_id." },
+         "plan_code": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$" },
+-        "provider_status": { "type": "string", "maxLength": 64, "description": "Status bruto informado pelo provedor, so para auditoria." },
++        "provider_status": { "type": "string", "minLength": 1, "maxLength": 64, "description": "Status bruto informado pelo provedor, so para auditoria." },
+         "current_period_end": { "type": "string", "format": "date-time" }
+       }
+     },
+@@ -43,12 +43,12 @@
+         "provider_invoice_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+         "amount_minor": { "type": "integer", "minimum": 0 },
+         "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+-        "failure_code": { "type": "string", "maxLength": 64 },
++        "failure_code": { "type": "string", "minLength": 1, "maxLength": 64 },
+         "attempt_count": { "type": "integer", "minimum": 1 },
+         "next_retry_at": { "type": "string", "format": "date-time" }
+       }
+     },
+-    "raw_payload_ref": { "type": "string", "maxLength": 256, "description": "Referencia (chave/URI interna) ao payload bruto guardado fora do evento." }
++    "raw_payload_ref": { "type": "string", "minLength": 1, "maxLength": 256, "description": "Referencia (chave/URI interna) ao payload bruto guardado fora do evento." }
+   },
+   "allOf": [
+     {
+diff --git a/documentacoes/arquitetura/contratos-propostos/validar.py b/documentacoes/arquitetura/contratos-propostos/validar.py
+index 32a9251..05e8857 100644
+--- a/documentacoes/arquitetura/contratos-propostos/validar.py
++++ b/documentacoes/arquitetura/contratos-propostos/validar.py
+@@ -4,6 +4,11 @@
+ Uso: python3 documentacoes/arquitetura/contratos-propostos/validar.py
+ Requer: python3 e a biblioteca jsonschema (testado com 3.2.0, Draft-07). Sem rede, sem banco.
+ Saida: 0 se tudo conforme; 1 caso contrario.
++
++Divergencia de motor de regex: em Python, `re.search` com `$` aceita uma quebra de linha final
++("abc\\n" casa `^[a-z]+$`), enquanto em ECMA-262 (ajv, alvo de FND-003) `$` so casa no fim da
++entrada. Por isso o `pattern` e validado aqui com `re.fullmatch`, equivalente a ECMA para os
++padroes `^...$` do contrato. O schema NAO muda. Rodar a suite com ajv fica para FND-003.
+ """
+ import json
+ import re
+@@ -12,7 +17,7 @@ import uuid
+ from datetime import datetime
+ from pathlib import Path
+ 
+-from jsonschema import Draft7Validator, FormatChecker
++from jsonschema import Draft7Validator, FormatChecker, ValidationError, validators
+ 
+ AQUI = Path(__file__).resolve().parent
+ RFC3339 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$")
+@@ -20,6 +25,14 @@ RFC3339 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:
+ checker = FormatChecker()
+ 
+ 
++def _pattern(validator, patrn, instance, schema):
++    if validator.is_type(instance, "string") and not re.fullmatch(patrn, instance):
++        yield ValidationError(f"{instance!r} does not match {patrn!r} (fullmatch)")
++
++
++Draft7Validator = validators.extend(Draft7Validator, {"pattern": _pattern})
++
++
+ @checker.checks("date-time")
+ def _dt(v):
+     if not isinstance(v, str) or not RFC3339.match(v):
+```
