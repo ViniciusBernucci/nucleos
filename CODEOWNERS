@@ -1,0 +1,9 @@
+# Revisor padrao
+*                              @ViniciusBernucci
+
+# Caminhos de seguranca: exigem revisor adicional (ver FND-005 para a branch protection).
+# Substituir/adicionar o time de seguranca quando existir (ex.: @org/seguranca).
+/services/tool-gateway/        @ViniciusBernucci
+/apps/tenant-provisioner/      @ViniciusBernucci
+/infrastructure/               @ViniciusBernucci
+/CODEOWNERS                    @ViniciusBernucci

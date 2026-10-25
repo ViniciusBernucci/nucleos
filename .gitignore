@@ -1,0 +1,33 @@
+# Dependencias e artefatos de build
+node_modules/
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+coverage/
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Execucao local (pids, logs)
+.run/
+
+# Segredos: nunca versionar .env; apenas .env.example e permitido
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Terraform (reservado, mas evita estado acidental)
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# SO / editores
+.DS_Store
+.idea/
+.vscode/
