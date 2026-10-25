@@ -41,4 +41,4 @@ uma entrega o exercitar):
 
 ## Indice de lessons
 
-Nenhuma lesson publicada ainda.
+- [00 - Migracoes SQL forward-only no PostgreSQL](00%20-%20Migracoes%20SQL%20forward-only%20no%20PostgreSQL.md) (bloco 5; criada pela entrega DEC-003). A numeracao sera recalculada na integracao conforme a ordem de dependencia.
