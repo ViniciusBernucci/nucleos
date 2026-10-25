@@ -111,6 +111,26 @@ assert.ok(Object.values(afterResume).every((v) => v === '0001,0002,0003'));
   await assert.rejects(() => migrateTenant(base, 'poc_tenant_neg', [mk('0001', 'evasao', evasoes['literal com --'])]), /controle de transacao proibido.*COMMIT/);
   assert.equal(await tableExists('b1'), false);
   assert.deepEqual(await appliedVersions(base, 'poc_tenant_neg'), []);
+  // rodada 3: (a) \r isolado encerra comentario -- no PG; (b) tag de dollar-quote sem limite de tamanho. Fim a fim, rejeitados ANTES de executar.
+  const tag = (len) => '$' + 'L'.repeat(len) + '$';
+  const longas = { "'-- x' + \\r isolado + COMMIT + erro final": "CREATE TABLE b1(x int); -- x\rCOMMIT; CREATE TABLE b2(x int); SELECT 1/0;" };
+  for (const len of [78, 79, 80, 200]) {
+    const T = tag(len);
+    longas[`tag de ${len} caracteres com aspa interna`] = `CREATE TABLE b1(x int); SELECT ${T} ' ${T}; COMMIT; CREATE TABLE b2(x int); SELECT ${T} ' ${T}; SELECT 1/0;`;
+  }
+  for (const [nome, sql] of Object.entries(longas)) {
+    assert.throws(() => assertTransactional(mk('0001', 'evasao', sql)), /controle de transacao proibido.*COMMIT/, nome);
+    await assert.rejects(() => migrateTenant(base, 'poc_tenant_neg', [mk('0001', 'evasao', sql)]), /controle de transacao proibido.*COMMIT/, nome);
+    assert.equal(await tableExists('b1'), false, `${nome}: b1 ausente`);
+    assert.deepEqual(await appliedVersions(base, 'poc_tenant_neg'), [], `${nome}: nenhuma versao registrada`);
+  }
+  // legitimos sem falso positivo: \r como fim de linha (CRLF e CR isolado), COMMIT so em comentario/dollar-quote longo, tag longa fechada corretamente
+  for (const ok of ['SELECT 1; -- COMMIT\r\nSELECT 2', 'SELECT 1; -- COMMIT\rSELECT 2', `SELECT ${tag(200)} ' COMMIT; ${tag(200)}`, `SELECT ${tag(79)} ' ${tag(79)}, ${tag(80)} COMMIT; ${tag(80)}`]) {
+    assertTransactional(mk('0001', 'ok', ok));
+  }
+  for (const bad of [`SELECT ${tag(200)} abc`, `SELECT ${tag(79)} ${tag(80)}`]) {
+    assert.throws(() => assertTransactional(mk('0001', 'aberto', bad)), /nao terminado/, bad);
+  }
   // comentarios (inclusive aninhados) e literais legitimos nao sao falso positivo; nao terminados sao rejeitados (fail-closed)
   for (const ok of ['/* /* */ COMMIT; */ SELECT 1', "SELECT E'a\\'b; COMMIT'", "SELECT 'it''s; COMMIT'", 'SELECT $a$ COMMIT; $a$, $1', 'SELECT 1 AS "x"" COMMIT;"', 'SELECT 1 AS foo$$bar']) {
     assertTransactional(mk('0001', 'ok', ok));
@@ -128,7 +148,7 @@ assert.ok(Object.values(afterResume).every((v) => v === '0001,0002,0003'));
   {
     const c = connect(base, 'poc_tenant_neg'); await c.connect(); await c.query('DROP TABLE b1, b2'); await c.end(); // limpeza do estado parcial que a deteccao nao desfaz
   }
-  log('[H1b] tokenizador: 5 evasoes + aninhado + SET standard_conforming_strings rejeitados (unit e fim a fim, b1 ausente); construtos nao terminados rejeitados; defesa xact_start detecta COMMIT interno e nao registra versao');
+  log('[H1b] tokenizador (rodada 3: \\r isolado em -- e tag de dollar-quote de 78/79/80/200 caracteres, fim a fim sem b1 e sem versao): 5 evasoes + aninhado + SET standard_conforming_strings rejeitados (unit e fim a fim, b1 ausente); construtos nao terminados rejeitados; defesa xact_start detecta COMMIT interno e nao registra versao');
   log('[H1] COMMIT/BEGIN/ROLLBACK/SAVEPOINT/END/CONCURRENTLY/VACUUM rejeitados antes de executar; comentarios, literais e corpos $$ nao geram falso positivo');
   // H2: erro SQL real (divisao por zero) no 2o statement: rollback total, nada registrado, retomada com migration corrigida
   const bad2 = mk('0001', 'erro_real', 'CREATE TABLE b1(x int); CREATE TABLE b2(x int); SELECT 1/0;');

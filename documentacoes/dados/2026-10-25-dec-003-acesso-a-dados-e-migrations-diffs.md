@@ -734,3 +734,82 @@ index 6b2ed2a..9bf97e9 100644
          if (failAfter === m.version) throw new Error(`falha induzida em ${database} apos ${m.file}`);
          await client.query(
 ```
+
+## Correção rodada 3 (commit adicional sobre `be7211a`)
+
+Diff real de `runner.mjs` e `poc.mjs` (bypasses `\r` isolado em `--` e tag de dollar-quote longa). Excluídos por regra anti-recursão: `saida-poc.txt` regenerada, ADR, procedimento, lesson e entrega.
+
+```diff
+diff --git a/documentacoes/arquitetura/poc/dec-003/poc.mjs b/documentacoes/arquitetura/poc/dec-003/poc.mjs
+index 9b4bdca..7666182 100644
+--- a/documentacoes/arquitetura/poc/dec-003/poc.mjs
++++ b/documentacoes/arquitetura/poc/dec-003/poc.mjs
+@@ -111,6 +111,26 @@ assert.ok(Object.values(afterResume).every((v) => v === '0001,0002,0003'));
+   await assert.rejects(() => migrateTenant(base, 'poc_tenant_neg', [mk('0001', 'evasao', evasoes['literal com --'])]), /controle de transacao proibido.*COMMIT/);
+   assert.equal(await tableExists('b1'), false);
+   assert.deepEqual(await appliedVersions(base, 'poc_tenant_neg'), []);
++  // rodada 3: (a) \r isolado encerra comentario -- no PG; (b) tag de dollar-quote sem limite de tamanho. Fim a fim, rejeitados ANTES de executar.
++  const tag = (len) => '$' + 'L'.repeat(len) + '$';
++  const longas = { "'-- x' + \\r isolado + COMMIT + erro final": "CREATE TABLE b1(x int); -- x\rCOMMIT; CREATE TABLE b2(x int); SELECT 1/0;" };
++  for (const len of [78, 79, 80, 200]) {
++    const T = tag(len);
++    longas[`tag de ${len} caracteres com aspa interna`] = `CREATE TABLE b1(x int); SELECT ${T} ' ${T}; COMMIT; CREATE TABLE b2(x int); SELECT ${T} ' ${T}; SELECT 1/0;`;
++  }
++  for (const [nome, sql] of Object.entries(longas)) {
++    assert.throws(() => assertTransactional(mk('0001', 'evasao', sql)), /controle de transacao proibido.*COMMIT/, nome);
++    await assert.rejects(() => migrateTenant(base, 'poc_tenant_neg', [mk('0001', 'evasao', sql)]), /controle de transacao proibido.*COMMIT/, nome);
++    assert.equal(await tableExists('b1'), false, `${nome}: b1 ausente`);
++    assert.deepEqual(await appliedVersions(base, 'poc_tenant_neg'), [], `${nome}: nenhuma versao registrada`);
++  }
++  // legitimos sem falso positivo: \r como fim de linha (CRLF e CR isolado), COMMIT so em comentario/dollar-quote longo, tag longa fechada corretamente
++  for (const ok of ['SELECT 1; -- COMMIT\r\nSELECT 2', 'SELECT 1; -- COMMIT\rSELECT 2', `SELECT ${tag(200)} ' COMMIT; ${tag(200)}`, `SELECT ${tag(79)} ' ${tag(79)}, ${tag(80)} COMMIT; ${tag(80)}`]) {
++    assertTransactional(mk('0001', 'ok', ok));
++  }
++  for (const bad of [`SELECT ${tag(200)} abc`, `SELECT ${tag(79)} ${tag(80)}`]) {
++    assert.throws(() => assertTransactional(mk('0001', 'aberto', bad)), /nao terminado/, bad);
++  }
+   // comentarios (inclusive aninhados) e literais legitimos nao sao falso positivo; nao terminados sao rejeitados (fail-closed)
+   for (const ok of ['/* /* */ COMMIT; */ SELECT 1', "SELECT E'a\\'b; COMMIT'", "SELECT 'it''s; COMMIT'", 'SELECT $a$ COMMIT; $a$, $1', 'SELECT 1 AS "x"" COMMIT;"', 'SELECT 1 AS foo$$bar']) {
+     assertTransactional(mk('0001', 'ok', ok));
+@@ -128,7 +148,7 @@ assert.ok(Object.values(afterResume).every((v) => v === '0001,0002,0003'));
+   {
+     const c = connect(base, 'poc_tenant_neg'); await c.connect(); await c.query('DROP TABLE b1, b2'); await c.end(); // limpeza do estado parcial que a deteccao nao desfaz
+   }
+-  log('[H1b] tokenizador: 5 evasoes + aninhado + SET standard_conforming_strings rejeitados (unit e fim a fim, b1 ausente); construtos nao terminados rejeitados; defesa xact_start detecta COMMIT interno e nao registra versao');
++  log('[H1b] tokenizador (rodada 3: \\r isolado em -- e tag de dollar-quote de 78/79/80/200 caracteres, fim a fim sem b1 e sem versao): 5 evasoes + aninhado + SET standard_conforming_strings rejeitados (unit e fim a fim, b1 ausente); construtos nao terminados rejeitados; defesa xact_start detecta COMMIT interno e nao registra versao');
+   log('[H1] COMMIT/BEGIN/ROLLBACK/SAVEPOINT/END/CONCURRENTLY/VACUUM rejeitados antes de executar; comentarios, literais e corpos $$ nao geram falso positivo');
+   // H2: erro SQL real (divisao por zero) no 2o statement: rollback total, nada registrado, retomada com migration corrigida
+   const bad2 = mk('0001', 'erro_real', 'CREATE TABLE b1(x int); CREATE TABLE b2(x int); SELECT 1/0;');
+diff --git a/documentacoes/arquitetura/poc/dec-003/runner.mjs b/documentacoes/arquitetura/poc/dec-003/runner.mjs
+index 9bf97e9..4b104f8 100644
+--- a/documentacoes/arquitetura/poc/dec-003/runner.mjs
++++ b/documentacoes/arquitetura/poc/dec-003/runner.mjs
+@@ -33,7 +33,7 @@ const TX_CONTROL = /^(begin|start|commit|end|rollback|abort|savepoint|release|pr
+ const NO_TX = /\b(concurrently|vacuum)\b/i; // falso positivo aceito: coluna chamada "concurrently"/"vacuum" tambem e rejeitada (falha visivel e barata)
+ const SCS = /\bstandard_conforming_strings\b/i;
+ const IDENT_CHAR = /[A-Za-z0-9_$\u0080-￿]/;
+-const DOLLAR_TAG = /^\$(?:[A-Za-z_\u0080-￿][A-Za-z0-9_\u0080-￿]*)?\$/;
++const DOLLAR_TAG = /\$(?:[A-Za-z_\u0080-￿][A-Za-z0-9_\u0080-￿]*)?\$/y; // sticky: casa a partir de lastIndex na string inteira, sem janela/limite de tamanho (o PG nao limita a tag)
+ 
+ /**
+  * Tokenizador de UMA passada (estado unico, na ordem de aparicao, como o servidor): devolve o SQL com comentarios
+@@ -50,7 +50,7 @@ export function stripSql(sql, file = 'migration') {
+     const c = sql[i];
+     const next = sql[i + 1];
+     if (c === '-' && next === '-') {
+-      while (i < n && sql[i] !== '\n') i++;
++      while (i < n && sql[i] !== '\n' && sql[i] !== '\r') i++; // o PG encerra o comentario em \n OU \r isolado
+       out += ' ';
+     } else if (c === '/' && next === '*') {
+       let depth = 1;
+@@ -80,7 +80,8 @@ export function stripSql(sql, file = 'migration') {
+       }
+       out += '""';
+     } else if (c === '$' && !IDENT_CHAR.test(sql[i - 1] ?? ' ')) {
+-      const tag = DOLLAR_TAG.exec(sql.slice(i, i + 80))?.[0]; // $1 (parametro) nao casa: exige $tag$ ou $$
++      DOLLAR_TAG.lastIndex = i;
++      const tag = DOLLAR_TAG.exec(sql)?.[0]; // $1 (parametro) nao casa: exige $tag$ ou $$
+       if (!tag) { out += c; i++; continue; }
+       const end = sql.indexOf(tag, i + tag.length);
+       if (end < 0) unterminated(`dollar-quote ${tag}`);
+```

@@ -33,7 +33,7 @@ const TX_CONTROL = /^(begin|start|commit|end|rollback|abort|savepoint|release|pr
 const NO_TX = /\b(concurrently|vacuum)\b/i; // falso positivo aceito: coluna chamada "concurrently"/"vacuum" tambem e rejeitada (falha visivel e barata)
 const SCS = /\bstandard_conforming_strings\b/i;
 const IDENT_CHAR = /[A-Za-z0-9_$\u0080-￿]/;
-const DOLLAR_TAG = /^\$(?:[A-Za-z_\u0080-￿][A-Za-z0-9_\u0080-￿]*)?\$/;
+const DOLLAR_TAG = /\$(?:[A-Za-z_\u0080-￿][A-Za-z0-9_\u0080-￿]*)?\$/y; // sticky: casa a partir de lastIndex na string inteira, sem janela/limite de tamanho (o PG nao limita a tag)
 
 /**
  * Tokenizador de UMA passada (estado unico, na ordem de aparicao, como o servidor): devolve o SQL com comentarios
@@ -50,7 +50,7 @@ export function stripSql(sql, file = 'migration') {
     const c = sql[i];
     const next = sql[i + 1];
     if (c === '-' && next === '-') {
-      while (i < n && sql[i] !== '\n') i++;
+      while (i < n && sql[i] !== '\n' && sql[i] !== '\r') i++; // o PG encerra o comentario em \n OU \r isolado
       out += ' ';
     } else if (c === '/' && next === '*') {
       let depth = 1;
@@ -80,7 +80,8 @@ export function stripSql(sql, file = 'migration') {
       }
       out += '""';
     } else if (c === '$' && !IDENT_CHAR.test(sql[i - 1] ?? ' ')) {
-      const tag = DOLLAR_TAG.exec(sql.slice(i, i + 80))?.[0]; // $1 (parametro) nao casa: exige $tag$ ou $$
+      DOLLAR_TAG.lastIndex = i;
+      const tag = DOLLAR_TAG.exec(sql)?.[0]; // $1 (parametro) nao casa: exige $tag$ ou $$
       if (!tag) { out += c; i++; continue; }
       const end = sql.indexOf(tag, i + tag.length);
       if (end < 0) unterminated(`dollar-quote ${tag}`);

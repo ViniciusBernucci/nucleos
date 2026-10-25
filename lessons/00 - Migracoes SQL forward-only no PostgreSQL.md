@@ -1,6 +1,6 @@
 # Migracoes SQL forward-only no PostgreSQL (multi-database)
 
-Criada em 2026-10-25. Ultima atualizacao: 2026-10-25 (correcao rodada 2: lint por tokenizador e defesa xact_start). Exemplos: Node 24.22.1, `pg` 8.23.1, Python 3.13 e `psycopg` 3.3.4, PostgreSQL 16 com pgvector 0.8.7.
+Criada em 2026-10-25. Ultima atualizacao: 2026-10-25 (correcao rodada 3: fim do comentario -- em \r e dollar-quote sem limite de tag; rodada 2: lint por tokenizador e defesa xact_start). Exemplos: Node 24.22.1, `pg` 8.23.1, Python 3.13 e `psycopg` 3.3.4, PostgreSQL 16 com pgvector 0.8.7.
 
 ## Objetivo, pre-requisitos e posicao na trilha
 
@@ -74,6 +74,7 @@ Veja `migrateTenant` e `migrateBatch` em [`runner.mjs`](../documentacoes/arquite
 - Usar `CREATE INDEX CONCURRENTLY` ou `VACUUM` dentro da transacao do runner (nao funciona; o runner da PoC os rejeita; exigem fluxo proprio, fora de escopo).
 - Escrever `COMMIT`/`BEGIN` no arquivo da migration (rejeitado pelo lint do runner).
 - Tratar comentarios como removiveis por regex antes de literais: `'-- x'` e `$$--$$` contem `--` sem ser comentario (use um tokenizador de uma passada).
+- Copiar so parte das regras lexicais do servidor: no PostgreSQL o comentario `--` termina em `\n` **ou** `\r` isolado, e a tag de dollar-quote nao tem limite de tamanho. Qualquer limite arbitrario (por exemplo, olhar so 80 caracteres a frente) vira bypass: o lint aprova e o servidor executa `COMMIT`. Confirme cada regra contra o servidor real e teste os valores de fronteira (78, 79, 80, 200).
 - Confiar no lint contra SQL dinamico ou `standard_conforming_strings=off`: nao cobre; a revisao humana e o gate.
 - Advisory lock de sessao com pooler em modo transacao (o lock se perde).
 - Nao se aplica quando ha um unico banco pequeno e uma ferramenta pronta ja atende.
