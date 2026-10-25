@@ -5,7 +5,9 @@ description: Revisa alterações sem editar código e produz achados e plano de 
 
 # Revisor de código
 
-Entrada única de revisão técnica. Os agentes existentes continuam válidos como executores especializados; esta skill permite aplicar os mesmos critérios quando não estiverem disponíveis. Não crie outra skill `code-reviewer` concorrente.
+Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
+
+Entrada única e gate técnico oficial do fluxo. Os agentes existentes continuam válidos como executores especializados internos; esta skill permite aplicar os mesmos critérios quando não estiverem disponíveis. Não crie outra skill `code-reviewer` concorrente e não rode os agentes novamente sobre o mesmo diff depois deste gate.
 
 ## Seleção do modo
 
@@ -14,6 +16,7 @@ Entrada única de revisão técnica. Os agentes existentes continuam válidos co
 - “Boas práticas”, “clean”, “padrões”: [qualidade](references/qualidade.md), sem aplicar refatoração.
 - “Brecha”, “security review deste diff”: [segurança](references/seguranca.md).
 - Auditoria abrangente, modelo de ameaça ou cadeia de suprimentos: `security-audit`, se disponível. Não executar ambos sobre a mesma superfície sem motivo.
+- Revalidação depois de correções: revise somente os IDs informados, os commits de correção e o raio de impacto demonstrável. Preserve os IDs originais e classifique cada um como `VERIFICADO`, `AINDA PRESENTE`, `REGRESSÃO` ou `BLOQUEADO`.
 
 Leia somente as referências dos modos selecionados. Achados de outra especialidade viram encaminhamentos; na revisão completa, consolide pela causa raiz. Não omita risco grave por causa da divisão de papéis.
 
@@ -24,7 +27,7 @@ Leia somente as referências dos modos selecionados. Achados de outra especialid
 3. Com árvore limpa, use a base configurada para a tarefa; só depois descubra `refs/remotes/origin/HEAD` ou uma branch principal existente. Registre os hashes de base e HEAD e use `git diff <base>...HEAD`. Não escolha outra base silenciosamente se a informada não existir. Sem base ou mudanças identificáveis, peça apenas o escopo ausente.
 4. Em múltiplos repositórios, registre escopo e hashes separadamente. Nunca troque uma worktree pelo checkout principal.
 5. Leia inteiros os arquivos de código alterados e rastreie chamadores, contratos, testes e migrations relevantes. Em arquivos grandes, use leitura segmentada e declare lacunas. Separe problemas introduzidos das dívidas preexistentes.
-6. Use somente Git de leitura. Não edite código, não faça commit/push e não execute correções. Relatórios são a única escrita desta revisão. Execute verificações locais pertinentes apenas se seu caminho de execução for conhecido e compatível com o ambiente.
+6. Durante a revisão, use somente Git de leitura. Não edite código, não faça commit/push e não execute correções por iniciativa própria. Relatórios são a única escrita desta revisão; aplicação posterior cabe ao implementador, por decisão do auditor no lote ou por indicação do usuário fora dele (ver Saída). Execute verificações locais pertinentes apenas se seu caminho de execução for conhecido e compatível com o ambiente.
 
 Se `.claude/agents/_shared/escopo-revisao.md` existir, leia-o como protocolo local, respeitando o escopo explícito do usuário. Esta skill é autossuficiente quando ele não existir; não invente seu conteúdo.
 
@@ -62,4 +65,4 @@ Cabeçalho: tarefa, modo, repositório/worktree, base e HEAD, estado local, arqu
 
 Finalize com mitigados/verificado e OK, precisa de validação, encaminhamentos e riscos residuais. Sem achados, escreva “Nenhum problema fundamentado no escopo revisado”, preservando as limitações.
 
-Veredito: `APPROVED`, `APPROVED WITH NOTES`, `CHANGES REQUESTED` ou `ARCHITECTURE REVIEW REQUIRED`. Escopo essencial não examinado fica `REVIEW BLOCKED`, sem aprovação por ausência de evidência. Recomendações nunca autorizam executar a correção: isso cabe ao pedido do usuário e ao implementador.
+Veredito: `APPROVED`, `APPROVED WITH NOTES`, `CHANGES REQUESTED` ou `ARCHITECTURE REVIEW REQUIRED`. Escopo essencial não examinado fica `REVIEW BLOCKED`, sem aprovação por ausência de evidência. Recomendações, sozinhas, não autorizam o revisor a corrigir. No lote, devolva o relatório ao orquestrador, que aciona auditor-de-review e review-loop-driver sem pausa humana; as correções voltam para revalidação focal nesta skill, em sessão independente. Fora do lote, entregue os achados e encerre a revisão; aplicação solicitada pelo usuário usa review-loop-driver para os IDs autorizados. Nunca altere o veredito original para esconder achados rejeitados pelo auditor: registre a decisão em relatório próprio.

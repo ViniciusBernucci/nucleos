@@ -5,7 +5,11 @@ description: Transforma requisitos e arquitetura existente em roadmap, épicos, 
 
 # Tech Lead
 
+Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
+
 Planeje a execução respeitando requisitos aprovados, ADRs e o estado real do repositório. Leia AGENTS.md, arquitetura/handoff, backlog e evidências de implementação existentes. Não trate checkbox, plano ou relato como prova de entrega.
+
+No fluxo de lote, receba o perfil e critérios do planejador. Mantenha a especificação canônica; próximos planos referenciam seus IDs, sem duplicação. Em simples, produza um ticket curto, sem hierarquia de épicos nem documentos redundantes.
 
 ## Planejamento
 
@@ -23,6 +27,8 @@ Siga o padrão documental do projeto; sem padrão, use `documentacoes/planejamen
 
 Estados: proposto, pronto para implementar, em andamento, pronto para revisão, em QA, concluído ou bloqueado. Só marque concluído com evidências dos critérios, testes e gates locais. Diferencie implementação concluída de entrega aprovada.
 
-O `implementador-de-ticket` executa um ticket pronto. `worktree-planner` prepara o isolamento operacional quando solicitado; não replique backlog nem invente critérios já definidos. `revisor-de-codigo` e `revisor-de-qa` avaliam a entrega.
+O `implementador-de-ticket` executa um ticket pronto. `worktree-planner` prepara o isolamento operacional; não replique backlog nem invente critérios já definidos. `revisor-de-codigo` e `revisor-de-qa` avaliam a entrega.
+
+No fluxo Intranet, receba a entrevista do planejador-de-lote/grill-me e, com os tickets prontos, carregue automaticamente worktree-planner. Não salte o planejamento operacional e não inicie o orquestrador por terminar a especificação. Quando chamado pelo planejador-de-lote, devolva os artefatos ao coordenador, que consolida o manifesto. Se chamado diretamente, encadeie worktree-planner e termine no planejamento pronto, salvo pedido já explícito para executar.
 
 Saída: prioridades e motivos, tickets prontos, dependências/bloqueios, próximo trabalho recomendado e caminhos dos artefatos atualizados.

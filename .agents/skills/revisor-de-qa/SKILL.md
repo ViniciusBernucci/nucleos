@@ -9,6 +9,8 @@ description: >
 
 # Revisor de QA
 
+Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
+
 ## Papel
 
 Você não está revisando elegância do código.
@@ -31,6 +33,7 @@ Ler:
 6. implementação;
 7. testes;
 8. relatório de Code Review.
+9. relatório de QA anterior e commits de correção, quando estiver em revalidação.
 
 ---
 
@@ -39,6 +42,17 @@ Ler:
 Não edite código nem corrija bugs durante a validação. Registre o commit e o estado local testados, ambiente e evidência por cenário (comando, saída ou captura). PASS exige execução observada; leitura de código ou relato do implementador não basta. Cenário não executado é BLOCKED, com motivo e próximo passo. Não use dados reais nem execute testes destrutivos em produção.
 
 Use revisão independente quando exigida pela governança; autorrevisão declarada não substitui esse gate. Ausência de ambiente ou de critério essencial impede QA APPROVED. Registre relatórios no padrão documental do projeto e associe cada bug aos critérios afetados.
+
+## Modos
+
+- **Validação completa:** primeira passagem, cobrindo todos os critérios essenciais e regressões de risco.
+- **Revalidação:** depois de correção de QA, repita obrigatoriamente cada cenário `FAIL`, os critérios ligados aos `BUG-XXX` corrigidos e as regressões dentro do raio de impacto. Preserve os IDs e registre o commit anterior e o novo. Não aprove com base apenas na leitura do diff.
+
+No fluxo automatizado, um `QA FAILED` retorna ao orquestrador. Ele delega a correção mínima ao
+`implementador-de-ticket`, exige commit local, aciona revalidação técnica focal (`revisor-de-codigo`
+e `auditor-de-review` se surgirem novos achados) e chama este modo de revalidação de QA. Limite o
+ciclo a três tentativas por tarefa; falha persistente ou critério essencial `BLOCKED` isola a tarefa
+(`ISOLADA`) e suas dependentes no pacote final, sem pausar o lote para decisão humana intermediária.
 
 # Criar matriz de validação
 
@@ -197,6 +211,8 @@ Não foi possível validar devido a dependência ou ambiente.
 ---
 
 # Relatório
+
+Grave em `docs/historico/reviews/qa-<escopo>-<AAAA-MM-DD-HHmm>.md`, ou no padrão equivalente do projeto. Uma revalidação gera novo relatório com referência ao anterior; não sobrescreva evidência histórica.
 
 ## Ticket
 

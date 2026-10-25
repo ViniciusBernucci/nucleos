@@ -16,20 +16,22 @@ Ordem fixa: **1. registro de entrega (com o resumo do ClickUp) → 2. commit (se
 índice diário → 4. resumo repetido no chat.** O registro entra no mesmo commit do código que
 documenta, então ele vem antes; a linha do índice leva o hash do commit, então ela vem depois.
 
-`<obrigatório>` **Push é manual, por enquanto.** Esta skill commita e para — nunca rode `git push`.
+`<obrigatório>` **Push é sempre manual.** No lote do `orquestrador-fluxo-ia`, a sessão executora
+commita e devolve o `FLUXO_EVENTO` ao coordenador (que serializa a linha no índice diário e segue
+para os gates); fora do lote, esta skill commita, atualiza o índice e encerra — nunca rode `git push`.
 Quem publica no remoto é o usuário, quando decidir. `</obrigatório>`
 
-Sessões dentro de uma worktree do orca **não enxergam esta skill** — o prompt gerado pela
-`worktree-planner` traz a transcrição dela (bloco `REGISTRO DE ENTREGA`, §8.6 do perfil Intranet daquela skill). Mudou
-algo aqui? Mude lá também, ou os dois caminhos divergem.
+As skills chegam a toda sessão por links globais (`~/.claude/skills` e `~/.agents/skills`)
+conferidos por `planejador-de-lote/scripts/sincronizar-fluxo.mjs`, e o prompt de worktree-planner referencia este perfil por caminho absoluto. Só transcreva o contrato quando esse acesso não existir. Mudou algo aqui? Mude também em `worktree-planner/references/intranet.md`, ou os dois
+caminhos divergem.
 
 ---
 
 ## 0. ID da tarefa no ClickUp
 
-Descubra o ID antes de escrever, nesta ordem: a linha `Tarefa ClickUp:` do `CLAUDE.local.md` da
-worktree; o segmento de ID da branch (`{tipo}/{id}-{assunto}`); o que o usuário disse na sessão. Não
-achou? **Pergunte**, com as opções `Informar o ID` e `Não possui ID vinculado`.
+Descubra o ID antes de escrever, nesta ordem: o manifesto/prompt da tarefa na worktree; o segmento
+de chave/ID da branch (`{tipo}/{chave}-{assunto}`); o que o usuário disse na sessão. No planejamento
+ou em execução avulsa fora do lote, se não encontrar, **pergunte** (`Informar o ID` ou `Não possui ID vinculado`). Durante execução autônoma do lote, nunca pause para perguntar: use o identificador já fixado no manifesto/prompt (`id=nenhum` e `não possui ID vinculado` quando não houver card externo).
 
 Normalize: minúsculas, sem `#`, só `[a-z0-9-]`. Sem ID vinculado: o nome do registro não leva o
 segmento `{id}-`, o texto diz `Tarefa ClickUp: não possui ID vinculado`, o marcador leva `id=nenhum`
@@ -46,8 +48,8 @@ camada que ele documenta — versionado junto do código:
 
 | A sessão mexeu em | Grava o registro em |
 | --- | --- |
-| só backend | `D:\Documentos\00 - Dev\docker-intranet\app\docs\historico\entregas\` |
-| só frontend | `D:\Documentos\00 - Dev\intranetNova\docs\historico\entregas\` |
+| só backend | `{RAIZ_BACKEND_CONFIRMADA}\docs\historico\entregas\` |
+| só frontend | `{RAIZ_FRONTEND_CONFIRMADA}\docs\historico\entregas\` |
 | **nos dois** | **um arquivo em cada**, cada um documentando **apenas** as mudanças daquele repositório |
 
 Numa worktree, o caminho é o mesmo `docs\historico\entregas\`, relativo à raiz da worktree.
@@ -86,9 +88,7 @@ pasta do módulo dela, com nome temático, sem data. Leia `docs\README.md` antes
 2. `O que foi feito` — a solução em prosa, com o **porquê** de cada decisão de arquitetura e as
    alternativas descartadas (e por quê).
 3. `Arquivos alterados` — tabela `caminho | criado/alterado/removido | o que mudou`.
-4. `Diffs` — o diff de **todo** arquivo tocado, um bloco ` ```diff ` por arquivo, com o caminho como
-   cabeçalho. Arquivo novo entra inteiro. Proibido resumir em "trecho relevante": o registro tem que
-   bastar sozinho, sem abrir o repositório.
+4. `Referências de diff e validação` — base/SHA, arquivos e comandos para consultar mudanças. Não copie diffs nem arquivos inteiros: Git preserva o conteúdo. Antes do commit, referencie base/inventário; o evento e o índice recebem o SHA posterior, evitando autorreferência.
 5. `Impacto e pontos de atenção` — migration pendente, breaking change de contrato, o que testar à
    mão, o que ficou fora do escopo e por quê.
 6. `## Resumo para o ClickUp` — **sempre a última seção**, fora de qualquer `## Parte N`, no formato
@@ -97,10 +97,10 @@ pasta do módulo dela, com nome temático, sem data. Leia `docs\README.md` antes
 **De onde vêm os diffs** — um repositório por vez, e o do backend termina em `\app`:
 
 ```bash
-git -C "D:/Documentos/00 - Dev/docker-intranet/app" diff
-git -C "D:/Documentos/00 - Dev/docker-intranet/app" status
-git -C "D:/Documentos/00 - Dev/intranetNova" diff
-git -C "D:/Documentos/00 - Dev/intranetNova" status
+git -C "{RAIZ_BACKEND_CONFIRMADA}" diff
+git -C "{RAIZ_BACKEND_CONFIRMADA}" status
+git -C "{RAIZ_FRONTEND_CONFIRMADA}" diff
+git -C "{RAIZ_FRONTEND_CONFIRMADA}" status
 ```
 
 Escreva em português, no nível de detalhe de quem vai ler isso em seis meses sem lembrar de nada.
@@ -109,8 +109,9 @@ Escreva em português, no nível de detalhe de quem vai ler isso em seis meses s
 
 `<obrigatório>`
 
-O resumo do card vai **dentro do registro de entrega**, entre marcadores que **outro agente** usa
-para extrair o texto e publicá-lo no card da tarefa. Os marcadores são contrato com esse agente:
+O resumo do card vai **dentro do registro de entrega**, entre marcadores que a publicação no
+ClickUp (só quando autorizada; não há publicador instalado neste fluxo) usa para extrair o texto do
+card. Os marcadores são contrato com essa publicação:
 **nunca** mude a grafia, nunca os omita, nunca ponha dois blocos no mesmo registro (com várias
 Partes, um bloco só resume todas).
 
@@ -173,26 +174,30 @@ As regras completas estão na seção **Regras de Git** do `CLAUDE.md` do reposi
 `<obrigatório>`
 
 Depois do **último** commit, acrescente **uma linha por registro** no índice do dia:
-`D:\Documentos\00 - Dev\docker-intranet\.claude\entregas\{AAAA-MM-DD}.md`, com a data **da
+`{FONTE_CLAUDE}\entregas\{AAAA-MM-DD}.md`, com a data **da
 entrega**. É o que responde "o que foi entregue em cada dia".
 
 Fica **fora do git** de propósito: agentes dos dois repositórios escrevem nele sem conflito de
 merge. É log operacional entre repositórios, como os planos em `.claude\worktrees\` — não é
 documentação de camada.
 
-Só **acréscimo** (`>>`). Nunca edite nem apague linha que já está lá — é de outra entrega. A coluna
-`Resumo ClickUp` nasce `pendente`; quem a muda para `publicado` é o agente do ClickUp, nunca esta
-skill. Não faça `commit --amend` depois de gravar a linha: o hash dela deixaria de existir.
+Só **acréscimo** (`>>`), conferindo antes se a linha daquela tarefa/camada/registro já existe para
+evitar duplicação. No lote do `orquestrador-fluxo-ia`, o executor devolve os campos no `FLUXO_EVENTO`
+e **somente o coordenador** escreve no índice diário, serializando as escritas; fora do lote, a
+própria sessão acrescenta a linha após o commit. Nunca edite nem apague linha que já está lá — é de
+outra entrega. A coluna `Resumo ClickUp` nasce `pendente`; quem a muda para `publicado` é o fluxo de
+publicação externa quando autorizado, nunca esta skill. Não faça `commit --amend` depois de gravar a
+linha: o hash dela deixaria de existir.
 
 `</obrigatório>`
 
 ```bash
 DATA="$(date +%F)"
-REPO="D:/Documentos/00 - Dev/intranetNova"          # ou .../docker-intranet/app, ou a worktree
-INDICE="D:/Documentos/00 - Dev/docker-intranet/.claude/entregas/$DATA.md"
+REPO="{RAIZ_FRONTEND_CONFIRMADA}"          # ou .../docker-intranet/app, ou a worktree
+INDICE="{FONTE_CLAUDE}/entregas/$DATA.md"
 HASH="$(git -C "$REPO" rev-parse --short HEAD)"      # checkout principal: "sem commit — aguardando revisão"
 REGISTRO="docs/historico/entregas/$DATA-{id}-{assunto}.md"
-mkdir -p "D:/Documentos/00 - Dev/docker-intranet/.claude/entregas"
+mkdir -p "{FONTE_CLAUDE}/entregas"
 if [ ! -f "$INDICE" ]; then
   printf '# Entregas de %s\n\nAntes do merge, o registro só abre com: git -C "<repositório>" show <commit>:<caminho>\n\n| ID ClickUp | Worktree | Camada | Branch | Commit | Registro | Resumo ClickUp |\n| --- | --- | --- | --- | --- | --- | --- |\n' "$DATA" > "$INDICE"
 fi
@@ -209,9 +214,20 @@ O link relativo parte de `docker-intranet\.claude\entregas\` e aponta para o **c
 
 ## 4. Resumo no chat
 
-Termine a sessão repetindo no chat o conteúdo do bloco `clickup-resumo` de cada registro, o caminho
-de cada registro e a(s) linha(s) do índice. **Não gere outro arquivo** para o resumo: a fonte é o
-registro; o chat é só conferência.
+No lote, devolva evento compacto com caminhos/hashes; o coordenador inclui resumo de produto no pacote final. Fora do lote, apresente resumo curto e caminho do registro; não repita relatórios completos. **Não gere outro arquivo** para o resumo: a fonte é o
+registro; o chat é só conferência. No fluxo Intranet/ORCA, finalize também com:
+
+```text
+FLUXO_EVENTO: IMPLEMENTACAO_CONCLUIDA
+TAREFA: {id}
+CAMADA: {backend|frontend}
+WORKTREE: {path}
+BRANCH: {branch}
+COMMIT: {hash}
+REGISTRO: {path}
+VALIDACOES: {executadas e resultado}
+LIMITACOES: {nenhuma ou lista}
+```
 
 ---
 
@@ -219,7 +235,7 @@ registro; o chat é só conferência.
 
 - [ ] ID do ClickUp descoberto ou perguntado (§0), normalizado, no nome e no cabeçalho do registro
 - [ ] Registro de entrega escrito em **cada** repositório tocado, no caminho da camada certa
-- [ ] Diffs completos, tirados do repositório correto, sem mistura entre os dois
+- [ ] Referências verificáveis de diff/validação, sem copiar código nem misturar repositórios
 - [ ] `## Resumo para o ClickUp` é a última seção, com os marcadores `clickup-resumo:inicio` /
       `clickup-resumo:fim` intactos, `id=` e `camada=` preenchidos, um bloco por registro
 - [ ] Documentação afetada atualizada (módulo, não `historico\`)

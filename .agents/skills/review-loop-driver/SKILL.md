@@ -1,39 +1,33 @@
 ---
 name: review-loop-driver
-description: Consolida relatórios dos agentes revisores ou de revisor-de-codigo/security-audit em uma fila de correções e prepara um prompt por item. Use para processar reviews e acompanhar correções; não revisa novamente, não altera código e não aprova QA.
+description: Consolida a fila de review e coordena correções por decisão do auditor no lote ou por indicação do usuário fora dele. Use para aplicar achados autorizados e registrar commits; não refaz review nem aprova QA.
 ---
 
-# Condutor do loop de correções
+# Condutor das correções
 
-Leia os relatórios indicados, ticket, escopo da worktree e decisões do usuário. Aceite `code-review-*`, `security-review-*`, `clean-code-*`, o legado `clean-code-review-*` e relatórios de auditoria. Não misture revisões históricas ou de outras branches só porque estão na mesma pasta.
+Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
 
-## Fila
+Leia relatório, auditoria, ticket, critérios, branch e estado atual. No lote, leia [execução portátil](../_shared/execucao-portavel.md). Montar fila por si só não autoriza implementar fora do lote.
 
-Grave `docs/historico/reviews/fila-<assunto>-<data>.md` no repositório revisado. Registre base/HEAD ou estado local de origem e tabela: ID, severidade, origem+ID original, local, problema, bloqueia, status e evidência. Preserve IDs ao atualizar; una apenas achados com a mesma causa raiz e correção, conservando todas as origens.
+## Fila rastreável
 
-Ordene CRÍTICO → ALTO → MÉDIO → BAIXO; empate por dependências, segurança, correção e manutenção. `BLOCKER` é bloqueante; `NIT` é opcional; `Critical/High/Medium/Low` correspondem aos nomes em português. `needs-validation` fica em investigação, sem promover a achado confirmado.
+Grave docs/historico/reviews/fila-{assunto}-{data}.md na camada revisada. Chave por item: tarefa + repositório + relatório + ID original. Preserve IDs e origens ao consolidar causas compartilhadas. Registre base/HEAD de origem, severidade, bloqueio, decisão, justificativa, dependências, executor, status, commit e evidência de verificação. Ordene por dependência e severidade. Suspeita não confirmada fica em investigação.
 
-CRÍTICO e ALTO bloqueiam por padrão; demais itens seguem aceite e política local. Não promova toda segurança a CRÍTICO. Preserve a regra documentada de N requisições batch da Intranet apenas quando esse perfil se aplicar. Separe severidade de decisão de bloqueio.
+## Aplicação por decisão do auditor
 
-Fora do escopo vira sugestão de nova tarefa, sem autorizar expansão. Um risco bloqueante não deixa de bloquear só por estar fora do escopo: registre a decisão necessária. Não publique tarefas externas automaticamente.
+A chamada do orquestrador autoriza executar o lote; não peça ao usuário seleção de IDs. Aplique somente APLICAR da auditoria correspondente ao relatório e ao código atual. ADIAR e REJEITAR ficam documentados, sem editar código por esses itens. Auditoria bloqueada isola a tarefa.
 
-## Prompt por item
+1. Confirme worktree, branch da tarefa, base/HEAD e git status. Nunca main/master. Preserve alterações alheias, inclusive staged; não faça unstage nem commit de material desconhecido.
+2. Gere prompt ao especialista da camada (implementador-de-ticket) com IDs, evidências, regra de negócio, plano mínimo, arquivos e teste esperado. Delegue em sessão de implementação; não implemente no papel de auditor/revisor. Dependência nova ou necessidade de mudar regra retorna ao auditor, sem expansão silenciosa de escopo.
+3. Se o código mudou e invalida o achado, devolva ao auditor com o diff; não aplique plano obsoleto nem marque verificado por relato.
+4. Execute as verificações pertinentes e permitidas. Verificações essenciais indisponíveis resultam em BLOCKED, nunca em aprovação inventada. Falha dentro do escopo é corrigida; persistência após três ciclos isola a tarefa.
+5. Commit fix: em português, por unidade lógica/rodada, com caminhos explícitos, sem push/co-autoria. Não faça amend de commits já usados como evidência ou indexados. Atualize o registro existente da tarefa com uma seção de correções e os IDs; não gere nova entrega nem nova linha no índice diário por ID.
+6. Atualize a fila para aplicado/aguarda verificação com hash real. Devolva automaticamente ao orquestrador para revisor-de-codigo em revalidação focal. Só o revisor independente marca VERIFICADO; AINDA PRESENTE, REGRESSÃO ou BLOQUEADO retornam ao auditor.
 
-Use caminhos reais da worktree e branch confirmados, nunca caminhos Windows herdados do exemplo. O prompt contém:
+Relatórios/fila ainda não commitados entram no commit documental do orquestrador. Não faça merge por esta skill.
 
-- Âncora: repositório, worktree, branch, base/HEAD e leituras externas necessárias.
-- ID da correção e origem; cenário, evidência e plano do relatório.
-- Escopo autorizado e arquivos relacionados; verificar se o código ainda corresponde ao achado.
-- Correção mínima e teste de regressão apropriado; sem refatorações extras.
-- Git de leitura permitido; sem commit, push ou merge nesta etapa, salvo instrução explícita do usuário.
-- Evidência de conclusão: diff, verificações executadas/resultados, riscos e limitações.
+## Aplicação sob indicação do usuário — fora do lote
 
-Gere um item por vez, agrupando somente a mesma causa raiz já consolidada. O pedido de montar fila não autoriza implementar. Se a sessão já autoriza corrigir determinados itens, preserve essa autorização no handoff sem pedir novamente.
+Revisão avulsa termina no relatório. Se o usuário pedir “aplica REVIEW-003”, um filtro de severidade ou a fila toda, aplique somente esse conjunto pendente, conferindo origem e escopo. Se o pedido for ambíguo, esclareça os IDs; não exija IDs quando o pedido já abrange claramente toda a fila. Pode executar diretamente o papel de implementador após encerrar o papel de revisão, declarando que a verificação independente continua pendente. Use as mesmas verificações, commit e registro descritos acima. Entregue hashes, IDs e pendências; não inicie o lote inteiro sem pedido.
 
-## Acompanhamento
-
-Estados: pendente, em andamento, aplicado/aguarda verificação, verificado, adiado ou nova tarefa. Relato de aplicação não equivale a verificação. Atualize com a resposta ou evidência disponível; não invente execução nem marque testes não executados como passando.
-
-Quando não houver correção obrigatória pendente, informe “fila concluída; pronta para revalidação” e liste gates pendentes. Não declare entrega aprovada ou liberada para merge. Correções invalidam evidências afetadas: peça revalidação focal, sem repetir toda revisão se o escopo não justificar. Atualize checklist semanal apenas se ele existir e pertencer ao pedido.
-
-Não altere código, não execute Git de escrita, não publique mensagens externas e não inicie um ciclo infinito de melhorias. Novos problemas fora da entrega seguem para backlog.
+Estados: pendente, em andamento, aplicado/aguarda verificação, verificado, adiado, rejeitado, bloqueado. Preserve relatório original e justificativas; não declare entrega aprovada sem review, auditoria e QA exigidos. Nunca publicação externa automática.

@@ -5,6 +5,8 @@ description: Audita segurança de um sistema ou superfície ampla com modelo de 
 
 # Auditoria de segurança
 
+Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
+
 Produza evidência sobre um escopo definido, sem prometer segurança porque scanners passaram. Esta skill é diagnóstica: não altera código, políticas, baselines nem alertas remotos por padrão. Correção exige que o pedido inclua remediação; mantenha achados e alterações separados.
 
 Leia [checklist de segurança](references/security-checklist.md) e somente as seções aplicáveis das [verificações por ecossistema](references/ecosystem-checks.md).
