@@ -12,8 +12,8 @@ dev = ["pytest==9.0.3"]
 package = false
 
 [tool.uv.workspace]
-members = ["services/*"]
+members = ["services/*", "packages/observability-py"]
 
 [tool.pytest.ini_options]
-testpaths = ["services"]
+testpaths = ["services", "packages/observability-py"]
 addopts = "--import-mode=importlib"

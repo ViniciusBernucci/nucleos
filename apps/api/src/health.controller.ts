@@ -7,4 +7,10 @@ export class HealthController {
   health(): HealthResponse {
     return healthResponse("api");
   }
+
+  /** Sem dependencias criticas ainda (banco chega em ticket proprio); nao expoe versao. */
+  @Get("readyz")
+  ready(): { status: "ready"; service: string } {
+    return { status: "ready", service: "api" };
+  }
 }

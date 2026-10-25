@@ -1,31 +1,33 @@
-"""Servidor HTTP minimo (stdlib) com /healthz. Framework real entra em ticket proprio."""
+"""Servidor HTTP minimo (stdlib) com /healthz e /readyz observados (FND-009)."""
 
-import json
 import os
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import sys
+from http.server import HTTPServer
+
+from nucleos_observability import (
+    Logger,
+    Observability,
+    Telemetry,
+    make_handler,
+    make_observability,
+    telemetry_config_from_env,
+)
 
 SERVICE = "tool-gateway"
 HEALTH_PATH = "/healthz"
 
 
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self) -> None:
-        if self.path != HEALTH_PATH:
-            self.send_error(404)
-            return
-        body = json.dumps({"status": "ok", "service": SERVICE}).encode()
-        self.send_response(200)
-        self.send_header("content-type", "application/json")
-        self.send_header("content-length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
-
-    def log_message(self, format: str, *args: object) -> None:  # silencia o log padrao
-        return
+def default_observability() -> Observability:
+    version = os.environ.get("APP_VERSION", "0.0.0")
+    env = os.environ.get("APP_ENV", "local")
+    config = telemetry_config_from_env(os.environ, SERVICE, version, env)
+    return make_observability(Logger(SERVICE, version, env, stream=sys.stdout), Telemetry(config))
 
 
-def make_server(host: str = "127.0.0.1", port: int = 8003) -> HTTPServer:
-    return HTTPServer((host, port), Handler)
+def make_server(
+    host: str = "127.0.0.1", port: int = 8003, kit: Observability | None = None
+) -> HTTPServer:
+    return HTTPServer((host, port), make_handler(kit or default_observability(), SERVICE))
 
 
 def main() -> None:
