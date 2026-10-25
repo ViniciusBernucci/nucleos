@@ -1452,3 +1452,54 @@ index e11e7ac..d17ea3f 100755
    done
  }
 ```
+
+## Correcao rodada 2
+
+Origem: auditoria `documentacoes/reviews/2026-10-25-auditoria-qa-fnd-001.md` (somente BUG-001 com decisao APLICAR). Base da rodada: HEAD `54448cb76455d861ae823fbbb447e577f3f6fbea` na branch `tarefa/fnd-001`, arvore limpa. Arquivo alterado: `scripts/check-no-env.sh`.
+
+### O que mudou (BUG-001)
+
+Logo apos o `cd`, `check-no-env.sh` executa `git rev-parse --is-inside-work-tree`; se falhar, imprime `ERRO: check-env requer um repositorio git (git ls-files); arvore sem .git nao e verificavel` e sai com rc=2. Sem skip silencioso (guard de seguranca falha fechado) e sem as linhas `fatal:`. Comportamento sem `.git`: `make lint`/`make test` (que chamam o guard) exigem repositorio git.
+
+### Validacoes reais (rodada 2)
+
+| Teste | Resultado |
+| --- | --- |
+| Arvore sem `.git` (arquivos rastreados extraidos com `git ls-files -z \| tar` para diretorio novo no scratchpad, incluindo a correcao ainda nao commitada; `git archive HEAD` nao conteria a edicao) | rc=2, mensagem nova, sem `fatal:` |
+| Worktree real | `OK: nenhum .env versionado e .env ignorado`, rc=0 |
+| `.env` forcado com `git add -f` | rc=1, `ERRO: arquivos .env versionados: .env`; teste revertido (`git rm --cached -f` + remocao), arvore sem sujeira alem do script |
+| `make lint` | rc 0 |
+| `make test` | rc 0 |
+
+### Achados ADIADOS / nao tocados
+
+- REVIEW-001 (CODEOWNERS sem time): ADIADO para FND-005.
+- REVIEW-002 (politica de scripts de instalacao pnpm): ADIADO para FND-002 / FND-005.
+- REVIEW-004 (pytest 9.0.3 travado; `next-env.d.ts` versionado): ADIADO para FND-002.
+- NOTA-2 (`uv sync --frozen` nao detecta drift de `uv.lock`): ADIADO para FND-005; incluir `uv lock --check` e `pnpm install --frozen-lockfile` no job `lint-py`.
+- NOTA-3 (`CODEOWNERS` com dono unico torna o revisor adicional nominal): ADIADO (depende de time/branch protection, FND-005).
+
+### Commit e diff da rodada
+
+Commit unico novo (sem amend) em `tarefa/fnd-001` sobre `54448cb76455d861ae823fbbb447e577f3f6fbea`; SHA em `git log tarefa/fnd-001`.
+
+Diff de `scripts/check-no-env.sh`:
+
+```diff
+diff --git a/scripts/check-no-env.sh b/scripts/check-no-env.sh
+index 419a0fa..4fba843 100755
+--- a/scripts/check-no-env.sh
++++ b/scripts/check-no-env.sh
+@@ -2,6 +2,11 @@
+ # Falha se algum arquivo .env* (exceto .env.example) estiver versionado.
+ set -euo pipefail
+ cd "$(dirname "$0")/.."
++# Controle de seguranca: sem repositorio git nao ha como verificar; falha fechado.
++if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
++  echo "ERRO: check-env requer um repositorio git (git ls-files); arvore sem .git nao e verificavel" >&2
++  exit 2
++fi
+ bad=$(git ls-files | grep -E '(^|/)\.env($|\.)' | grep -vE '(^|/)\.env\.example$' || true)
+ if [ -n "$bad" ]; then
+   echo "ERRO: arquivos .env versionados:" >&2
+```
