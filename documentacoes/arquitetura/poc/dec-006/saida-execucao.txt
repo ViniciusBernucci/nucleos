@@ -1,13 +1,15 @@
-$ node --test poc.test.mjs  # 2026-10-25T21:02:20+01:00 node v24.22.1 docker 29.8.1
-✔ AC-1: cria, entrega, rotaciona e revoga segredo de tenant sem reiniciar outros tenants (10087.155241ms)
-✔ AC-2: ausencia de segredo em env, inspect e logs (4666.609663ms)
-✔ controle negativo: o scanner detecta segredo vazado via -e (1574.092948ms)
-✔ backup e recuperacao da chave mestra (4526.73675ms)
-ℹ tests 4
+✔ AC-1: cria, entrega, rotaciona e revoga segredo de tenant sem reiniciar outros tenants (7983.257839ms)
+✔ REVIEW-001: UID nunca e reutilizado (create/revoke/recreate) (4249.000645ms)
+✔ REVIEW-002: nomes de tenant fora da allowlist sao rejeitados antes de qualquer E/S (15583.272156ms)
+✔ AC-2: ausencia de segredo em env, inspect, logs, argv, saida do broker e conteudo dos volumes (8285.127985ms)
+✔ controle negativo: a mesma hits() detecta vazamento em cada canal (5095.006399ms)
+✔ backup da KEK: KDF parametrizado, frase curta rejeitada, parametros adulterados falham (9183.258122ms)
+✔ desastre completo: perde KEK e arquivos entregues, restaura e reentrega (6933.897122ms)
+ℹ tests 7
 ℹ suites 0
-ℹ pass 4
+ℹ pass 7
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 27215.069709
+ℹ duration_ms 61324.232724
