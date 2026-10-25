@@ -2,14 +2,15 @@
 
 import sys
 from datetime import UTC, datetime
+from collections.abc import Mapping
 from typing import Any, TextIO
 
 import structlog
 
 from nucleos_observability.context import current_context
-from nucleos_observability.redact import redact
+from nucleos_observability.redact import DEFAULT_RULES, StringRule, redact
 
-DEFAULT_ALLOWLIST = ("method", "route", "status", "duration_ms", "check", "job_type")
+DEFAULT_ALLOWLIST: Mapping[str, StringRule] = DEFAULT_RULES
 _LEVELS = {"debug": 10, "info": 20, "warning": 30, "error": 40}
 
 
@@ -23,10 +24,11 @@ class Logger:
         version: str,
         env: str,
         level: str = "info",
-        allowlist: tuple[str, ...] = (),
+        allowlist: tuple[str, ...] | Mapping[str, StringRule] = (),
         stream: TextIO | None = None,
     ) -> None:
-        self._allowlist = (*DEFAULT_ALLOWLIST, *allowlist)
+        extra = allowlist if isinstance(allowlist, Mapping) else dict.fromkeys(allowlist)
+        self._allowlist: dict[str, StringRule] = {**DEFAULT_ALLOWLIST, **extra}
         self._base = {"service": service, "version": version, "env": env}
         self._log = structlog.wrap_logger(
             structlog.PrintLogger(file=stream or sys.stdout),
@@ -49,7 +51,10 @@ class Logger:
             "event": event_dict["event"],
         }
         if "data" in event_dict:
-            record["data"] = redact(event_dict["data"], self._allowlist)
+            try:
+                record["data"] = redact(event_dict["data"], self._allowlist)
+            except Exception:  # noqa: BLE001 - fail-open sem dados
+                record["data"] = "[REDACTION_ERROR]"
         return record
 
     def log(self, level: str, event: str, data: Any = None) -> None:

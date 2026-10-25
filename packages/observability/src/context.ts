@@ -34,10 +34,10 @@ export function setTrustedTenant(tenantId: string, actorType: ActorType = "user"
 }
 
 /**
- * Aceita `X-Request-Id` da borda confiavel apenas se tiver formato seguro (evita injecao em log);
- * ausente, invalido ou `trustEdge=false` => UUID novo.
+ * Aceita `X-Request-Id` somente com `trustEdge=true` (borda confiavel, definida em FND-007) e formato
+ * seguro (evita injecao em log); padrao `false`, ausente ou invalido => UUID novo.
  */
-export function resolveCorrelationId(header: string | string[] | undefined, trustEdge = true): string {
+export function resolveCorrelationId(header: string | string[] | undefined, trustEdge = false): string {
   const candidate = Array.isArray(header) ? header[0] : header;
   if (trustEdge && candidate !== undefined && VALID_ID.test(candidate)) return candidate;
   return randomUUID();

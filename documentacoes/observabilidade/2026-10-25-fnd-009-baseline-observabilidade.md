@@ -5,7 +5,7 @@
 - **Dominio:** observabilidade
 - **Tarefa:** ENT-FND-009, lote 2026-10-25-ep00-ep01-fundacao ([ticket](../backlog/EP-01-fundacao-monorepo-ambientes-ci/tickets.md#ent-fnd-009))
 - **Branch:** `tarefa/fnd-009`; **base/HEAD inicial:** `4be3ce391a51b9e24cd85f7c894d841636dcd50f`, arvore limpa
-- **Estado:** implementado e validado; aguarda review/QA independentes (nao revisado pelo executor)
+- **Estado:** implementado, com correcoes da rodada 1 de review aplicadas e validadas; aguarda revalidacao independente do review e QA (nao revisado pelo executor)
 - **Autores:** executor IA (Claude Sonnet 5.5) a pedido do coordenador; sessao retomada apos limite de uso
 - **Diffs completos:** [2026-10-25-fnd-009-baseline-observabilidade-diffs.md](2026-10-25-fnd-009-baseline-observabilidade-diffs.md)
 
@@ -19,8 +19,8 @@ Fora do escopo: coletor/backend OTLP e dashboards (OBS-001), politica de labels 
 
 - `packages/observability` (`@nucleos/observability`, TS, pino 10.4.0) e `packages/observability-py` (`nucleos-observability`, Python, structlog 26.1.0), com a mesma semantica.
 - **Campos fixos** em todo log JSON: `ts, level, service, version, env, trace_id, span_id, correlation_id, tenant_id, actor_type, event` (ausentes = `null`) mais `data` redigido. `tenant_id` so entra via `setTrustedTenant`/`set_trusted_tenant` (fonte confiavel); o middleware nunca le tenant de header.
-- **Redacao por allowlist**: so chaves permitidas passam; nomes sensiveis (`authorization, cookie, password, token, secret, prompt, content, api_key`, mais padrao amplo) viram `[REDACTED]` mesmo se permitidos; chaves desconhecidas sao descartadas (nome e valor) e contadas em `_dropped`; `Bearer ...`/JWT em strings sao removidos; Error vira so o nome; limites de profundidade (4), itens (20) e tamanho (256). Headers, query e corpo de requisicao nunca sao logados: o log HTTP contem so metodo, template de rota, status e duracao.
-- **Correlation ID**: `X-Request-Id` aceito se `^[A-Za-z0-9._-]{8,128}$` (evita injecao em log) e a borda for confiavel; senao UUID v4. Devolvido no response, propagado por `AsyncLocalStorage`/`contextvars`, `correlationHeaders()` para chamadas de saida, e `JobEnvelope.correlation_id` com `createJobEnvelope`/`runJob` (restaura o id no worker).
+- **Redacao por allowlist** (regra final na secao "Correcao rodada 1"): so chaves permitidas passam; nomes sensiveis (`authorization, cookie, password, token, secret, prompt, content, api_key`, mais padrao amplo) viram `[REDACTED]` mesmo se permitidos; chaves desconhecidas sao descartadas (nome e valor) e contadas em `_dropped`; `Bearer ...`/JWT em strings sao removidos; Error vira so o nome; limites de profundidade (4), itens (20) e tamanho (256). Headers, query e corpo de requisicao nunca sao logados: o log HTTP contem so metodo, template de rota, status e duracao.
+- **Correlation ID**: `X-Request-Id` so e aceito com `trustEdge`/`trust_edge` ligado explicitamente (padrao **false**, ate FND-007 definir a borda confiavel) e se casar `^[A-Za-z0-9._-]{8,128}$` por inteiro (`fullmatch`; evita injecao em log); senao UUID v4. *(Correcao rodada 1: o padrao original era `true`.)* Devolvido no response, propagado por `AsyncLocalStorage`/`contextvars`, `correlationHeaders()` para chamadas de saida, e `JobEnvelope.correlation_id` com `createJobEnvelope`/`runJob` (restaura o id no worker).
 - **OpenTelemetry**: traces + metricas, OTLP/HTTP via `OTEL_EXPORTER_OTLP_ENDPOINT`; habilitado so com endpoint e sem `OTEL_SDK_DISABLED=true`; desabilitado usa implementacoes no-op (sem provider global). Shutdown tolera falha de exportacao.
 - **Sondas**: `/healthz` (vivo) e `/readyz` (checagens com timeout de 2 s; 503 `not_ready`); corpo apenas `{status, service}`, sem versao nem nome de dependencia.
 - **RED**: `http.server.requests`, `http.server.errors` (5xx), `http.server.request.duration` (s), labels apenas `method`, `route` (template; desconhecida = `unmatched`) e `status_class`. `createBusinessCounter` exige labels enumerados (valor fora vira `other`) e rejeita `tenant_id`, `user_id`, `correlation_id`, etc.
@@ -69,23 +69,56 @@ Ambiente: Node 24.22.1, uv 0.13.5, Python 3.13.17 (`PATH` de usuario).
 | `make setup && make lint && make test && make build` | rc 0; turbo lint 8/8, test 12/12 (observability 8 testes, tenant-provisioner 3, api 2), build 6/6; pytest `11 passed` (4 servicos + 7 da biblioteca) |
 | `make up` / `make health` / `make down` | 7/7 `/healthz` 200; `GET /readyz` do provisioner 200 `{"status":"ready","service":"tenant-provisioner"}` com `x-request-id` gerado; processos encerrados |
 
-Criterios: AC-1 ok (testes TS e Python: log, span, metrica da mesma requisicao, HTTP->job->log). AC-2 ok (sentinelas em header/query/cookie e propriedade aleatoria; teste em cada um dos 4 servicos Python, provisioner e api). AC-3 ok (telemetria desabilitada e habilitada com endpoint `127.0.0.1:1` inalcancavel: respostas 200 inalteradas, shutdown sem erro).
+Criterios: AC-1 ok (testes TS e Python: log, span, metrica da mesma requisicao, HTTP->job->log). AC-2: **a afirmacao original "ok" excedia a evidencia** (o gerador nao cobria string comum sob chave permitida, item de array, dado de topo escalar/lista nem `Error.name`; o auditor reproduziu vazamentos). Apos a rodada 1, o AC-2 e provado para essas classes (ver abaixo), no `redact` e na linha de log real, em TS e Python, alem do teste em cada um dos 4 servicos Python, provisioner e api. AC-3 ok (telemetria desabilitada e habilitada com endpoint `127.0.0.1:1` inalcancavel: respostas 200 inalteradas, shutdown sem erro).
 
 Nao executado: lint de estilo/seguranca (FND-002), CI (FND-005), coletor OTLP real (nenhum servico externo usado).
+
+## Correcao rodada 1 (review `documentacoes/reviews/2026-10-25-review-fnd-009.md`, auditoria `2026-10-25-auditoria-fnd-009.md`)
+
+Executada sobre `e383f88` em um **segundo commit** (sem amend). Decisoes do auditor: APLICAR REVIEW-001 a 006 e "truncar antes do scrub"; ADIAR OTLP malformado e exemplars.
+
+- **REVIEW-001 (MEDIO):** `trustEdge`/`trust_edge` agora e `false` por padrao em `resolveCorrelationId`, `observeRequest`/`ObserveOptions`, `resolve_correlation_id` e `make_handler`. Nenhuma integracao passava o parametro, entao todas passam a gerar UUID. Testes: padrao substitui `abcdefgh12` por UUID (funcao e servidor real, TS e Python); `true` aceita; id invalido segue UUID mesmo com a flag. Testes dos 6 hello-worlds ajustados (id do cliente ignorado; `correlation_id` do log = id devolvido).
+- **REVIEW-002 (MEDIO, bloqueante do AC-2):** regra final de redacao: (1) dado de topo so objeto simples; escalar, lista, `Error`, `Map` etc. viram `{"_dropped":1}`; (2) allowlist e um mapa chave -> regra: string so passa sob chave com regra declarada (RegExp que casa o valor inteiro, ou `"free"`/`FREE` como opt-in explicito); chave sem regra (inclusive as passadas como lista de nomes) aceita apenas numero/booleano/null e string vira `[REDACTED]`; defaults da biblioteca: `method` `^[A-Z]{1,16}$`, `route` `unmatched` ou `^/[A-Za-z0-9_\-./:{}]*$` (sem `?`/`=`), `check`/`job_type` `^[A-Za-z0-9_.-]{1,64}$`; (3) `Error.name` so se casar `^[A-Za-z0-9_.$]{1,64}$` (senao `[REDACTED]`; em Python vem do nome da classe, tambem validado); objetos nao simples dentro de dados viram `[UNSUPPORTED]`; (4) scrub **antes** de truncar (item "truncar antes do scrub" da auditoria foi interpretado como a inversao recomendada: aplicar os padroes e depois cortar em 256) e novo padrao `(password|passwd|token|secret|api_key)\s*[=:]\s*\S+`; JWT agora casa `eyJ...(.x)*` mesmo incompleto; (5) falha ao redigir (ex.: getter que lanca) vira `"[REDACTION_ERROR]"` sem dados. Testes de propriedade (500 iteracoes, TS e Python) agora geram sentinela `SENTINEL-s3cr3t-*` em string sob chave permitida sem validador, em item de array, em dado de topo escalar/lista, em `Error.name`, em `route` com `?token=` e em `password=`; a verificacao e feita no `redact` **e** na linha real de `logger.log`. Testes negativos: valores validos (`/healthz`, `200`, `GET`) permanecem; JWT atravessando o limite de 256 nao deixa prefixo.
+- **REVIEW-003 (BAIXO):** `_VALID_ID` sem ancoras e com `fullmatch` nos dois usos (`resolve_correlation_id` e `run_job`); testes `"abcdefgh\n"` e `"abcdefgh\r\nX: 1"` -> UUID, incluindo o caminho do envelope de job.
+- **REVIEW-004 (BAIXO):** `Handler.server_version = "nucleos"`, `sys_version = ""` (header `Server` sem Python/versao); `do_HEAD/POST/PUT/PATCH/DELETE/OPTIONS` delegam ao mesmo fluxo: rota desconhecida -> 404, sonda com metodo != GET -> 405 (`Allow: GET`), sempre com `x-request-id`, span, RED (metodo fora do conjunto vira `OTHER`) e log.
+- **REVIEW-005 (BAIXO/MEDIO-BAIXO):** (a) Python: checks de `/readyz` em `ThreadPoolExecutor` com prazo total de 2 s (paralelos; pior caso 2 s, nao N x 2 s) e os 4 servicos agora usam `ThreadingHTTPServer`, entao `/healthz` nao espera `/readyz`; TS: `Promise.all` com timeout por check. (b) TS: `try/catch/finally` no handler de `close` (fail-open sem dados; `span.end()` sempre); Python: `try/except/finally` com `span.end()` e status de erro. Testes: 2 checks de 4 s -> `/readyz` 503 em < 3,5 s e `/healthz` 200 em < 1 s durante a espera (Python); 3 checks pendurados -> 503 em < 3,5 s com `/healthz` concorrente (TS); `routeOf` que lanca nao derruba e o span e finalizado (TS); excecao em `_dispatch` encerra o span (Python). Limite conhecido: threads de checks pendurados continuam ate o check retornar (o executor nao as cancela).
+- **REVIEW-006:** historia do commit documentada em "Commits e diffs".
+- **ADIADOS (sem alteracao de codigo):** OTLP com URL malformada (retomar em FND-006, validacao tipada de `OTEL_*` e fail-fast no boot); exemplars/correlacao metrica-trace (retomar com coletor real, FND-006/infra de observabilidade).
+- **Arquivos alterados na rodada:** `packages/observability/src/{redact,logger,context,http}.ts` e testes (`redact.test.ts`, `observability.test.ts`); `packages/observability-py/src/nucleos_observability/{redact,logger,context,http,__init__}.py` e `tests/test_observability.py`; `services/*/src/*/app.py` (`ThreadingHTTPServer`); `services/*/tests/test_health.py`, `apps/tenant-provisioner/src/server.test.ts`, `apps/api/src/health.test.ts`.
+- **Consequencias:** servicos que precisarem logar strings livres devem declarar validador por chave (`allowlist: {chave: /re/}` / `"free"`); lista de nomes continua valida, mas so libera numero/booleano.
+
+### Validacao da rodada 1 (reais)
+
+Ambiente: Node 24.22.1, uv, Python 3.13.17 (`PATH` com `~/.local/opt/node-v24.22.1-linux-x64/bin` e `~/.local/bin`).
+
+| Comando | Resultado |
+| --- | --- |
+| `make setup` | rc 0 |
+| `make lint` | rc 0; turbo 8/8; `compileall` ok |
+| `make test` | rc 0; turbo 12/12 (observability 14 testes, tenant-provisioner 3, api 2); pytest `18 passed` (4 servicos + 14 da biblioteca) |
+| `make build` | rc 0; turbo 6/6; wheels Python gerados |
+| `make up` / `make health` / `make down` | 7/7 `/healthz` OK em ambos; down rc 0 |
+
+Correcao do AC-2: considerado provado somente nas classes listadas acima (e nas anteriores); nao ha afirmacao alem disso. Nao reexecutado por revisor independente.
 
 ## Impactos, riscos e rollback
 
 - `GET /healthz` mantem o formato anterior; `/readyz` e novo. Log JSON agora vai a stdout nos servicos (probes em nivel `debug`, ocultos por padrao).
 - Riscos: pinos exatos em linha nova do OTel (v3/0.300) a revisar em upgrades; `routeOf` do Express depende de `req.route` (rotas fora do Nest viram `unmatched`); redacao por padrao e conservadora (campos novos exigem entrada na allowlist).
-- Rollback: reverter o commit unico.
+- Rollback: reverter os dois commits (feature e correcao rodada 1); a rodada 1 sozinha pode ser revertida, mas restauraria `trustEdge=true` por padrao e a redacao anterior (inseguras).
 
 ## Commits e diffs
 
-Um commit local em `tarefa/fnd-009` (SHA reportado ao coordenador; nao pode constar no proprio commit). Patch: [diffs](2026-10-25-fnd-009-baseline-observabilidade-diffs.md).
+Base `4be3ce391a51b9e24cd85f7c894d841636dcd50f`.
+
+1. `e383f8884006b8e3a0b4234476edd607388aad0d` - `feat(observabilidade): baseline de logging, redacao, OTel e sondas (FND-009)`. **Historia:** este commit e resultado de um `git commit --amend` de `b7ec5f3` (reflog: `b7ec5f3` -> `e383f88`); o amend alterou somente `documentacoes/` (o patch de codigo nao mudou). `b7ec5f3` nao esta mais na branch.
+2. Commit da correcao rodada 1 (sem amend, sobre `e383f88`): mensagem `fix(observabilidade): correcoes da rodada 1 de review (FND-009)`; o SHA nao pode constar no proprio commit e e reportado ao coordenador (consulte `git log`).
+
+Patches de ambos: [diffs](2026-10-25-fnd-009-baseline-observabilidade-diffs.md) (a secao "Correcao rodada 1" contem o diff do commit 2; a escrita em `documentacoes/` nao entra no patch).
 
 ## Lessons
 
-Nao aplicavel nesta entrega: `lessons/README.md` (LOC-001, em paralelo) e o indice canonico e ainda nao tem lessons publicadas; criar arquivo numerado aqui conflitaria com a reorganizacao em curso. Conceitos candidatos para quando a trilha existir: redacao por allowlist, correlation id, cardinalidade de metricas.
+Nao aplicavel nesta entrega (inclui a rodada 1): `lessons/README.md` (LOC-001, em paralelo) e o indice canonico e ainda nao tem lessons publicadas; criar arquivo numerado aqui conflitaria com a reorganizacao em curso. Conceitos candidatos para quando a trilha existir: redacao por allowlist, correlation id, cardinalidade de metricas.
 
 ## Pendencias
 

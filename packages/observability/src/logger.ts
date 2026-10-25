@@ -1,9 +1,9 @@
 import { pino } from "pino";
 import { currentContext } from "./context.js";
-import { redact } from "./redact.js";
+import { type AllowMap, DEFAULT_RULES, redact } from "./redact.js";
 
-/** Campos operacionais emitidos pela propria biblioteca (valores controlados pelo codigo). */
-export const DEFAULT_ALLOWLIST = ["method", "route", "status", "duration_ms", "check", "job_type"] as const;
+/** Campos operacionais emitidos pela propria biblioteca, com o validador de cada string. */
+export const DEFAULT_ALLOWLIST: AllowMap = DEFAULT_RULES;
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -12,8 +12,11 @@ export interface LoggerOptions {
   version: string;
   env: string;
   level?: LogLevel;
-  /** Campos permitidos em `data`; o restante e descartado (ver `redact`). */
-  allowlist?: readonly string[];
+  /**
+   * Campos extras permitidos em `data`: lista de nomes (so numero/booleano) ou mapa
+   * nome -> RegExp/"free" para liberar strings. O restante e descartado (ver `redact`).
+   */
+  allowlist?: readonly string[] | AllowMap;
   destination?: { write(line: string): void };
 }
 
@@ -23,7 +26,11 @@ export interface Logger {
 
 /** Campos fixos: ts, level, service, version, env, trace_id, span_id, correlation_id, tenant_id, actor_type, event. */
 export function createLogger(options: LoggerOptions): Logger {
-  const allowlist = [...DEFAULT_ALLOWLIST, ...(options.allowlist ?? [])];
+  const extra = options.allowlist ?? [];
+  const extraMap: AllowMap = Array.isArray(extra)
+    ? Object.fromEntries((extra as readonly string[]).map((k) => [k, undefined]))
+    : (extra as AllowMap);
+  const allowlist: AllowMap = { ...DEFAULT_ALLOWLIST, ...extraMap };
   const base = pino(
     {
       level: options.level ?? "info",
@@ -48,7 +55,16 @@ export function createLogger(options: LoggerOptions): Logger {
   return {
     log(level, event, data) {
       if (data === undefined) base[level](event);
-      else base[level]({ data: redact(data, allowlist) }, event);
+      else base[level]({ data: safeRedact(data, allowlist) }, event);
     },
   };
+}
+
+/** Fail-open sem dados: falha ao redigir (ex.: getter que lanca) nunca derruba nem vaza. */
+function safeRedact(data: unknown, allowlist: AllowMap): unknown {
+  try {
+    return redact(data, allowlist);
+  } catch {
+    return "[REDACTION_ERROR]";
+  }
 }

@@ -19,7 +19,7 @@ export function createObservability(logger: LoggerOptions, telemetry: TelemetryC
 export interface ObserveOptions {
   /** Template da rota, avaliado ao final da resposta (ex.: `req.route.path` no Express). */
   routeOf: (req: IncomingMessage) => string | undefined;
-  /** `X-Request-Id` so e aceito quando a borda e confiavel (FND-007 define o proxy). */
+  /** `X-Request-Id` so e aceito quando a borda e confiavel (FND-007 define o proxy). Padrao: false. */
   trustEdge?: boolean;
   /** Rotas de sonda (nao poluem o log em nivel info). */
   quietRoutes?: readonly string[];
@@ -33,7 +33,7 @@ export function observeRequest(
   options: ObserveOptions,
   next: () => void,
 ): void {
-  const correlationId = resolveCorrelationId(req.headers[CORRELATION_HEADER], options.trustEdge ?? true);
+  const correlationId = resolveCorrelationId(req.headers[CORRELATION_HEADER], options.trustEdge ?? false);
   const method = req.method ?? "GET";
   const started = performance.now();
   const span = kit.telemetry.tracer.startSpan(`HTTP ${method}`, {
@@ -42,24 +42,30 @@ export function observeRequest(
   });
   res.setHeader(CORRELATION_HEADER, correlationId);
   res.once("close", () => {
-    const route = options.routeOf(req);
-    const status = res.statusCode;
-    const durationMs = performance.now() - started;
-    span.updateName(`HTTP ${method} ${route ?? "unmatched"}`);
-    span.setAttribute("http.route", route ?? "unmatched");
-    span.setAttribute("http.response.status_code", status);
-    if (status >= 500) span.setStatus({ code: SpanStatusCode.ERROR });
-    runWithContext({ correlationId, actorType: "anonymous", span }, () => {
-      kit.red.record({ method, route, status, durationMs });
-      const quiet = route !== undefined && (options.quietRoutes ?? []).includes(route);
-      kit.logger.log(quiet && status < 500 ? "debug" : "info", "http.request", {
-        method,
-        route: route ?? "unmatched",
-        status,
-        duration_ms: Math.round(durationMs),
+    // Fail-open: falha de observabilidade nunca derruba o processo; o span sempre e encerrado.
+    try {
+      const route = options.routeOf(req);
+      const status = res.statusCode;
+      const durationMs = performance.now() - started;
+      span.updateName(`HTTP ${method} ${route ?? "unmatched"}`);
+      span.setAttribute("http.route", route ?? "unmatched");
+      span.setAttribute("http.response.status_code", status);
+      if (status >= 500) span.setStatus({ code: SpanStatusCode.ERROR });
+      runWithContext({ correlationId, actorType: "anonymous", span }, () => {
+        kit.red.record({ method, route, status, durationMs });
+        const quiet = route !== undefined && (options.quietRoutes ?? []).includes(route);
+        kit.logger.log(quiet && status < 500 ? "debug" : "info", "http.request", {
+          method,
+          route: route ?? "unmatched",
+          status,
+          duration_ms: Math.round(durationMs),
+        });
       });
-    });
-    span.end();
+    } catch {
+      // sem dados: nada do pedido e registrado aqui
+    } finally {
+      span.end();
+    }
   });
   runWithContext({ correlationId, actorType: "anonymous", span }, next);
 }
@@ -67,6 +73,8 @@ export function observeRequest(
 export function observeHttp(kit: Observability, handler: RequestListener, options: ObserveOptions): RequestListener {
   return (req, res) => observeRequest(kit, req, res, options, () => handler(req, res));
 }
+
+const CHECK_TIMEOUT_MS = 2000;
 
 export type ReadinessChecks = Readonly<Record<string, () => Promise<boolean> | boolean>>;
 
@@ -82,19 +90,27 @@ export async function handleProbe(
   const path = (req.url ?? "").split("?")[0];
   if (path === "/healthz") return sendProbe(res, 200, "ok", service);
   if (path !== "/readyz") return false;
-  let ready = true;
-  for (const [name, check] of Object.entries(checks)) {
-    let ok = false;
-    try {
-      ok = await Promise.race([Promise.resolve(check()), new Promise<boolean>((r) => setTimeout(() => r(false), 2000).unref())]);
-    } catch {
-      ok = false;
-    }
-    if (!ok) {
-      ready = false;
-      kit.logger.log("warn", "readiness.check_failed", { check: name });
-    }
-  }
+  // Checks em paralelo, cada um com timeout proprio: o pior caso e CHECK_TIMEOUT_MS, nao N x timeout.
+  const results = await Promise.all(
+    Object.entries(checks).map(async ([name, check]) => {
+      let timer: NodeJS.Timeout | undefined;
+      let ok = false;
+      try {
+        const timeout = new Promise<boolean>((r) => {
+          timer = setTimeout(() => r(false), CHECK_TIMEOUT_MS);
+          timer.unref();
+        });
+        ok = await Promise.race([Promise.resolve().then(check), timeout]);
+      } catch {
+        ok = false;
+      } finally {
+        clearTimeout(timer);
+      }
+      if (!ok) kit.logger.log("warn", "readiness.check_failed", { check: name });
+      return ok;
+    }),
+  );
+  const ready = results.every(Boolean);
   return sendProbe(res, ready ? 200 : 503, ready ? "ready" : "not_ready", service);
 }
 

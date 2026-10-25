@@ -37,15 +37,17 @@ test("GET /readyz responde 200 ready sem expor versao", async () => {
   });
 });
 
-test("X-Request-Id da borda e propagado; nenhum sentinela aparece no log", async () => {
+test("X-Request-Id do cliente e ignorado (trustEdge=false); nenhum sentinela aparece no log", async () => {
   await withServer(async (base, logs) => {
     const res = await fetch(`${base}/outra?token=${SENTINEL}`, {
       headers: { "x-request-id": "edge-prov-0001", authorization: `Bearer ${SENTINEL}`, cookie: `s=${SENTINEL}` },
     });
-    assert.equal(res.headers.get("x-request-id"), "edge-prov-0001");
+    const returned = res.headers.get("x-request-id");
+    assert.notEqual(returned, "edge-prov-0001"); // padrao trustEdge=false: id do cliente e ignorado
+    assert.match(String(returned), /^[0-9a-f-]{36}$/);
     await new Promise((r) => setTimeout(r, 50));
     const record = JSON.parse(logs.find((l) => l.includes("http.request")) ?? "{}") as Record<string, unknown>;
-    assert.equal(record["correlation_id"], "edge-prov-0001");
+    assert.equal(record["correlation_id"], returned);
     assert.equal((record["data"] as Record<string, unknown>)["route"], "unmatched");
     assert.ok(!logs.join("").includes(SENTINEL));
   });

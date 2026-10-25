@@ -44,11 +44,14 @@ function get(port: number, path: string, headers: Record<string, string> = {}): 
 
 const listen = (s: Server) => new Promise<number>((r) => s.listen(0, "127.0.0.1", () => r((s.address() as AddressInfo).port)));
 
-test("correlation id: aceita da borda, gera UUID se ausente/invalido, ignora se borda nao confiavel", () => {
-  assert.equal(resolveCorrelationId("edge-req-1234"), "edge-req-1234");
-  assert.match(resolveCorrelationId(undefined), /^[0-9a-f-]{36}$/);
-  assert.match(resolveCorrelationId("x\ninjetado"), /^[0-9a-f-]{36}$/);
-  assert.match(resolveCorrelationId("edge-req-1234", false), /^[0-9a-f-]{36}$/);
+test("correlation id: padrao NAO confia no cliente; com trustEdge aceita so formato seguro", () => {
+  const uuid = /^[0-9a-f-]{36}$/;
+  assert.match(resolveCorrelationId("abcdefgh12"), uuid); // padrao: ignora
+  assert.equal(resolveCorrelationId("edge-req-1234", true), "edge-req-1234");
+  assert.match(resolveCorrelationId(undefined, true), uuid);
+  assert.match(resolveCorrelationId("x\ninjetado", true), uuid);
+  assert.match(resolveCorrelationId("abcdefgh\n", true), uuid);
+  assert.match(resolveCorrelationId("edge-req-1234", false), uuid);
 });
 
 test("AC-1: requisicao sintetica gera log, metrica e trace com o mesmo correlation_id; HTTP -> job -> log", async () => {
@@ -74,7 +77,7 @@ test("AC-1: requisicao sintetica gera log, metrica e trace com o mesmo correlati
         assert.equal(correlationHeaders()[CORRELATION_HEADER], currentContext()?.correlationId);
         res.writeHead(200).end("ok");
       },
-      { routeOf: () => "/demo" },
+      { routeOf: () => "/demo", trustEdge: true },
     ),
   );
   const port = await listen(server);
@@ -110,6 +113,42 @@ test("AC-1: requisicao sintetica gera log, metrica e trace com o mesmo correlati
 
     // AC-2 (biblioteca): nada do request (query, header) aparece no log.
     assert.ok(!out.lines.join("").includes(SENTINEL));
+  } finally {
+    server.close();
+    await kit.telemetry.shutdown();
+  }
+});
+
+test("HTTP: sem trustEdge o x-request-id do cliente e substituido por UUID", async () => {
+  const kit = createObservability({ ...base, destination: sink() }, { ...base, enabled: false });
+  const server = createServer(observeHttp(kit, (_req, res) => void res.writeHead(200).end("ok"), { routeOf: () => "/x" }));
+  const port = await listen(server);
+  try {
+    const res = await get(port, "/x", { "x-request-id": "abcdefgh12" });
+    assert.match(String(res.headers[CORRELATION_HEADER]), /^[0-9a-f-]{36}$/);
+  } finally {
+    server.close();
+  }
+});
+
+test("getter que lanca na saida nao derruba o processo e o span e encerrado", async () => {
+  const spans = new InMemorySpanExporter();
+  const kit = createObservability(
+    { ...base, destination: sink() },
+    { ...base, enabled: true, spanProcessors: [new SimpleSpanProcessor({ exporter: spans })] },
+  );
+  const server = createServer(
+    observeHttp(kit, (_req, res) => void res.writeHead(200).end("ok"), {
+      routeOf: () => {
+        throw new Error("boom");
+      },
+    }),
+  );
+  const port = await listen(server);
+  try {
+    assert.equal((await get(port, "/x")).status, 200);
+    await new Promise((r) => setTimeout(r, 50));
+    assert.equal(spans.getFinishedSpans().length, 1);
   } finally {
     server.close();
     await kit.telemetry.shutdown();
@@ -170,6 +209,27 @@ test("sondas: /healthz e /readyz sem versoes; 503 quando dependencia falha", asy
     assert.equal(notReady.status, 503);
     assert.ok(!notReady.body.includes("9.9.9") && !notReady.body.includes("db"));
     assert.equal((await get(port, "/outra")).status, 404);
+  } finally {
+    server.close();
+  }
+});
+
+test("readyz: checks em paralelo com timeout por check; check pendurado => 503 em ~2s e /healthz nao espera", async () => {
+  const kit = createObservability({ ...base, destination: sink() }, { ...base, enabled: false });
+  const hang = () => new Promise<boolean>(() => undefined);
+  const server = createServer((req, res) => {
+    void handleProbe(kit, "svc", req, res, { a: hang, b: hang, c: hang }).then((handled) => {
+      if (!handled) res.writeHead(404).end();
+    });
+  });
+  const port = await listen(server);
+  try {
+    const started = Date.now();
+    const [ready, health] = await Promise.all([get(port, "/readyz"), get(port, "/healthz")]);
+    const elapsed = Date.now() - started;
+    assert.equal(ready.status, 503);
+    assert.equal(health.status, 200);
+    assert.ok(elapsed < 3500, `3 checks pendurados deveriam levar ~2s (paralelo), levou ${elapsed}ms`);
   } finally {
     server.close();
   }

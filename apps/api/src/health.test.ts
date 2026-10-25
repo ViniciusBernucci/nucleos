@@ -34,11 +34,13 @@ test("middleware de observabilidade: correlation id propagado, /readyz sem versa
       headers: { "x-request-id": "edge-api-0001", authorization: `Bearer ${SENTINEL}` },
     });
     assert.equal(res.status, 200);
-    assert.equal(res.headers.get("x-request-id"), "edge-api-0001");
+    const returned = res.headers.get("x-request-id");
+    assert.notEqual(returned, "edge-api-0001"); // padrao trustEdge=false: id do cliente e ignorado
+    assert.match(String(returned), /^[0-9a-f-]{36}$/);
     assert.deepEqual(await res.json(), { status: "ready", service: "api" });
     await new Promise((r) => setTimeout(r, 50));
     const record = JSON.parse(logs.find((l) => l.includes("http.request")) ?? "{}") as Record<string, unknown>;
-    assert.equal(record["correlation_id"], "edge-api-0001");
+    assert.equal(record["correlation_id"], returned);
     assert.equal((record["data"] as Record<string, unknown>)["route"], "/readyz");
     assert.ok(!logs.join("").includes(SENTINEL));
   } finally {

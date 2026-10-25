@@ -2,7 +2,7 @@
 
 import os
 import sys
-from http.server import HTTPServer
+from http.server import ThreadingHTTPServer
 
 from nucleos_observability import (
     Logger,
@@ -26,8 +26,8 @@ def default_observability() -> Observability:
 
 def make_server(
     host: str = "127.0.0.1", port: int = 8004, kit: Observability | None = None
-) -> HTTPServer:
-    return HTTPServer((host, port), make_handler(kit or default_observability(), SERVICE))
+) -> ThreadingHTTPServer:
+    return ThreadingHTTPServer((host, port), make_handler(kit or default_observability(), SERVICE))
 
 
 def main() -> None:

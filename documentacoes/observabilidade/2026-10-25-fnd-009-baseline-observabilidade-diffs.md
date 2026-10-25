@@ -1,4 +1,4 @@
-# FND-009 - Diffs do commit (2026-10-25)
+# FND-009 - Diffs dos commits (2026-10-25)
 
 Patch unificado do commit (exclui `documentacoes/` e lock files). Documento principal: [2026-10-25-fnd-009-baseline-observabilidade.md](2026-10-25-fnd-009-baseline-observabilidade.md).
 
@@ -2331,4 +2331,1440 @@ index dfe4162..599cf81 100644
 +    assert record["correlation_id"] == "edge-py-0001"
 +    assert record["service"] == "tool-gateway"
 +    assert SENTINEL not in out.getvalue()
+```
+
+
+## Correcao rodada 1 (commit 2, sobre e383f88)
+
+Patch unificado do segundo commit (exclui `documentacoes/`; sem lock files alterados). O SHA consta no documento principal e no `git log`.
+
+```diff
+diff --git a/apps/api/src/health.test.ts b/apps/api/src/health.test.ts
+index 911a9d4..80287b1 100644
+--- a/apps/api/src/health.test.ts
++++ b/apps/api/src/health.test.ts
+@@ -34,11 +34,13 @@ test("middleware de observabilidade: correlation id propagado, /readyz sem versa
+       headers: { "x-request-id": "edge-api-0001", authorization: `Bearer ${SENTINEL}` },
+     });
+     assert.equal(res.status, 200);
+-    assert.equal(res.headers.get("x-request-id"), "edge-api-0001");
++    const returned = res.headers.get("x-request-id");
++    assert.notEqual(returned, "edge-api-0001"); // padrao trustEdge=false: id do cliente e ignorado
++    assert.match(String(returned), /^[0-9a-f-]{36}$/);
+     assert.deepEqual(await res.json(), { status: "ready", service: "api" });
+     await new Promise((r) => setTimeout(r, 50));
+     const record = JSON.parse(logs.find((l) => l.includes("http.request")) ?? "{}") as Record<string, unknown>;
+-    assert.equal(record["correlation_id"], "edge-api-0001");
++    assert.equal(record["correlation_id"], returned);
+     assert.equal((record["data"] as Record<string, unknown>)["route"], "/readyz");
+     assert.ok(!logs.join("").includes(SENTINEL));
+   } finally {
+diff --git a/apps/tenant-provisioner/src/server.test.ts b/apps/tenant-provisioner/src/server.test.ts
+index 1ae5027..bbf0ba0 100644
+--- a/apps/tenant-provisioner/src/server.test.ts
++++ b/apps/tenant-provisioner/src/server.test.ts
+@@ -37,15 +37,17 @@ test("GET /readyz responde 200 ready sem expor versao", async () => {
+   });
+ });
+ 
+-test("X-Request-Id da borda e propagado; nenhum sentinela aparece no log", async () => {
++test("X-Request-Id do cliente e ignorado (trustEdge=false); nenhum sentinela aparece no log", async () => {
+   await withServer(async (base, logs) => {
+     const res = await fetch(`${base}/outra?token=${SENTINEL}`, {
+       headers: { "x-request-id": "edge-prov-0001", authorization: `Bearer ${SENTINEL}`, cookie: `s=${SENTINEL}` },
+     });
+-    assert.equal(res.headers.get("x-request-id"), "edge-prov-0001");
++    const returned = res.headers.get("x-request-id");
++    assert.notEqual(returned, "edge-prov-0001"); // padrao trustEdge=false: id do cliente e ignorado
++    assert.match(String(returned), /^[0-9a-f-]{36}$/);
+     await new Promise((r) => setTimeout(r, 50));
+     const record = JSON.parse(logs.find((l) => l.includes("http.request")) ?? "{}") as Record<string, unknown>;
+-    assert.equal(record["correlation_id"], "edge-prov-0001");
++    assert.equal(record["correlation_id"], returned);
+     assert.equal((record["data"] as Record<string, unknown>)["route"], "unmatched");
+     assert.ok(!logs.join("").includes(SENTINEL));
+   });
+diff --git a/packages/observability-py/src/nucleos_observability/__init__.py b/packages/observability-py/src/nucleos_observability/__init__.py
+index 572dc0b..8f37144 100644
+--- a/packages/observability-py/src/nucleos_observability/__init__.py
++++ b/packages/observability-py/src/nucleos_observability/__init__.py
+@@ -13,11 +13,11 @@ from nucleos_observability.context import (
+ from nucleos_observability.http import Observability, make_handler, make_observability
+ from nucleos_observability.logger import Logger
+ from nucleos_observability.red import FORBIDDEN_LABELS, RedMetrics, create_business_counter
+-from nucleos_observability.redact import REDACTED, SENSITIVE_KEYS, redact
++from nucleos_observability.redact import FREE, REDACTED, SENSITIVE_KEYS, redact
+ from nucleos_observability.telemetry import Telemetry, TelemetryConfig, telemetry_config_from_env
+ 
+ __all__ = [
+-    "CORRELATION_HEADER", "FORBIDDEN_LABELS", "JobEnvelope", "Logger", "Observability", "REDACTED",
++    "CORRELATION_HEADER", "FORBIDDEN_LABELS", "FREE", "JobEnvelope", "Logger", "Observability", "REDACTED",
+     "RedMetrics", "RequestContext", "SENSITIVE_KEYS", "Telemetry", "TelemetryConfig",
+     "correlation_headers", "create_business_counter", "create_job_envelope", "current_context",
+     "make_handler", "make_observability", "redact", "resolve_correlation_id", "run_job",
+diff --git a/packages/observability-py/src/nucleos_observability/context.py b/packages/observability-py/src/nucleos_observability/context.py
+index 03c1687..4e663b8 100644
+--- a/packages/observability-py/src/nucleos_observability/context.py
++++ b/packages/observability-py/src/nucleos_observability/context.py
+@@ -12,7 +12,7 @@ from typing import Any, Iterator
+ from opentelemetry.trace import Span
+ 
+ CORRELATION_HEADER = "x-request-id"
+-_VALID_ID = re.compile(r"^[A-Za-z0-9._-]{8,128}$")
++_VALID_ID = re.compile(r"[A-Za-z0-9._-]{8,128}")
+ 
+ 
+ @dataclass
+@@ -46,9 +46,10 @@ def set_trusted_tenant(tenant_id: str, actor_type: str = "user") -> None:
+         ctx.actor_type = actor_type
+ 
+ 
+-def resolve_correlation_id(header: str | None, trust_edge: bool = True) -> str:
+-    """Aceita X-Request-Id da borda confiavel se tiver formato seguro; senao gera UUID."""
+-    if trust_edge and header is not None and _VALID_ID.match(header):
++def resolve_correlation_id(header: str | None, trust_edge: bool = False) -> str:
++    """Aceita X-Request-Id somente com trust_edge=True (borda confiavel, FND-007) e formato seguro;
++    padrao False, ausente ou invalido => UUID novo."""
++    if trust_edge and header is not None and _VALID_ID.fullmatch(header):
+         return header
+     return str(uuid.uuid4())
+ 
+@@ -77,6 +78,6 @@ def create_job_envelope(job_type: str, payload: Any) -> JobEnvelope:
+ 
+ 
+ def run_job[T](envelope: JobEnvelope, fn: Callable[[JobEnvelope], T]) -> T:
+-    cid = envelope.correlation_id if _VALID_ID.match(envelope.correlation_id) else str(uuid.uuid4())
++    cid = envelope.correlation_id if _VALID_ID.fullmatch(envelope.correlation_id) else str(uuid.uuid4())
+     with use_context(RequestContext(correlation_id=cid, actor_type="system")):
+         return fn(envelope)
+diff --git a/packages/observability-py/src/nucleos_observability/http.py b/packages/observability-py/src/nucleos_observability/http.py
+index 54b906b..14c3629 100644
+--- a/packages/observability-py/src/nucleos_observability/http.py
++++ b/packages/observability-py/src/nucleos_observability/http.py
+@@ -2,6 +2,7 @@
+ 
+ import json
+ import time
++from concurrent.futures import ThreadPoolExecutor
+ from collections.abc import Callable, Mapping
+ from dataclasses import dataclass
+ from http.server import BaseHTTPRequestHandler
+@@ -28,70 +29,131 @@ def make_observability(logger: Logger, telemetry: Telemetry) -> Observability:
+     return Observability(logger=logger, telemetry=telemetry, red=RedMetrics(telemetry.meter))
+ 
+ 
++CHECK_TIMEOUT_S = 2.0
++_METHODS = frozenset({"GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"})
++
++
++def _run_checks(kit: Observability, readiness: Mapping[str, Callable[[], bool]]) -> bool:
++    """Roda os checks em paralelo, cada um com timeout proprio (pior caso: CHECK_TIMEOUT_S)."""
++    if not readiness:
++        return True
++    pool = ThreadPoolExecutor(max_workers=len(readiness), thread_name_prefix="readyz")
++    futures = {name: pool.submit(check) for name, check in readiness.items()}
++    deadline = time.monotonic() + CHECK_TIMEOUT_S
++    ready = True
++    for name, future in futures.items():
++        try:
++            ok = bool(future.result(timeout=max(0.0, deadline - time.monotonic())))
++        except Exception:  # noqa: BLE001 - dependencia quebrada ou timeout => nao pronto
++            ok = False
++        if not ok:
++            ready = False
++            kit.logger.log("warning", "readiness.check_failed", {"check": name})
++    pool.shutdown(wait=False, cancel_futures=True)  # check pendurado nao segura a resposta
++    return ready
++
++
+ def make_handler(
+     kit: Observability,
+     service: str,
+     checks: ReadinessChecks | None = None,
+-    trust_edge: bool = True,
++    trust_edge: bool = False,
+ ) -> type[BaseHTTPRequestHandler]:
+-    """Cria o handler do servico. Rotas conhecidas: apenas as sondas; o resto e `unmatched`."""
++    """Cria o handler do servico. Rotas conhecidas: apenas as sondas; o resto e `unmatched`.
++
++    `trust_edge=False` (padrao) ignora `X-Request-Id` do cliente. Use com `ThreadingHTTPServer`
++    para que um `/readyz` lento nao bloqueie o `/healthz`.
++    """
+     readiness = dict(checks or {})
+ 
+     class Handler(BaseHTTPRequestHandler):
++        server_version = "nucleos"  # nao expoe a stack/versoes (BaseHTTP/Python)
++        sys_version = ""
++
+         def do_GET(self) -> None:  # noqa: N802 - API da stdlib
++            self._handle("GET")
++
++        def do_HEAD(self) -> None:  # noqa: N802
++            self._handle("HEAD")
++
++        def do_POST(self) -> None:  # noqa: N802
++            self._handle("POST")
++
++        def do_PUT(self) -> None:  # noqa: N802
++            self._handle("PUT")
++
++        def do_PATCH(self) -> None:  # noqa: N802
++            self._handle("PATCH")
++
++        def do_DELETE(self) -> None:  # noqa: N802
++            self._handle("DELETE")
++
++        def do_OPTIONS(self) -> None:  # noqa: N802
++            self._handle("OPTIONS")
++
++        def _handle(self, method: str) -> None:
+             correlation_id = resolve_correlation_id(self.headers.get(CORRELATION_HEADER), trust_edge)
+             started = time.perf_counter()
+             span = kit.telemetry.tracer.start_span(
+-                "HTTP GET",
++                f"HTTP {method}",
+                 kind=SpanKind.SERVER,
+-                attributes={"http.request.method": "GET", "nucleos.correlation_id": correlation_id},
++                attributes={"http.request.method": method, "nucleos.correlation_id": correlation_id},
+             )
+             path = self.path.split("?", 1)[0]
+             route = path if path in PROBES else None
+-            with use_context(RequestContext(correlation_id=correlation_id, span=span)):
+-                status = self._dispatch(route, correlation_id)
+-                duration_ms = (time.perf_counter() - started) * 1000
+-                span.update_name(f"HTTP GET {route or 'unmatched'}")
+-                span.set_attribute("http.route", route or "unmatched")
+-                span.set_attribute("http.response.status_code", status)
+-                if status >= 500:
+-                    span.set_status(StatusCode.ERROR)
+-                kit.red.record(RedSample("GET", route, status, duration_ms))
+-                level = "debug" if route in PROBES and status < 500 else "info"
+-                kit.logger.log(
+-                    level,
+-                    "http.request",
+-                    {"method": "GET", "route": route or "unmatched", "status": status, "duration_ms": round(duration_ms)},
+-                )
+-            span.end()
+-
+-        def _dispatch(self, route: str | None, correlation_id: str) -> int:
++            try:
++                with use_context(RequestContext(correlation_id=correlation_id, span=span)):
++                    status = self._dispatch(method, route, correlation_id)
++                    duration_ms = (time.perf_counter() - started) * 1000
++                    span.update_name(f"HTTP {method} {route or 'unmatched'}")
++                    span.set_attribute("http.route", route or "unmatched")
++                    span.set_attribute("http.response.status_code", status)
++                    if status >= 500:
++                        span.set_status(StatusCode.ERROR)
++                    kit.red.record(RedSample(method, route, status, duration_ms))
++                    level = "debug" if route in PROBES and status < 500 else "info"
++                    kit.logger.log(
++                        level,
++                        "http.request",
++                        {
++                            "method": method if method in _METHODS else "OTHER",
++                            "route": route or "unmatched",
++                            "status": status,
++                            "duration_ms": round(duration_ms),
++                        },
++                    )
++            except Exception:
++                span.set_status(StatusCode.ERROR)
++                raise
++            finally:
++                span.end()
++
++        def _dispatch(self, method: str, route: str | None, correlation_id: str) -> int:
++            if route is None:
++                return self._send(404, None, correlation_id)
++            if method != "GET":
++                return self._send(405, None, correlation_id, {"allow": "GET"})
+             if route == "/healthz":
+                 return self._send(200, {"status": "ok", "service": service}, correlation_id)
+-            if route == "/readyz":
+-                ready = True
+-                for name, check in readiness.items():
+-                    try:
+-                        ok = bool(check())
+-                    except Exception:  # noqa: BLE001 - dependencia quebrada => nao pronto
+-                        ok = False
+-                    if not ok:
+-                        ready = False
+-                        kit.logger.log("warning", "readiness.check_failed", {"check": name})
+-                body = {"status": "ready" if ready else "not_ready", "service": service}
+-                return self._send(200 if ready else 503, body, correlation_id)
+-            return self._send(404, None, correlation_id)
+-
+-        def _send(self, code: int, body: dict[str, str] | None, correlation_id: str) -> int:
++            ready = _run_checks(kit, readiness)
++            body = {"status": "ready" if ready else "not_ready", "service": service}
++            return self._send(200 if ready else 503, body, correlation_id)
++
++        def _send(
++            self, code: int, body: dict[str, str] | None, correlation_id: str, extra: dict[str, str] | None = None
++        ) -> int:
+             payload = json.dumps(body).encode() if body is not None else b""
+             self.send_response(code)
+             self.send_header(CORRELATION_HEADER, correlation_id)
++            for name, value in (extra or {}).items():
++                self.send_header(name, value)
+             if body is not None:
+                 self.send_header("content-type", "application/json")
+                 self.send_header("cache-control", "no-store")
+             self.send_header("content-length", str(len(payload)))
+             self.end_headers()
+-            self.wfile.write(payload)
++            if self.command != "HEAD":
++                self.wfile.write(payload)
+             return code
+ 
+         def log_message(self, format: str, *args: object) -> None:  # noqa: A002 - log padrao silenciado
+diff --git a/packages/observability-py/src/nucleos_observability/logger.py b/packages/observability-py/src/nucleos_observability/logger.py
+index b1923b6..2d0fda6 100644
+--- a/packages/observability-py/src/nucleos_observability/logger.py
++++ b/packages/observability-py/src/nucleos_observability/logger.py
+@@ -2,14 +2,15 @@
+ 
+ import sys
+ from datetime import UTC, datetime
++from collections.abc import Mapping
+ from typing import Any, TextIO
+ 
+ import structlog
+ 
+ from nucleos_observability.context import current_context
+-from nucleos_observability.redact import redact
++from nucleos_observability.redact import DEFAULT_RULES, StringRule, redact
+ 
+-DEFAULT_ALLOWLIST = ("method", "route", "status", "duration_ms", "check", "job_type")
++DEFAULT_ALLOWLIST: Mapping[str, StringRule] = DEFAULT_RULES
+ _LEVELS = {"debug": 10, "info": 20, "warning": 30, "error": 40}
+ 
+ 
+@@ -23,10 +24,11 @@ class Logger:
+         version: str,
+         env: str,
+         level: str = "info",
+-        allowlist: tuple[str, ...] = (),
++        allowlist: tuple[str, ...] | Mapping[str, StringRule] = (),
+         stream: TextIO | None = None,
+     ) -> None:
+-        self._allowlist = (*DEFAULT_ALLOWLIST, *allowlist)
++        extra = allowlist if isinstance(allowlist, Mapping) else dict.fromkeys(allowlist)
++        self._allowlist: dict[str, StringRule] = {**DEFAULT_ALLOWLIST, **extra}
+         self._base = {"service": service, "version": version, "env": env}
+         self._log = structlog.wrap_logger(
+             structlog.PrintLogger(file=stream or sys.stdout),
+@@ -49,7 +51,10 @@ class Logger:
+             "event": event_dict["event"],
+         }
+         if "data" in event_dict:
+-            record["data"] = redact(event_dict["data"], self._allowlist)
++            try:
++                record["data"] = redact(event_dict["data"], self._allowlist)
++            except Exception:  # noqa: BLE001 - fail-open sem dados
++                record["data"] = "[REDACTION_ERROR]"
+         return record
+ 
+     def log(self, level: str, event: str, data: Any = None) -> None:
+diff --git a/packages/observability-py/src/nucleos_observability/redact.py b/packages/observability-py/src/nucleos_observability/redact.py
+index 1228310..51fc009 100644
+--- a/packages/observability-py/src/nucleos_observability/redact.py
++++ b/packages/observability-py/src/nucleos_observability/redact.py
+@@ -1,7 +1,7 @@
+ """Redacao por allowlist: so campos explicitamente permitidos chegam ao log."""
+ 
+ import re
+-from collections.abc import Iterable
++from collections.abc import Iterable, Mapping
+ from typing import Any
+ 
+ REDACTED = "[REDACTED]"
+@@ -12,7 +12,11 @@ _SENSITIVE_PATTERN = re.compile(
+     r"authorization|cookie|passw|token|secret|prompt|content|api[-_]?key|credential|private[-_]?key|session",
+     re.IGNORECASE,
+ )
+-_VALUE_PATTERNS = (re.compile(r"\bBearer\s+\S+", re.IGNORECASE), re.compile(r"\beyJ[\w-]+\.[\w-]+\.[\w-]*"))
++_VALUE_PATTERNS = (
++    re.compile(r"\bBearer\s+\S+", re.IGNORECASE),
++    re.compile(r"\beyJ[\w-]+(?:\.[\w-]*)*"),
++    re.compile(r"(?:password|passwd|token|secret|api[-_]?key)\s*[=:]\s*\S+", re.IGNORECASE),
++)
+ _MAX_DEPTH = 4
+ _MAX_ITEMS = 20
+ _MAX_STRING = 256
+@@ -24,43 +28,71 @@ def _normalize(key: str) -> str:
+ 
+ 
+ def _scrub(value: str) -> str:
+-    out = value[:_MAX_STRING] + "..." if len(value) > _MAX_STRING else value
++    """Scrub ANTES de truncar: um token cortado no limite nao pode escapar do padrao."""
++    out = value
+     for pattern in _VALUE_PATTERNS:
+         out = pattern.sub(REDACTED, out)
+-    return out
++    return out[:_MAX_STRING] + "..." if len(out) > _MAX_STRING else out
++
++
++# Regra de string por chave: Pattern (valor inteiro, via fullmatch) ou FREE (opt-in; contrato do
++# chamador). Chave sem regra (None) aceita apenas numero/booleano/None.
++FREE = "free"
++StringRule = re.Pattern[str] | str | None
++_NAME = re.compile(r"[A-Za-z0-9_.$]{1,64}")
++_IDENT = re.compile(r"[A-Za-z0-9_.-]{1,64}")
++DEFAULT_RULES: dict[str, StringRule] = {
++    "method": re.compile(r"[A-Z]{1,16}"),
++    "route": re.compile(r"(?:unmatched|/[A-Za-z0-9_\-./:{}]*)"),
++    "status": None,
++    "duration_ms": None,
++    "check": _IDENT,
++    "job_type": _IDENT,
++}
+ 
+ 
+-def redact(value: Any, allowlist: Iterable[str], depth: int = 0) -> Any:
+-    """Mesmas regras da biblioteca TS: chave sensivel => [REDACTED] (nome so se conhecido ou
+-    permitido); chave fora da allowlist => descartada e contada em `_dropped`; excecoes viram
+-    apenas o nome da classe."""
+-    allowed = frozenset(_normalize(k) for k in allowlist)
+-    return _walk(value, allowed, depth)
++def redact(value: Any, allowlist: Iterable[str] | Mapping[str, StringRule]) -> Any:
++    """Mesmas regras da biblioteca TS: dado de topo so dict simples (senao `{_dropped: 1}`);
++    chave sensivel => [REDACTED] (nome so se conhecido ou permitido); chave fora da allowlist =>
++    descartada e contada em `_dropped`; string so passa com regra declarada na chave (senao
++    [REDACTED]); excecoes viram apenas o nome da classe."""
++    if isinstance(allowlist, Mapping):
++        rules = {_normalize(k): r for k, r in allowlist.items()}
++    else:
++        rules = {_normalize(k): None for k in allowlist}
++    if type(value) is not dict:
++        return {_DROPPED: 1}
++    return _walk(value, rules, 0, None)
+ 
+ 
+-def _walk(value: Any, allowed: frozenset[str], depth: int) -> Any:
++def _walk(value: Any, rules: Mapping[str, StringRule], depth: int, rule: StringRule) -> Any:
+     if value is None or isinstance(value, bool | int | float):
+         return value
+     if isinstance(value, str):
++        if rule is None:
++            return REDACTED
++        if isinstance(rule, re.Pattern) and not rule.fullmatch(value):
++            return REDACTED
+         return _scrub(value)
+     if isinstance(value, BaseException):
+-        return {"name": type(value).__name__}
++        name = type(value).__name__
++        return {"name": name if _NAME.fullmatch(name) else REDACTED}
+     if depth >= _MAX_DEPTH:
+         return "[TRUNCATED]"
+     if isinstance(value, list | tuple):
+-        return [_walk(item, allowed, depth + 1) for item in value[:_MAX_ITEMS]]
+-    if isinstance(value, dict):
++        return [_walk(item, rules, depth + 1, rule) for item in value[:_MAX_ITEMS]]
++    if type(value) is dict:
+         out: dict[str, Any] = {}
+         dropped = 0
+         for raw_key, child in value.items():
+             key = _normalize(str(raw_key))
+-            is_allowed = key in allowed
++            is_allowed = key in rules
+             if key in SENSITIVE_KEYS or (is_allowed and _SENSITIVE_PATTERN.search(key)):
+                 out[key] = REDACTED
+             elif not is_allowed or _SENSITIVE_PATTERN.search(key):
+                 dropped += 1
+             else:
+-                out[key] = _walk(child, allowed, depth + 1)
++                out[key] = _walk(child, rules, depth + 1, rules[key])
+         if dropped:
+             out[_DROPPED] = dropped
+         return out
+diff --git a/packages/observability-py/tests/test_observability.py b/packages/observability-py/tests/test_observability.py
+index 5144bf7..bfaedc2 100644
+--- a/packages/observability-py/tests/test_observability.py
++++ b/packages/observability-py/tests/test_observability.py
+@@ -1,4 +1,7 @@
+ import io
++import re
++import time
++from collections.abc import Callable
+ import json
+ import random
+ import threading
+@@ -16,28 +19,32 @@ from nucleos_observability import (
+     Logger,
+     Telemetry,
+     TelemetryConfig,
++    FREE,
++    JobEnvelope,
+     create_business_counter,
+     create_job_envelope,
+     make_handler,
+     make_observability,
++    current_context,
+     redact,
+     resolve_correlation_id,
+     run_job,
+     telemetry_config_from_env,
+ )
+-from http.server import HTTPServer
++from http.server import HTTPServer, ThreadingHTTPServer
+ 
+-ALLOWED = ["method", "route", "status", "note"]
++# `note` e `items` nao tem validador: string sob elas e sempre [REDACTED].
++ALLOWED = ["method", "route", "status", "note", "items"]
+ SENSITIVE = [*SENSITIVE_KEYS, "Authorization", "X-Api-Key", "user_password", "access_token", "Set-Cookie"]
+ OTHER = ["foo", "body", "payload", "email", "x1", "headers", "weird key"]
+ 
+ 
+-def test_propriedade_nenhum_sentinela_sobrevive() -> None:
+-    rnd = random.Random(20261025)
++def _gen_run(seed: int, check: Callable[[list[str], object], None]) -> None:
++    rnd = random.Random(seed)
+     sentinels: list[str] = []
+ 
+     def sentinel() -> str:
+-        s = f"SENTINEL_{len(sentinels)}_{rnd.randrange(10**9):x}"
++        s = f"SENTINEL-s3cr3t-{len(sentinels)}-{rnd.randrange(10**9):x}"
+         sentinels.append(s)
+         return s
+ 
+@@ -51,38 +58,105 @@ def test_propriedade_nenhum_sentinela_sobrevive() -> None:
+         obj: dict[str, object] = {}
+         for _ in range(rnd.randint(1, 5)):
+             r = rnd.random()
+-            if r < 0.35:
++            if r < 0.2:
+                 obj[rnd.choice(SENSITIVE)] = wrap(sentinel())
+-            elif r < 0.6:
++            elif r < 0.35:
+                 obj[rnd.choice(OTHER)] = wrap(sentinel())
+-            elif r < 0.75 and depth < 3:
++            elif r < 0.5 and depth < 3:
+                 obj[rnd.choice(ALLOWED)] = gen(depth + 1)
+-            elif r < 0.85:
++            elif r < 0.58:
+                 obj[rnd.choice(ALLOWED)] = f"Bearer {sentinel()}"
++            elif r < 0.7:
++                obj[rnd.choice(["note", "items"])] = sentinel()  # string comum sob chave permitida
++            elif r < 0.78:
++                obj["items"] = [sentinel(), 1, [sentinel()]]  # item de array
++            elif r < 0.84:
++                # nome de classe controlado por dado: type() aceita qualquer string
++                obj[rnd.choice(["note", "items"])] = type(sentinel(), (Exception,), {})("m")
++            elif r < 0.9:
++                obj["route"] = f"/x?token={sentinel()}"
++            elif r < 0.95:
++                obj["note"] = f"password={sentinel()}"
+             else:
+                 obj[rnd.choice(ALLOWED)] = rnd.randrange(100)
+         return obj
+ 
++    def top() -> object:
++        r = rnd.random()
++        if r < 0.15:
++            return sentinel()
++        if r < 0.3:
++            return [sentinel(), {"note": sentinel()}]
++        return gen(0)
++
+     for _ in range(500):
+         sentinels.clear()
+-        out = json.dumps(redact(gen(0), ALLOWED))
++        check(sentinels, top())
++
++
++def test_propriedade_nenhum_sentinela_sobrevive() -> None:
++    def check(sentinels: list[str], value: object) -> None:
++        out = json.dumps(redact(value, ALLOWED))
++        for s in sentinels:
++            assert s not in out
++
++    _gen_run(20261025, check)
++
++
++def test_propriedade_na_linha_de_log_real() -> None:
++    stream = io.StringIO()
++    logger = Logger("s", "1", "t", allowlist=("note", "items"), stream=stream)
++
++    def check(sentinels: list[str], value: object) -> None:
++        stream.seek(0)
++        stream.truncate()
++        logger.log("info", "evt", value)
++        out = stream.getvalue()
+         for s in sentinels:
+             assert s not in out
+ 
++    _gen_run(77, check)
++
++
++def test_validos_permanecem_e_strings_so_com_validador() -> None:
++    assert redact({"route": "/healthz", "status": 200, "note": "x"}, ["route", "status", "note"]) == {
++        "route": REDACTED, "status": 200, "note": REDACTED,
++    }
++    rules = {"route": re.compile(r"/[a-z]+"), "status": None, "free": FREE, "note": None}
++    assert redact({"route": "/healthz", "status": 200, "free": "livre", "note": "x"}, rules) == {
++        "route": "/healthz", "status": 200, "free": "livre", "note": REDACTED,
++    }
++    assert redact({"route": "/x\n"}, rules) == {"route": REDACTED}
++    for top in ("s", 1, ["a"], None, ValueError("x"), (1,)):
++        assert redact(top, ["note"]) == {"_dropped": 1}
+ 
+-def test_chave_sensivel_na_allowlist_continua_redigida() -> None:
+-    out = redact({"authorization": "x", "token": "y", "note": "ok", "foo": "z"}, ["token", "note"])
+-    assert out == {"authorization": REDACTED, "token": REDACTED, "note": "ok", "_dropped": 1}
+-    assert "senha" not in json.dumps(redact({"note": ValueError("senha=abc")}, ["note"]))
++
++def test_jwt_cortado_no_limite_e_error_name() -> None:
++    jwt = "eyJ" + "a" * 300 + ".payload.sig"
++    out = json.dumps(redact({"note": "x" * 250 + " " + jwt}, {"note": FREE}))
++    assert "eyJ" not in out and "aaaa" not in out
++    assert redact({"note": TypeError("m")}, ["note"]) == {"note": {"name": "TypeError"}}
++    bad = type("has space", (Exception,), {})("m")
++    assert redact({"note": bad}, ["note"]) == {"note": {"name": REDACTED}}
+ 
+ 
+ def test_correlation_id() -> None:
+-    assert resolve_correlation_id("edge-req-1234") == "edge-req-1234"
+-    assert len(resolve_correlation_id(None)) == 36
+-    assert len(resolve_correlation_id("x\ninjetado")) == 36
++    assert len(resolve_correlation_id("abcdefgh12")) == 36  # padrao: nao confia no cliente
++    assert resolve_correlation_id("edge-req-1234", trust_edge=True) == "edge-req-1234"
++    assert len(resolve_correlation_id(None, trust_edge=True)) == 36
++    assert len(resolve_correlation_id("x\ninjetado", trust_edge=True)) == 36
++    assert len(resolve_correlation_id("abcdefgh\n", trust_edge=True)) == 36
++    assert len(resolve_correlation_id("abcdefgh\r\nX: 1", trust_edge=True)) == 36
+     assert len(resolve_correlation_id("edge-req-1234", trust_edge=False)) == 36
+ 
+ 
++def test_run_job_rejeita_id_com_quebra_de_linha() -> None:
++    envelope = JobEnvelope(type="t", payload=None, correlation_id="abcdefgh\n")
++    seen: list[str] = []
++    run_job(envelope, lambda _e: seen.append(current_context().correlation_id))  # type: ignore[union-attr]
++    assert len(seen[0]) == 36 and "\n" not in seen[0]
++
++
+ def _get(url: str, headers: dict[str, str] | None = None) -> tuple[int, dict[str, str]]:
+     with urllib.request.urlopen(urllib.request.Request(url, headers=headers or {})) as res:
+         return res.status, dict(res.headers)
+@@ -98,7 +172,7 @@ def test_ac1_log_metrica_e_trace_correlacionados_http_job_log() -> None:
+     out = io.StringIO()
+     telemetry = Telemetry(cfg)
+     kit = make_observability(Logger("svc", "9.9.9", "test", level="debug", stream=out), telemetry)
+-    server = HTTPServer(("127.0.0.1", 0), make_handler(kit, "svc"))
++    server = HTTPServer(("127.0.0.1", 0), make_handler(kit, "svc", trust_edge=True))
+     threading.Thread(target=server.serve_forever, daemon=True).start()
+     try:
+         url = f"http://127.0.0.1:{server.server_address[1]}/healthz"
+@@ -181,3 +255,86 @@ def test_cardinalidade_label_proibido() -> None:
+     with pytest.raises(ValueError):
+         create_business_counter(meter, "x", {"tenant_id": ["a"]})
+     create_business_counter(meter, "orders", {"outcome": ["ok", "error"]})(1, {"outcome": "qualquer"})
++
++
++def _serve(checks: dict[str, Callable[[], bool]] | None = None) -> tuple[ThreadingHTTPServer, io.StringIO, str]:
++    out = io.StringIO()
++    kit = make_observability(
++        Logger("svc", "9.9.9", "test", level="debug", stream=out),
++        Telemetry(TelemetryConfig(enabled=False, service="svc", version="9.9.9", env="test")),
++    )
++    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(kit, "svc", checks))
++    threading.Thread(target=server.serve_forever, daemon=True).start()
++    return server, out, f"http://127.0.0.1:{server.server_address[1]}"
++
++
++def test_padrao_ignora_x_request_id_do_cliente() -> None:
++    server, _out, base = _serve()
++    try:
++        _status, headers = _get(f"{base}/healthz", {"x-request-id": "abcdefgh12"})
++        assert headers["x-request-id"] != "abcdefgh12" and len(headers["x-request-id"]) == 36
++    finally:
++        server.shutdown()
++        server.server_close()
++
++
++def test_header_server_neutro_e_metodos_nao_get_com_red_e_log() -> None:
++    server, out, base = _serve()
++    try:
++        _status, headers = _get(f"{base}/healthz")
++        assert "python" not in headers["Server"].lower() and "basehttp" not in headers["Server"].lower()
++        assert not any(c.isdigit() for c in headers["Server"])
++        for method, path, code in (("POST", "/x", 404), ("DELETE", "/healthz", 405), ("PUT", "/readyz", 405)):
++            req = urllib.request.Request(f"{base}{path}", method=method, data=b"" if method != "DELETE" else None)
++            with pytest.raises(urllib.error.HTTPError) as err:
++                urllib.request.urlopen(req)
++            assert err.value.code == code
++            assert len(err.value.headers["x-request-id"]) == 36
++            assert "python" not in err.value.headers["Server"].lower()
++        time.sleep(0.05)
++        records = [json.loads(line) for line in out.getvalue().splitlines()]
++        assert [r["data"]["method"] for r in records if r["event"] == "http.request"][-3:] == ["POST", "DELETE", "PUT"]
++    finally:
++        server.shutdown()
++        server.server_close()
++
++
++def test_readyz_check_pendurado_tem_timeout_e_nao_bloqueia_healthz() -> None:
++    server, _out, base = _serve({"slow": lambda: time.sleep(4) or True, "also": lambda: time.sleep(4) or True})
++    try:
++        ready_result: list[float | int] = []
++
++        def call_ready() -> None:
++            started = time.monotonic()
++            try:
++                urllib.request.urlopen(f"{base}/readyz")
++            except urllib.error.HTTPError as err:
++                ready_result.extend([err.code, time.monotonic() - started])
++
++        t = threading.Thread(target=call_ready)
++        t.start()
++        time.sleep(0.3)
++        started = time.monotonic()
++        assert _get(f"{base}/healthz")[0] == 200
++        assert time.monotonic() - started < 1.0
++        t.join(timeout=6)
++        assert ready_result[0] == 503 and ready_result[1] < 3.5  # ~2 s em paralelo, nao 8 s
++    finally:
++        server.shutdown()
++        server.server_close()
++
++
++def test_excecao_no_dispatch_encerra_o_span() -> None:
++    spans = InMemorySpanExporter()
++    cfg = TelemetryConfig(
++        enabled=True, service="svc", version="1", env="t", span_processors=[SimpleSpanProcessor(spans)],
++    )
++    kit = make_observability(Logger("svc", "1", "t", stream=io.StringIO()), Telemetry(cfg))
++    handler_cls = make_handler(kit, "svc")
++    handler = object.__new__(handler_cls)
++    handler.headers = {}  # type: ignore[assignment]
++    handler.path = "/healthz"
++    handler._dispatch = lambda *_a: (_ for _ in ()).throw(RuntimeError("boom"))  # type: ignore[method-assign]
++    with pytest.raises(RuntimeError):
++        handler._handle("GET")
++    assert len(spans.get_finished_spans()) == 1
+diff --git a/packages/observability/src/context.ts b/packages/observability/src/context.ts
+index 4d1e8e6..bc6d737 100644
+--- a/packages/observability/src/context.ts
++++ b/packages/observability/src/context.ts
+@@ -34,10 +34,10 @@ export function setTrustedTenant(tenantId: string, actorType: ActorType = "user"
+ }
+ 
+ /**
+- * Aceita `X-Request-Id` da borda confiavel apenas se tiver formato seguro (evita injecao em log);
+- * ausente, invalido ou `trustEdge=false` => UUID novo.
++ * Aceita `X-Request-Id` somente com `trustEdge=true` (borda confiavel, definida em FND-007) e formato
++ * seguro (evita injecao em log); padrao `false`, ausente ou invalido => UUID novo.
+  */
+-export function resolveCorrelationId(header: string | string[] | undefined, trustEdge = true): string {
++export function resolveCorrelationId(header: string | string[] | undefined, trustEdge = false): string {
+   const candidate = Array.isArray(header) ? header[0] : header;
+   if (trustEdge && candidate !== undefined && VALID_ID.test(candidate)) return candidate;
+   return randomUUID();
+diff --git a/packages/observability/src/http.ts b/packages/observability/src/http.ts
+index 8feb231..dfd62b8 100644
+--- a/packages/observability/src/http.ts
++++ b/packages/observability/src/http.ts
+@@ -19,7 +19,7 @@ export function createObservability(logger: LoggerOptions, telemetry: TelemetryC
+ export interface ObserveOptions {
+   /** Template da rota, avaliado ao final da resposta (ex.: `req.route.path` no Express). */
+   routeOf: (req: IncomingMessage) => string | undefined;
+-  /** `X-Request-Id` so e aceito quando a borda e confiavel (FND-007 define o proxy). */
++  /** `X-Request-Id` so e aceito quando a borda e confiavel (FND-007 define o proxy). Padrao: false. */
+   trustEdge?: boolean;
+   /** Rotas de sonda (nao poluem o log em nivel info). */
+   quietRoutes?: readonly string[];
+@@ -33,7 +33,7 @@ export function observeRequest(
+   options: ObserveOptions,
+   next: () => void,
+ ): void {
+-  const correlationId = resolveCorrelationId(req.headers[CORRELATION_HEADER], options.trustEdge ?? true);
++  const correlationId = resolveCorrelationId(req.headers[CORRELATION_HEADER], options.trustEdge ?? false);
+   const method = req.method ?? "GET";
+   const started = performance.now();
+   const span = kit.telemetry.tracer.startSpan(`HTTP ${method}`, {
+@@ -42,24 +42,30 @@ export function observeRequest(
+   });
+   res.setHeader(CORRELATION_HEADER, correlationId);
+   res.once("close", () => {
+-    const route = options.routeOf(req);
+-    const status = res.statusCode;
+-    const durationMs = performance.now() - started;
+-    span.updateName(`HTTP ${method} ${route ?? "unmatched"}`);
+-    span.setAttribute("http.route", route ?? "unmatched");
+-    span.setAttribute("http.response.status_code", status);
+-    if (status >= 500) span.setStatus({ code: SpanStatusCode.ERROR });
+-    runWithContext({ correlationId, actorType: "anonymous", span }, () => {
+-      kit.red.record({ method, route, status, durationMs });
+-      const quiet = route !== undefined && (options.quietRoutes ?? []).includes(route);
+-      kit.logger.log(quiet && status < 500 ? "debug" : "info", "http.request", {
+-        method,
+-        route: route ?? "unmatched",
+-        status,
+-        duration_ms: Math.round(durationMs),
++    // Fail-open: falha de observabilidade nunca derruba o processo; o span sempre e encerrado.
++    try {
++      const route = options.routeOf(req);
++      const status = res.statusCode;
++      const durationMs = performance.now() - started;
++      span.updateName(`HTTP ${method} ${route ?? "unmatched"}`);
++      span.setAttribute("http.route", route ?? "unmatched");
++      span.setAttribute("http.response.status_code", status);
++      if (status >= 500) span.setStatus({ code: SpanStatusCode.ERROR });
++      runWithContext({ correlationId, actorType: "anonymous", span }, () => {
++        kit.red.record({ method, route, status, durationMs });
++        const quiet = route !== undefined && (options.quietRoutes ?? []).includes(route);
++        kit.logger.log(quiet && status < 500 ? "debug" : "info", "http.request", {
++          method,
++          route: route ?? "unmatched",
++          status,
++          duration_ms: Math.round(durationMs),
++        });
+       });
+-    });
+-    span.end();
++    } catch {
++      // sem dados: nada do pedido e registrado aqui
++    } finally {
++      span.end();
++    }
+   });
+   runWithContext({ correlationId, actorType: "anonymous", span }, next);
+ }
+@@ -68,6 +74,8 @@ export function observeHttp(kit: Observability, handler: RequestListener, option
+   return (req, res) => observeRequest(kit, req, res, options, () => handler(req, res));
+ }
+ 
++const CHECK_TIMEOUT_MS = 2000;
++
+ export type ReadinessChecks = Readonly<Record<string, () => Promise<boolean> | boolean>>;
+ 
+ /** `/healthz` (vivo) e `/readyz` (dependencias criticas). Corpo sem versoes nem detalhes internos. */
+@@ -82,19 +90,27 @@ export async function handleProbe(
+   const path = (req.url ?? "").split("?")[0];
+   if (path === "/healthz") return sendProbe(res, 200, "ok", service);
+   if (path !== "/readyz") return false;
+-  let ready = true;
+-  for (const [name, check] of Object.entries(checks)) {
+-    let ok = false;
+-    try {
+-      ok = await Promise.race([Promise.resolve(check()), new Promise<boolean>((r) => setTimeout(() => r(false), 2000).unref())]);
+-    } catch {
+-      ok = false;
+-    }
+-    if (!ok) {
+-      ready = false;
+-      kit.logger.log("warn", "readiness.check_failed", { check: name });
+-    }
+-  }
++  // Checks em paralelo, cada um com timeout proprio: o pior caso e CHECK_TIMEOUT_MS, nao N x timeout.
++  const results = await Promise.all(
++    Object.entries(checks).map(async ([name, check]) => {
++      let timer: NodeJS.Timeout | undefined;
++      let ok = false;
++      try {
++        const timeout = new Promise<boolean>((r) => {
++          timer = setTimeout(() => r(false), CHECK_TIMEOUT_MS);
++          timer.unref();
++        });
++        ok = await Promise.race([Promise.resolve().then(check), timeout]);
++      } catch {
++        ok = false;
++      } finally {
++        clearTimeout(timer);
++      }
++      if (!ok) kit.logger.log("warn", "readiness.check_failed", { check: name });
++      return ok;
++    }),
++  );
++  const ready = results.every(Boolean);
+   return sendProbe(res, ready ? 200 : 503, ready ? "ready" : "not_ready", service);
+ }
+ 
+diff --git a/packages/observability/src/logger.ts b/packages/observability/src/logger.ts
+index 73f7714..ce7a50d 100644
+--- a/packages/observability/src/logger.ts
++++ b/packages/observability/src/logger.ts
+@@ -1,9 +1,9 @@
+ import { pino } from "pino";
+ import { currentContext } from "./context.js";
+-import { redact } from "./redact.js";
++import { type AllowMap, DEFAULT_RULES, redact } from "./redact.js";
+ 
+-/** Campos operacionais emitidos pela propria biblioteca (valores controlados pelo codigo). */
+-export const DEFAULT_ALLOWLIST = ["method", "route", "status", "duration_ms", "check", "job_type"] as const;
++/** Campos operacionais emitidos pela propria biblioteca, com o validador de cada string. */
++export const DEFAULT_ALLOWLIST: AllowMap = DEFAULT_RULES;
+ 
+ export type LogLevel = "debug" | "info" | "warn" | "error";
+ 
+@@ -12,8 +12,11 @@ export interface LoggerOptions {
+   version: string;
+   env: string;
+   level?: LogLevel;
+-  /** Campos permitidos em `data`; o restante e descartado (ver `redact`). */
+-  allowlist?: readonly string[];
++  /**
++   * Campos extras permitidos em `data`: lista de nomes (so numero/booleano) ou mapa
++   * nome -> RegExp/"free" para liberar strings. O restante e descartado (ver `redact`).
++   */
++  allowlist?: readonly string[] | AllowMap;
+   destination?: { write(line: string): void };
+ }
+ 
+@@ -23,7 +26,11 @@ export interface Logger {
+ 
+ /** Campos fixos: ts, level, service, version, env, trace_id, span_id, correlation_id, tenant_id, actor_type, event. */
+ export function createLogger(options: LoggerOptions): Logger {
+-  const allowlist = [...DEFAULT_ALLOWLIST, ...(options.allowlist ?? [])];
++  const extra = options.allowlist ?? [];
++  const extraMap: AllowMap = Array.isArray(extra)
++    ? Object.fromEntries((extra as readonly string[]).map((k) => [k, undefined]))
++    : (extra as AllowMap);
++  const allowlist: AllowMap = { ...DEFAULT_ALLOWLIST, ...extraMap };
+   const base = pino(
+     {
+       level: options.level ?? "info",
+@@ -48,7 +55,16 @@ export function createLogger(options: LoggerOptions): Logger {
+   return {
+     log(level, event, data) {
+       if (data === undefined) base[level](event);
+-      else base[level]({ data: redact(data, allowlist) }, event);
++      else base[level]({ data: safeRedact(data, allowlist) }, event);
+     },
+   };
+ }
++
++/** Fail-open sem dados: falha ao redigir (ex.: getter que lanca) nunca derruba nem vaza. */
++function safeRedact(data: unknown, allowlist: AllowMap): unknown {
++  try {
++    return redact(data, allowlist);
++  } catch {
++    return "[REDACTION_ERROR]";
++  }
++}
+diff --git a/packages/observability/src/observability.test.ts b/packages/observability/src/observability.test.ts
+index 794c53b..b7384cf 100644
+--- a/packages/observability/src/observability.test.ts
++++ b/packages/observability/src/observability.test.ts
+@@ -44,11 +44,14 @@ function get(port: number, path: string, headers: Record<string, string> = {}):
+ 
+ const listen = (s: Server) => new Promise<number>((r) => s.listen(0, "127.0.0.1", () => r((s.address() as AddressInfo).port)));
+ 
+-test("correlation id: aceita da borda, gera UUID se ausente/invalido, ignora se borda nao confiavel", () => {
+-  assert.equal(resolveCorrelationId("edge-req-1234"), "edge-req-1234");
+-  assert.match(resolveCorrelationId(undefined), /^[0-9a-f-]{36}$/);
+-  assert.match(resolveCorrelationId("x\ninjetado"), /^[0-9a-f-]{36}$/);
+-  assert.match(resolveCorrelationId("edge-req-1234", false), /^[0-9a-f-]{36}$/);
++test("correlation id: padrao NAO confia no cliente; com trustEdge aceita so formato seguro", () => {
++  const uuid = /^[0-9a-f-]{36}$/;
++  assert.match(resolveCorrelationId("abcdefgh12"), uuid); // padrao: ignora
++  assert.equal(resolveCorrelationId("edge-req-1234", true), "edge-req-1234");
++  assert.match(resolveCorrelationId(undefined, true), uuid);
++  assert.match(resolveCorrelationId("x\ninjetado", true), uuid);
++  assert.match(resolveCorrelationId("abcdefgh\n", true), uuid);
++  assert.match(resolveCorrelationId("edge-req-1234", false), uuid);
+ });
+ 
+ test("AC-1: requisicao sintetica gera log, metrica e trace com o mesmo correlation_id; HTTP -> job -> log", async () => {
+@@ -74,7 +77,7 @@ test("AC-1: requisicao sintetica gera log, metrica e trace com o mesmo correlati
+         assert.equal(correlationHeaders()[CORRELATION_HEADER], currentContext()?.correlationId);
+         res.writeHead(200).end("ok");
+       },
+-      { routeOf: () => "/demo" },
++      { routeOf: () => "/demo", trustEdge: true },
+     ),
+   );
+   const port = await listen(server);
+@@ -116,6 +119,42 @@ test("AC-1: requisicao sintetica gera log, metrica e trace com o mesmo correlati
+   }
+ });
+ 
++test("HTTP: sem trustEdge o x-request-id do cliente e substituido por UUID", async () => {
++  const kit = createObservability({ ...base, destination: sink() }, { ...base, enabled: false });
++  const server = createServer(observeHttp(kit, (_req, res) => void res.writeHead(200).end("ok"), { routeOf: () => "/x" }));
++  const port = await listen(server);
++  try {
++    const res = await get(port, "/x", { "x-request-id": "abcdefgh12" });
++    assert.match(String(res.headers[CORRELATION_HEADER]), /^[0-9a-f-]{36}$/);
++  } finally {
++    server.close();
++  }
++});
++
++test("getter que lanca na saida nao derruba o processo e o span e encerrado", async () => {
++  const spans = new InMemorySpanExporter();
++  const kit = createObservability(
++    { ...base, destination: sink() },
++    { ...base, enabled: true, spanProcessors: [new SimpleSpanProcessor({ exporter: spans })] },
++  );
++  const server = createServer(
++    observeHttp(kit, (_req, res) => void res.writeHead(200).end("ok"), {
++      routeOf: () => {
++        throw new Error("boom");
++      },
++    }),
++  );
++  const port = await listen(server);
++  try {
++    assert.equal((await get(port, "/x")).status, 200);
++    await new Promise((r) => setTimeout(r, 50));
++    assert.equal(spans.getFinishedSpans().length, 1);
++  } finally {
++    server.close();
++    await kit.telemetry.shutdown();
++  }
++});
++
+ test("cardinalidade: rota nao declarada vira unmatched; label tenant_id e proibido", () => {
+   const kit = createObservability({ ...base, destination: sink() }, { ...base, enabled: false });
+   assert.throws(() => createBusinessCounter(kit.telemetry.meter, "x", { tenant_id: ["a"] }), /proibido/);
+@@ -174,3 +213,24 @@ test("sondas: /healthz e /readyz sem versoes; 503 quando dependencia falha", asy
+     server.close();
+   }
+ });
++
++test("readyz: checks em paralelo com timeout por check; check pendurado => 503 em ~2s e /healthz nao espera", async () => {
++  const kit = createObservability({ ...base, destination: sink() }, { ...base, enabled: false });
++  const hang = () => new Promise<boolean>(() => undefined);
++  const server = createServer((req, res) => {
++    void handleProbe(kit, "svc", req, res, { a: hang, b: hang, c: hang }).then((handled) => {
++      if (!handled) res.writeHead(404).end();
++    });
++  });
++  const port = await listen(server);
++  try {
++    const started = Date.now();
++    const [ready, health] = await Promise.all([get(port, "/readyz"), get(port, "/healthz")]);
++    const elapsed = Date.now() - started;
++    assert.equal(ready.status, 503);
++    assert.equal(health.status, 200);
++    assert.ok(elapsed < 3500, `3 checks pendurados deveriam levar ~2s (paralelo), levou ${elapsed}ms`);
++  } finally {
++    server.close();
++  }
++});
+diff --git a/packages/observability/src/redact.test.ts b/packages/observability/src/redact.test.ts
+index 7b2dcce..ced7fe0 100644
+--- a/packages/observability/src/redact.test.ts
++++ b/packages/observability/src/redact.test.ts
+@@ -1,5 +1,6 @@
+ import assert from "node:assert/strict";
+ import { test } from "node:test";
++import { createLogger } from "./logger.js";
+ import { REDACTED, SENSITIVE_KEYS, redact } from "./redact.js";
+ 
+ // PRNG deterministico (mulberry32) para o teste de propriedade ser reproduzivel.
+@@ -13,45 +14,92 @@ function prng(seed: number): () => number {
+   };
+ }
+ 
+-const ALLOWED = ["method", "route", "status", "note"];
++// `note` e `items` nao tem validador: string sob elas e sempre [REDACTED]. `route` tem validador.
++const ALLOWED = ["method", "route", "status", "note", "items"];
+ const SENSITIVE = [...SENSITIVE_KEYS, "Authorization", "X-Api-Key", "user_password", "access_token", "Set-Cookie"];
+ const OTHER = ["foo", "body", "payload", "email", "x1", "headers", "weird key"];
+ 
+-test("propriedade: nenhum sentinela de segredo sobrevive a redacao (dados aleatorios)", () => {
+-  const rnd = prng(20261025);
++function run(seed: number, check: (sentinels: string[], value: unknown) => void): void {
++  const rnd = prng(seed);
+   const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(rnd() * xs.length)] as T;
+   const sentinels: string[] = [];
++  const sentinel = () => {
++    const s = `SENTINEL-s3cr3t-${sentinels.length}-${Math.floor(rnd() * 1e9).toString(36)}`;
++    sentinels.push(s);
++    return s;
++  };
++  const wrap = (v: unknown): unknown => (rnd() < 0.3 ? [v, { deep: v }] : rnd() < 0.2 ? { a: { b: { c: { d: v } } } } : v);
+   const gen = (depth: number): unknown => {
+     const obj: Record<string, unknown> = {};
+     const n = 1 + Math.floor(rnd() * 5);
+     for (let i = 0; i < n; i++) {
+       const r = rnd();
+-      const sentinel = () => {
+-        const s = `SENTINEL_${sentinels.length}_${Math.floor(rnd() * 1e9).toString(36)}`;
+-        sentinels.push(s);
+-        return s;
+-      };
+-      const wrap = (v: unknown): unknown => (rnd() < 0.3 ? [v, { deep: v }] : rnd() < 0.2 ? { a: { b: { c: { d: v } } } } : v);
+-      if (r < 0.35) obj[pick(SENSITIVE)] = wrap(sentinel());
+-      else if (r < 0.6) obj[pick(OTHER)] = wrap(sentinel());
+-      else if (r < 0.75 && depth < 3) obj[pick(ALLOWED)] = gen(depth + 1);
+-      else if (r < 0.85) obj[pick(ALLOWED)] = `Bearer ${sentinel()}`;
++      if (r < 0.2) obj[pick(SENSITIVE)] = wrap(sentinel());
++      else if (r < 0.35) obj[pick(OTHER)] = wrap(sentinel());
++      else if (r < 0.5 && depth < 3) obj[pick(ALLOWED)] = gen(depth + 1);
++      else if (r < 0.58) obj[pick(ALLOWED)] = `Bearer ${sentinel()}`;
++      else if (r < 0.7) obj[pick(["note", "items"])] = sentinel(); // string comum sob chave permitida
++      else if (r < 0.78) obj["items"] = [sentinel(), 1, [sentinel()]]; // item de array
++      else if (r < 0.84) obj[pick(["note", "items"])] = Object.assign(new Error("m"), { name: sentinel() }); // Error.name
++      else if (r < 0.9) obj["route"] = `/x?token=${sentinel()}`; // validador de rota rejeita
++      else if (r < 0.95) obj["note"] = `password=${sentinel()}`;
+       else obj[pick(ALLOWED)] = Math.floor(rnd() * 100);
+     }
+     return obj;
+   };
++  const top = (): unknown => {
++    const r = rnd();
++    if (r < 0.15) return sentinel(); // escalar de topo
++    if (r < 0.3) return [sentinel(), { note: sentinel() }]; // lista de topo
++    if (r < 0.4) return Object.assign(new Error("m"), { name: sentinel() }); // Error de topo
++    return gen(0);
++  };
+   for (let i = 0; i < 500; i++) {
+     sentinels.length = 0;
+-    const out = JSON.stringify(redact(gen(0), ALLOWED));
+-    for (const s of sentinels) assert.ok(!out.includes(s), `vazou ${s} em ${out}`);
++    check(sentinels, top());
+   }
++}
++
++test("propriedade: nenhum sentinela sobrevive a redacao (strings sob chave permitida, arrays, topo, Error.name)", () => {
++  run(20261025, (sentinels, value) => {
++    const out = JSON.stringify(redact(value, ALLOWED));
++    for (const s of sentinels) assert.ok(!out.includes(s), `vazou ${s} em ${out}`);
++  });
++});
++
++test("propriedade na linha de log real (logger.log), nao so em redact", () => {
++  const lines: string[] = [];
++  const logger = createLogger({ service: "s", version: "1", env: "t", destination: { write: (l) => void lines.push(l) }, allowlist: ["note", "items"] });
++  run(77, (sentinels, value) => {
++    lines.length = 0;
++    logger.log("info", "evt", value);
++    const out = lines.join("");
++    for (const s of sentinels) assert.ok(!out.includes(s), `vazou ${s} em ${out}`);
++  });
++});
++
++test("valores validos continuam presentes; strings so com validador; topo so objeto simples", () => {
++  const out = redact({ route: "/healthz", status: 200, method: "GET", note: "ok" }, ["route", "status", "method", "note"]) as Record<string, unknown>;
++  assert.deepEqual(out, { route: "[REDACTED]", status: 200, method: "[REDACTED]", note: "[REDACTED]" }); // lista de nomes = sem validador
++  const rules = redact({ route: "/healthz", status: 200, method: "GET", free: "livre", note: "x" }, { route: /^\/[a-z]+$/, status: undefined, method: /^[A-Z]+$/, free: "free", note: undefined });
++  assert.deepEqual(rules, { route: "/healthz", status: 200, method: "GET", free: "livre", note: REDACTED });
++  for (const top of ["s", 1, ["a"], null, new Error("x"), new Map()]) assert.deepEqual(redact(top, ["note"]), { _dropped: 1 });
++});
++
++test("Error.name fora de ^[A-Za-z0-9_.$]{1,64}$ vira [REDACTED]; JWT cortado no limite nao deixa prefixo", () => {
++  const bad = Object.assign(new Error("m"), { name: "has space" });
++  assert.deepEqual(redact({ note: bad }, ["note"]), { note: { name: REDACTED } });
++  assert.deepEqual(redact({ note: new TypeError("m") }, ["note"]), { note: { name: "TypeError" } });
++  const jwt = `eyJ${"a".repeat(300)}.payload.sig`;
++  const out = JSON.stringify(redact({ note: `${"x".repeat(250)} ${jwt}` }, { note: "free" }));
++  assert.ok(!out.includes("eyJ") && !out.includes("aaaa"));
+ });
+ 
+ test("chaves sensiveis conhecidas viram [REDACTED] mesmo se estiverem na allowlist", () => {
+-  const out = redact({ authorization: "x", token: "y", note: "ok", foo: "z" }, ["token", "note"]) as Record<string, unknown>;
++  const out = redact({ authorization: "x", token: "y", note: 7, foo: "z" }, ["token", "note"]) as Record<string, unknown>;
+   assert.equal(out["authorization"], REDACTED);
+   assert.equal(out["token"], REDACTED);
+-  assert.equal(out["note"], "ok");
++  assert.equal(out["note"], 7);
+   assert.equal(out["foo"], undefined);
+   assert.equal(out["_dropped"], 1);
+ });
+@@ -59,5 +107,5 @@ test("chaves sensiveis conhecidas viram [REDACTED] mesmo se estiverem na allowli
+ test("Error nao expoe a mensagem; profundidade e strings sao limitadas", () => {
+   const out = JSON.stringify(redact({ note: new Error("senha=abc") }, ["note"]));
+   assert.ok(!out.includes("abc"));
+-  assert.ok(JSON.stringify(redact({ note: "a".repeat(5000) }, ["note"])).length < 400);
++  assert.ok(JSON.stringify(redact({ note: "a".repeat(5000) }, { note: "free" })).length < 400);
+ });
+diff --git a/packages/observability/src/redact.ts b/packages/observability/src/redact.ts
+index d8e4ee2..2c9926f 100644
+--- a/packages/observability/src/redact.ts
++++ b/packages/observability/src/redact.ts
+@@ -15,7 +15,11 @@ export const SENSITIVE_KEYS: ReadonlySet<string> = new Set([
+ ]);
+ 
+ const SENSITIVE_PATTERN = /authorization|cookie|passw|token|secret|prompt|content|api[-_]?key|credential|private[-_]?key|session/i;
+-const VALUE_PATTERNS = [/\bBearer\s+\S+/gi, /\beyJ[\w-]+\.[\w-]+\.[\w-]*/g];
++const VALUE_PATTERNS = [
++  /\bBearer\s+\S+/gi,
++  /\beyJ[\w-]+(?:\.[\w-]*)*/g,
++  /(?:password|passwd|token|secret|api[-_]?key)\s*[=:]\s*\S+/gi,
++];
+ const MAX_DEPTH = 4;
+ const MAX_ITEMS = 20;
+ const MAX_STRING = 256;
+@@ -25,43 +29,87 @@ function normalize(key: string): string {
+   return key.toLowerCase().replaceAll("-", "_");
+ }
+ 
++/** Scrub ANTES de truncar: um token cortado no limite nao pode escapar do padrao. */
+ function scrubString(value: string): string {
+-  let out = value.length > MAX_STRING ? `${value.slice(0, MAX_STRING)}...` : value;
++  let out = value;
+   for (const pattern of VALUE_PATTERNS) out = out.replace(pattern, REDACTED);
+-  return out;
++  return out.length > MAX_STRING ? `${out.slice(0, MAX_STRING)}...` : out;
++}
++
++/** Regra de string por chave: RegExp ancorada (valor inteiro) ou `"free"` (opt-in; contrato do chamador). */
++export type StringRule = RegExp | "free";
++/** Allowlist: chave -> regra. Chave sem regra aceita apenas numero/booleano/null. */
++export type AllowMap = Readonly<Record<string, StringRule | undefined>>;
++
++const NAME_PATTERN = /^[A-Za-z0-9_.$]{1,64}$/;
++const IDENT_PATTERN = /^[A-Za-z0-9_.-]{1,64}$/;
++
++/** Validadores dos campos emitidos pela propria biblioteca (valores controlados pelo codigo). */
++export const DEFAULT_RULES: AllowMap = {
++  method: /^[A-Z]{1,16}$/,
++  route: /^(?:unmatched|\/[A-Za-z0-9_\-./:{}]*)$/,
++  status: undefined,
++  duration_ms: undefined,
++  check: IDENT_PATTERN,
++  job_type: IDENT_PATTERN,
++};
++
++function toRules(allowlist: Iterable<string> | AllowMap): Map<string, StringRule | undefined> {
++  const entries: [string, StringRule | undefined][] =
++    Symbol.iterator in Object(allowlist)
++      ? [...(allowlist as Iterable<string>)].map((k): [string, undefined] => [k, undefined])
++      : Object.entries(allowlist as AllowMap);
++  return new Map(entries.map(([k, r]) => [normalize(k), r]));
++}
++
++function isPlainObject(value: unknown): value is Record<string, unknown> {
++  if (typeof value !== "object" || value === null) return false;
++  const proto: unknown = Object.getPrototypeOf(value);
++  return proto === Object.prototype || proto === null;
+ }
+ 
+ /**
+  * Regras (nesta ordem):
++ * 0. dado de topo: somente objeto simples; escalar, lista, Error etc. viram `{_dropped: 1}`.
+  * 1. chave sensivel (padrao) => valor `[REDACTED]`; o nome so aparece se for um nome conhecido
+  *    (`SENSITIVE_KEYS`) ou estiver na allowlist; senao conta em `_dropped`.
+  * 2. chave fora da allowlist => descartada (nome e valor); conta em `_dropped`.
+- * 3. chave permitida: escalares passam (strings truncadas e sem Bearer/JWT); objetos e arrays
+- *    recorrem com limites de profundidade e tamanho; Error vira `{name}` (sem mensagem).
++ * 3. chave permitida: numero/booleano/null passam; string so passa se a chave tiver regra declarada
++ *    (RegExp casando o valor inteiro, ou `"free"` opt-in) e ainda e filtrada de Bearer/JWT/
++ *    `password=...`; sem regra => `[REDACTED]`. Objetos e arrays recorrem com limites; Error vira
++ *    `{name}` somente se o nome casar `^[A-Za-z0-9_.$]{1,64}$` (nunca a mensagem).
+  */
+-export function redact(value: unknown, allowlist: Iterable<string>, depth = 0): unknown {
+-  const allowed = new Set([...allowlist].map(normalize));
+-  return walk(value, allowed, depth);
++export function redact(value: unknown, allowlist: Iterable<string> | AllowMap): unknown {
++  const rules = toRules(allowlist);
++  if (!isPlainObject(value)) return { [DROPPED_KEY]: 1 };
++  return walk(value, rules, 0, undefined);
+ }
+ 
+-function walk(value: unknown, allowed: ReadonlySet<string>, depth: number): unknown {
++function walk(value: unknown, rules: ReadonlyMap<string, StringRule | undefined>, depth: number, rule: StringRule | undefined): unknown {
+   if (value === null || typeof value === "boolean" || typeof value === "number") return value;
+-  if (typeof value === "string") return scrubString(value);
+-  if (value instanceof Error) return { name: value.name };
++  if (typeof value === "string") {
++    if (rule === undefined) return REDACTED;
++    if (rule !== "free" && !rule.test(value)) return REDACTED;
++    return scrubString(value);
++  }
++  if (value instanceof Error) {
++    const name: unknown = value.name;
++    return { name: typeof name === "string" && NAME_PATTERN.test(name) ? name : REDACTED };
++  }
+   if (depth >= MAX_DEPTH) return "[TRUNCATED]";
+-  if (Array.isArray(value)) return value.slice(0, MAX_ITEMS).map((item) => walk(item, allowed, depth + 1));
+-  if (typeof value === "object") {
++  if (Array.isArray(value)) return value.slice(0, MAX_ITEMS).map((item) => walk(item, rules, depth + 1, rule));
++  if (isPlainObject(value)) {
+     const out: Record<string, unknown> = {};
+     let dropped = 0;
+     for (const [rawKey, child] of Object.entries(value)) {
+       const key = normalize(rawKey);
+-      const isAllowed = allowed.has(key);
++      const isAllowed = rules.has(key);
+       if (SENSITIVE_KEYS.has(key) || (isAllowed && SENSITIVE_PATTERN.test(key))) {
+         out[key] = REDACTED;
+       } else if (!isAllowed || SENSITIVE_PATTERN.test(key)) {
+         dropped += 1;
+       } else {
+-        out[key] = walk(child, allowed, depth + 1);
++        out[key] = walk(child, rules, depth + 1, rules.get(key));
+       }
+     }
+     if (dropped > 0) out[DROPPED_KEY] = dropped;
+diff --git a/services/ai-gateway/src/ai_gateway/app.py b/services/ai-gateway/src/ai_gateway/app.py
+index e26ecaa..ce71a5d 100644
+--- a/services/ai-gateway/src/ai_gateway/app.py
++++ b/services/ai-gateway/src/ai_gateway/app.py
+@@ -2,7 +2,7 @@
+ 
+ import os
+ import sys
+-from http.server import HTTPServer
++from http.server import ThreadingHTTPServer
+ 
+ from nucleos_observability import (
+     Logger,
+@@ -26,8 +26,8 @@ def default_observability() -> Observability:
+ 
+ def make_server(
+     host: str = "127.0.0.1", port: int = 8002, kit: Observability | None = None
+-) -> HTTPServer:
+-    return HTTPServer((host, port), make_handler(kit or default_observability(), SERVICE))
++) -> ThreadingHTTPServer:
++    return ThreadingHTTPServer((host, port), make_handler(kit or default_observability(), SERVICE))
+ 
+ 
+ def main() -> None:
+diff --git a/services/ai-gateway/tests/test_health.py b/services/ai-gateway/tests/test_health.py
+index f153925..52c2c06 100644
+--- a/services/ai-gateway/tests/test_health.py
++++ b/services/ai-gateway/tests/test_health.py
+@@ -37,12 +37,13 @@ def test_healthz_readyz_correlation_e_sem_vazamento() -> None:
+             raise AssertionError("esperava 404")
+         except urllib.error.HTTPError as err:
+             assert err.code == 404
+-            assert err.headers["x-request-id"] == "edge-py-0001"
++            returned = err.headers["x-request-id"]
++            assert returned != "edge-py-0001" and len(returned) == 36  # trust_edge=False por padrao
+     finally:
+         server.shutdown()
+         server.server_close()
+     lines = [json.loads(line) for line in out.getvalue().splitlines()]
+     record = next(r for r in lines if r["data"]["route"] == "unmatched")
+-    assert record["correlation_id"] == "edge-py-0001"
++    assert record["correlation_id"] == returned
+     assert record["service"] == "ai-gateway"
+     assert SENTINEL not in out.getvalue()
+diff --git a/services/event-dispatcher/src/event_dispatcher/app.py b/services/event-dispatcher/src/event_dispatcher/app.py
+index 72addb4..f86606f 100644
+--- a/services/event-dispatcher/src/event_dispatcher/app.py
++++ b/services/event-dispatcher/src/event_dispatcher/app.py
+@@ -2,7 +2,7 @@
+ 
+ import os
+ import sys
+-from http.server import HTTPServer
++from http.server import ThreadingHTTPServer
+ 
+ from nucleos_observability import (
+     Logger,
+@@ -26,8 +26,8 @@ def default_observability() -> Observability:
+ 
+ def make_server(
+     host: str = "127.0.0.1", port: int = 8004, kit: Observability | None = None
+-) -> HTTPServer:
+-    return HTTPServer((host, port), make_handler(kit or default_observability(), SERVICE))
++) -> ThreadingHTTPServer:
++    return ThreadingHTTPServer((host, port), make_handler(kit or default_observability(), SERVICE))
+ 
+ 
+ def main() -> None:
+diff --git a/services/event-dispatcher/tests/test_health.py b/services/event-dispatcher/tests/test_health.py
+index 4ee2171..3d5ee37 100644
+--- a/services/event-dispatcher/tests/test_health.py
++++ b/services/event-dispatcher/tests/test_health.py
+@@ -37,12 +37,13 @@ def test_healthz_readyz_correlation_e_sem_vazamento() -> None:
+             raise AssertionError("esperava 404")
+         except urllib.error.HTTPError as err:
+             assert err.code == 404
+-            assert err.headers["x-request-id"] == "edge-py-0001"
++            returned = err.headers["x-request-id"]
++            assert returned != "edge-py-0001" and len(returned) == 36  # trust_edge=False por padrao
+     finally:
+         server.shutdown()
+         server.server_close()
+     lines = [json.loads(line) for line in out.getvalue().splitlines()]
+     record = next(r for r in lines if r["data"]["route"] == "unmatched")
+-    assert record["correlation_id"] == "edge-py-0001"
++    assert record["correlation_id"] == returned
+     assert record["service"] == "event-dispatcher"
+     assert SENTINEL not in out.getvalue()
+diff --git a/services/tenant-runtime/src/tenant_runtime/app.py b/services/tenant-runtime/src/tenant_runtime/app.py
+index 2d7bd10..02e974c 100644
+--- a/services/tenant-runtime/src/tenant_runtime/app.py
++++ b/services/tenant-runtime/src/tenant_runtime/app.py
+@@ -2,7 +2,7 @@
+ 
+ import os
+ import sys
+-from http.server import HTTPServer
++from http.server import ThreadingHTTPServer
+ 
+ from nucleos_observability import (
+     Logger,
+@@ -26,8 +26,8 @@ def default_observability() -> Observability:
+ 
+ def make_server(
+     host: str = "127.0.0.1", port: int = 8001, kit: Observability | None = None
+-) -> HTTPServer:
+-    return HTTPServer((host, port), make_handler(kit or default_observability(), SERVICE))
++) -> ThreadingHTTPServer:
++    return ThreadingHTTPServer((host, port), make_handler(kit or default_observability(), SERVICE))
+ 
+ 
+ def main() -> None:
+diff --git a/services/tenant-runtime/tests/test_health.py b/services/tenant-runtime/tests/test_health.py
+index 807e5e0..63612b7 100644
+--- a/services/tenant-runtime/tests/test_health.py
++++ b/services/tenant-runtime/tests/test_health.py
+@@ -37,12 +37,13 @@ def test_healthz_readyz_correlation_e_sem_vazamento() -> None:
+             raise AssertionError("esperava 404")
+         except urllib.error.HTTPError as err:
+             assert err.code == 404
+-            assert err.headers["x-request-id"] == "edge-py-0001"
++            returned = err.headers["x-request-id"]
++            assert returned != "edge-py-0001" and len(returned) == 36  # trust_edge=False por padrao
+     finally:
+         server.shutdown()
+         server.server_close()
+     lines = [json.loads(line) for line in out.getvalue().splitlines()]
+     record = next(r for r in lines if r["data"]["route"] == "unmatched")
+-    assert record["correlation_id"] == "edge-py-0001"
++    assert record["correlation_id"] == returned
+     assert record["service"] == "tenant-runtime"
+     assert SENTINEL not in out.getvalue()
+diff --git a/services/tool-gateway/src/tool_gateway/app.py b/services/tool-gateway/src/tool_gateway/app.py
+index fd1fc4d..7b44a00 100644
+--- a/services/tool-gateway/src/tool_gateway/app.py
++++ b/services/tool-gateway/src/tool_gateway/app.py
+@@ -2,7 +2,7 @@
+ 
+ import os
+ import sys
+-from http.server import HTTPServer
++from http.server import ThreadingHTTPServer
+ 
+ from nucleos_observability import (
+     Logger,
+@@ -26,8 +26,8 @@ def default_observability() -> Observability:
+ 
+ def make_server(
+     host: str = "127.0.0.1", port: int = 8003, kit: Observability | None = None
+-) -> HTTPServer:
+-    return HTTPServer((host, port), make_handler(kit or default_observability(), SERVICE))
++) -> ThreadingHTTPServer:
++    return ThreadingHTTPServer((host, port), make_handler(kit or default_observability(), SERVICE))
+ 
+ 
+ def main() -> None:
+diff --git a/services/tool-gateway/tests/test_health.py b/services/tool-gateway/tests/test_health.py
+index 599cf81..26f9396 100644
+--- a/services/tool-gateway/tests/test_health.py
++++ b/services/tool-gateway/tests/test_health.py
+@@ -37,12 +37,13 @@ def test_healthz_readyz_correlation_e_sem_vazamento() -> None:
+             raise AssertionError("esperava 404")
+         except urllib.error.HTTPError as err:
+             assert err.code == 404
+-            assert err.headers["x-request-id"] == "edge-py-0001"
++            returned = err.headers["x-request-id"]
++            assert returned != "edge-py-0001" and len(returned) == 36  # trust_edge=False por padrao
+     finally:
+         server.shutdown()
+         server.server_close()
+     lines = [json.loads(line) for line in out.getvalue().splitlines()]
+     record = next(r for r in lines if r["data"]["route"] == "unmatched")
+-    assert record["correlation_id"] == "edge-py-0001"
++    assert record["correlation_id"] == returned
+     assert record["service"] == "tool-gateway"
+     assert SENTINEL not in out.getvalue()
 ```

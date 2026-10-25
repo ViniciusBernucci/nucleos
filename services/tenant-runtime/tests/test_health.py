@@ -37,12 +37,13 @@ def test_healthz_readyz_correlation_e_sem_vazamento() -> None:
             raise AssertionError("esperava 404")
         except urllib.error.HTTPError as err:
             assert err.code == 404
-            assert err.headers["x-request-id"] == "edge-py-0001"
+            returned = err.headers["x-request-id"]
+            assert returned != "edge-py-0001" and len(returned) == 36  # trust_edge=False por padrao
     finally:
         server.shutdown()
         server.server_close()
     lines = [json.loads(line) for line in out.getvalue().splitlines()]
     record = next(r for r in lines if r["data"]["route"] == "unmatched")
-    assert record["correlation_id"] == "edge-py-0001"
+    assert record["correlation_id"] == returned
     assert record["service"] == "tenant-runtime"
     assert SENTINEL not in out.getvalue()
