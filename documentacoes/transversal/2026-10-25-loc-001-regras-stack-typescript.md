@@ -329,4 +329,7 @@ index 3f4fbc6..3ab4678 100755
 
 ## Pendencias
 
-Nenhuma pendencia conhecida. Comandos reais de build/teste serao registrados na secao "Validacao" apos ENT-FND-001 (tarefa de fechamento do coordenador). Aprovacao explicita de H-1 pelo usuario segue em aberto.
+- Aprovacao explicita do usuario da hipotese H-1 (segue em aberto).
+- Registrar os comandos reais de build/teste em `CLAUDE.md` e na secao "Validacao" apos a integracao de ENT-FND-001.
+- Registrar SHA e mensagem do commit desta tarefa no fechamento do lote (coordenador).
+- QA independente em andamento; sem aprovacao ate sua conclusao.
