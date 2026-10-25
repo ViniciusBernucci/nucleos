@@ -3,6 +3,10 @@
 Especificação e documentação do projeto: [Nucleos-Especificacao-Mestra.md](Nucleos-Especificacao-Mestra.md)
 e [documentacoes/](documentacoes/). Regras para agentes de IA: [AGENTS.md](AGENTS.md) e [CLAUDE.md](CLAUDE.md).
 
+## Convencoes de engenharia
+
+Lint, formatacao, hooks, commits e branches: [documentacoes/engenharia/convencoes-commits-e-branches.md](documentacoes/engenharia/convencoes-commits-e-branches.md). Comandos: `make lint`, `make format`, `make hooks`.
+
 ## Skills de IA (Claude Code, Codex e Antigravity)
 
 As skills do fluxo de desenvolvimento (planejamento, implementação, review, QA e
