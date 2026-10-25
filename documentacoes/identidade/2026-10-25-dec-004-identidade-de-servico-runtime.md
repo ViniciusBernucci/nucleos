@@ -19,7 +19,7 @@
 
 ## 3. Resumo da implementação
 
-Recomendação proposta: opção A, JWT EdDSA com TTL de 5 min emitido pelo CP após enrollment com segredo de uso único e prova de posse (`client_assertion`), validação 100% local com JWKS/estado de revogação em cache, duas chaves ativas para rotação e três níveis de revogação (por tenant via `ver`, por chave de assinatura, por `jti`). O PoC executa o fluxo ponta a ponta com 17 testes automatizados e uma demo narrada.
+Recomendação proposta: opção A, JWT EdDSA com TTL de 5 min emitido pelo CP após enrollment com segredo de uso único e prova de posse (`client_assertion`), validação 100% local com JWKS/estado de revogação em cache, duas chaves ativas para rotação e três níveis de revogação (por tenant via `ver`, por chave de assinatura, por `jti`). O PoC executa o fluxo ponta a ponta com 21 testes automatizados (17 originais + 4 da correção da rodada 1) e uma demo narrada.
 
 ## 4. Mudanças por arquivo
 
@@ -29,7 +29,7 @@ Recomendação proposta: opção A, JWT EdDSA com TTL de 5 min emitido pelo CP a
 | `documentacoes/arquitetura/contratos-propostos/runtime-token.schema.json` | contrato proposto | Header e claims do token (JSON Schema 2020-12) |
 | `documentacoes/arquitetura/contratos-propostos/handshake.schema.json` | contrato proposto | Enrollment, pedido/resposta de token, JWKS, estado de revogação |
 | `documentacoes/arquitetura/poc/dec-004/lib/{jwt,schemas,control-plane,validator,fake-runtime,env}.mjs` | código (PoC) | Ed25519/JWT, CP falso, validador local, runtime falso, cenário |
-| `documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs` | teste | 17 testes |
+| `documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs` | teste | 21 testes (ver Correção rodada 1) |
 | `documentacoes/arquitetura/poc/dec-004/{demo,bench}.mjs` | código (PoC) | Demo narrada e benchmark |
 | `documentacoes/arquitetura/poc/dec-004/package.json`, `package-lock.json` | config | Dependências de desenvolvimento mínimas, travadas |
 | `documentacoes/arquitetura/poc/dec-004/README.md`, `saida/{test,demo,bench}.txt` | doc/evidência | Como reproduzir; saídas reais |
@@ -54,7 +54,7 @@ Node 24.22.1 (`~/.local/opt/node-v24.22.1-linux-x64`); o `node` padrão do siste
 | Comando (em `documentacoes/arquitetura/poc/dec-004`) | Resultado |
 | --- | --- |
 | `npm install` (autoria) e `npm ci` (reprodução do lock) | 6 pacotes (ajv 8.17.1, ajv-formats 3.0.1 e transitivas); sucesso |
-| `npm test` | 17 testes, 17 aprovados, 0 falhas ([saida/test.txt](../arquitetura/poc/dec-004/saida/test.txt)) |
+| `npm test` | 21 testes, 21 aprovados, 0 falhas (rodada 1; eram 17) ([saida/test.txt](../arquitetura/poc/dec-004/saida/test.txt)) |
 | `npm run demo` | casos negativos todos REJEITADOS com o código esperado; rotação e revogação de emergência demonstradas ([saida/demo.txt](../arquitetura/poc/dec-004/saida/demo.txt)) |
 | `npm run bench` | ver abaixo ([saida/bench.txt](../arquitetura/poc/dec-004/saida/bench.txt)) |
 
@@ -64,7 +64,7 @@ Mapa para os critérios de aceite:
 - **AC-2 (rotação e revogação de emergência documentadas e demonstradas):** ADR itens 6 e 7; testes "ROTACAO..." e "REVOGACAO DE EMERGENCIA..." e seções 3 e 4 da demo.
 - **AC-3 (latência sem rede por requisição):** teste "VALIDACAO LOCAL" (1000 validações, 0 chamadas de rede) e contador `networkCalls` no benchmark.
 
-Latência medida (VM de 4 vCPU AMD EPYC compartilhada, N = 20000 após aquecimento, ruído alto no p99):
+Latência medida na execução original (VM de 4 vCPU AMD EPYC compartilhada, N = 20000 após aquecimento, ruído alto no p99; `saida/bench.txt` foi regerado na rodada 1 e mostra outra execução, com p99 de 1641 µs e 6536 µs: o p99 varia de ~1,7 a 8,7 ms entre execuções e é inconclusivo frente ao gatilho de 5 ms):
 
 | Operação | p50 | p95 | p99 |
 | --- | --- | --- | --- |
@@ -88,6 +88,24 @@ Não executado e por quê: nenhum teste com rede, containers ou banco (fora de e
 - Diffs de código, testes e configuração (PoC e esquemas): [diffs](2026-10-25-dec-004-identidade-de-servico-runtime-diffs.md). `package-lock.json` (sha256 parcial e tamanho no arquivo de diffs) e `saida/*.txt` são listados sem diff completo por serem gerados.
 - Arquivos somente de documentação, sem diff: o ADR-018, este documento e `poc/dec-004/README.md`.
 
+## 8.1 Correção rodada 1 (2026-10-25)
+
+Origem: [review](../reviews/2026-10-25-review-dec-004.md) e [auditoria](../reviews/2026-10-25-auditoria-dec-004.md) (HEAD auditado `4c6bd4a8030a503e10032e2f55cde63cce933526`). Novo commit na branch, sem amend (SHA no retorno ao coordenador). Diff do PoC: [diffs, seção "Correção rodada 1"](2026-10-25-dec-004-identidade-de-servico-runtime-diffs.md#correcao-rodada-1).
+
+| ID | Decisão | O que foi feito |
+| --- | --- | --- |
+| REV-001 | APLICADO | ADR-018 decisão 7.1: `max_staleness` (proposto 90 s, decisão humana), fail-closed `revocation_state_stale`, trade-off de disponibilidade corrigido. PoC: `lastRefreshOk` pelo relógio local, `maxStalenessS` (padrão 90). Testes: CP indisponível dentro/fora do limite; token revogado sem refresh após o limite; recuperação por refresh. Demo seção 5. |
+| REV-002 | APLICADO | `refresh()` atômico (JWKS e revogação em variáveis locais, troca ao final); falha mantém estado e carimbo, conta `refreshFailures` e propaga. Teste dedicado. O refresh por `kid` desconhecido tolera falha do CP (a idade é checada em seguida). |
+| REV-003 | APLICADO (texto) | ADR: p99 oscila de ~1,7 a 8,7 ms entre execuções (inconclusivo, não falha de AC-3); gatilho a reavaliar no host alvo (nova pendência 5). Medição desta rodada: tool-gateway p50 221 µs, p99 1641 µs; dispatcher p99 6536 µs (`saida/bench.txt` atualizado). |
+| REV-004 | APLICADO (registro) | Advisory GHSA-2g4f-4pwh-qvx6 (ajv 8.17.1, ReDoS só com `$data`, não usado; correção 8.20.0) registrado no README do PoC e aqui. Lock não alterado. **ADIADO** o upgrade: FND-003 escolhe versão corrigida ao adotar o `ajv`. `npm audit` continua reportando 1 moderada. |
+| REV-006 | APLICADO (ADR) | Premissa de instância única do dispatcher para o `jti` de uso único; gatilho em "Quando revisar". |
+| REV-007 | APLICADO parcial (ADR) | Push de emergência ≤ 5 s marcado como não demonstrado; ausência de `nbf` explicitada; limite `maxItems: 3` do JWKS no procedimento de rotação. **ADIADO** a API de revogação de `jti`: MSG-002/TGW-001. |
+| REV-005 | ADIADO | Endurecimento de enrollment/emissão: PRV-004/MSG-002 (registrado no ADR). |
+
+Ajustes colaterais: testes de expiração e a demo passaram a chamar `refreshAll()` após avançar o relógio (sem isso, o novo limite os rejeitaria com `revocation_state_stale`). Valores de `max_staleness` e política de degradação continuam decisão humana; ADR segue **Proposto**.
+
+Validações da rodada 1 (Node 24.22.1, `documentacoes/arquitetura/poc/dec-004`): `npm ci` ok; `npm test` 21/21; `npm run demo` ok (seção 5 mostra aceito aos 60 s, `revocation_state_stale` aos 91 s, `version_revoked` após refresh); `npm run bench` (zero chamadas de rede); `npm audit` 1 moderada (ajv, adiada). Não executado: benchmark no host alvo, rede/containers/banco.
+
 ## 9. Lessons
 
 Nenhuma lesson criada. Justificativa: o conceito relevante (JWT assinado, JWKS, rotação) pertence ao bloco "Segurança" da trilha, que depende de lessons de TypeScript e de monorepo ainda inexistentes (ver [lessons/README.md](../../lessons/README.md)); o código desta entrega é PoC descartável e não fica na base do produto. A lesson deve nascer na entrega que implementar a identidade no Control Plane (MSG-002/EP-02), com link para o ADR-018. `lessons/README.md` não foi alterado (sem lesson nova).
@@ -97,4 +115,5 @@ Nenhuma lesson criada. Justificativa: o conceito relevante (JWT assinado, JWKS, 
 - Decisão humana sobre o ADR-018 (ver "Pendências de decisão humana" no ADR).
 - Incluir ADR-018 no [índice de ADR](../arquitetura/adr/README.md) na integração do lote.
 - Repetir o benchmark no host alvo; revisar o esquema com FND-003 antes de migrar para `packages/contracts`.
-- Review, auditoria e QA independentes (fora desta sessão).
+- Adiados com destino: upgrade do `ajv` (FND-003); API de revogação de `jti` (MSG-002/TGW-001); endurecimento de enrollment (PRV-004/MSG-002); benchmark no host alvo.
+- Revalidação independente da rodada 1, e QA (fora desta sessão).

@@ -9,10 +9,14 @@ Runtime falso, Control Plane falso e validadores locais. Sem rede, sem banco, se
 export PATH="$HOME/.local/opt/node-v24.22.1-linux-x64/bin:$PATH"
 cd documentacoes/arquitetura/poc/dec-004
 npm ci            # reproduz as dependências do lock file
-npm test          # 17 testes (casos negativos, rotação, revogação)
+npm test          # 21 testes (casos negativos, rotação, revogação)
 npm run demo      # narrativa: negativos, rotação, revogação de emergência
 npm run bench     # latência da validação local
 ```
+
+**Advisory conhecido (REV-004):** `npm audit` reporta GHSA-2g4f-4pwh-qvx6 em `ajv` 8.17.1 (ReDoS, apenas com a opção `$data`, que o PoC não usa); correção em 8.20.0, fora do range travado. Sem impacto prático (PoC descartável, devDependency). O lock não foi alterado; FND-003 deve escolher versão corrigida ao adotar o `ajv`.
+
+**Obsolescência (REV-001/002):** o validador rejeita com `revocation_state_stale` se o último refresh bem-sucedido (relógio local) for mais antigo que `maxStalenessS` (padrão 90 s, proposto no ADR-018, decisão humana). O refresh é atômico.
 
 Saídas registradas em `saida/` (`test.txt`, `demo.txt`, `bench.txt`). Esquemas validados: [../../contratos-propostos/](../../contratos-propostos/). Decisão: [ADR-018](../../adr/0018-identidade-de-servico-runtime-control-plane-gateways.md).
 

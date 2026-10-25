@@ -7,7 +7,8 @@ import { ISS, MAX_TTL_S, Reject } from './control-plane.mjs';
 export class Validator {
   /**
    * @param {{audience: string, now: () => number, fetchJwks: () => object, fetchRevocation: () => object,
-   *          skewS?: number, singleUse?: boolean, unknownKidRefreshCooldownS?: number}} o
+   *          skewS?: number, singleUse?: boolean, unknownKidRefreshCooldownS?: number,
+   *          maxStalenessS?: number}} o
    */
   constructor(o) {
     this.audience = o.audience;
@@ -17,6 +18,9 @@ export class Validator {
     this.skewS = o.skewS ?? 30;
     this.singleUse = o.singleUse ?? false; // dispatcher: token de uso unico
     this.cooldown = o.unknownKidRefreshCooldownS ?? 10;
+    this.maxStalenessS = o.maxStalenessS ?? 90; // proposto (ADR-018, decisao 7): 3x o poll de 30 s; decisao humana
+    this.lastRefreshOk = -Infinity; // relogio LOCAL do ultimo refresh bem-sucedido (nao confia em generated_at do CP)
+    this.refreshFailures = 0;
     this.keys = new Map();
     this.minVer = {};
     this.revokedJti = new Set();
@@ -26,13 +30,25 @@ export class Validator {
     this.refresh();
   }
 
-  /** Poll periodico (ex.: 30 s) ou push de emergencia. */
+  /**
+   * Poll periodico (ex.: 30 s) ou push de emergencia. Atomico: busca JWKS e revogacao em variaveis locais
+   * e so entao troca o estado e o carimbo. Em falha, mantem o estado anterior, NAO avanca o carimbo,
+   * contabiliza e propaga o erro (fail-closed por idade em validate()).
+   */
   refresh() {
     this.networkCalls += 1;
-    this.keys = new Map(this.fetchJwks().keys.map((j) => [j.kid, fromPublicJwk(j)]));
-    const r = this.fetchRevocation();
+    let keys; let r;
+    try {
+      keys = new Map(this.fetchJwks().keys.map((j) => [j.kid, fromPublicJwk(j)]));
+      r = this.fetchRevocation();
+    } catch (e) {
+      this.refreshFailures += 1;
+      throw e;
+    }
+    this.keys = keys;
     this.minVer = r.min_ver;
     this.revokedJti = new Set(r.revoked_jti ?? []);
+    this.lastRefreshOk = this.now();
   }
 
   /**
@@ -49,9 +65,11 @@ export class Validator {
     let key = this.keys.get(p.header.kid);
     if (!key && this.now() - this.lastKidRefresh >= this.cooldown) {
       this.lastKidRefresh = this.now(); // refresh limitado: kid desconhecido nao vira DoS contra o CP
-      this.refresh();
+      try { this.refresh(); } catch { /* CP indisponivel: segue com o estado em cache; a idade e checada abaixo */ }
       key = this.keys.get(p.header.kid);
     }
+    // fail-closed: estado de revogacao mais velho que max_staleness nao garante o efeito da revogacao
+    if (this.now() - this.lastRefreshOk > this.maxStalenessS) throw new Reject('revocation_state_stale');
     if (!key) throw new Reject('unknown_kid');
     if (!verifySignature(p, key)) throw new Reject('bad_signature'); // payload adulterado cai aqui
 

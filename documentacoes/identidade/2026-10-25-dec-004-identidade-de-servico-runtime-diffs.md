@@ -934,3 +934,198 @@ index 0000000..d962861
 +  assert.equal(v.networkCalls, antes);
 +});
 ```
+
+## Correção rodada 1
+
+Diff não commitado antes do commit da rodada 1 (contra o commit `4c6bd4a`; novo commit sem amend). Inclui `lib/`, `test/` e `demo.mjs`; `saida/*.txt` regerados (sem diff) e ADR, README e documento da entrega alterados apenas em texto (sem diff).
+
+```diff
+diff --git a/documentacoes/arquitetura/poc/dec-004/demo.mjs b/documentacoes/arquitetura/poc/dec-004/demo.mjs
+index adcfb7c..2b29cfd 100644
+--- a/documentacoes/arquitetura/poc/dec-004/demo.mjs
++++ b/documentacoes/arquitetura/poc/dec-004/demo.mjs
+@@ -25,7 +25,7 @@ const adulterado = JSON.parse(Buffer.from(p, 'base64url')); adulterado.tenant_id
+ attempt('tenant adulterado no payload', () => gw.validate(`${h}.${b64u(JSON.stringify(adulterado))}.${s}`, ctx(TENANT_B)));
+ attempt('token de A em contexto de B', () => gw.validate(tA, ctx(TENANT_B)));
+ attempt('audiencia errada (ai-gateway no tool-gateway)', () => gw.validate(issue(rtA, 'ai-gateway', ['llm:complete']), ctx(TENANT_A, 'llm:complete')));
+-const tExp = issue(rtA); env.now.advance(331);
++const tExp = issue(rtA); env.now.advance(331); env.refreshAll(); // poll em dia
+ attempt('expirado (331 s apos emissao)', () => gw.validate(tExp, ctx(TENANT_A)));
+ env.now.advance(-331);
+ const tV = issue(rtA); env.cp.revokeTenantCredentials(TENANT_A); env.refreshAll();
+@@ -60,4 +60,10 @@ const k3 = env.cp.emergencyRevokeKey(comp.kid); env.refreshAll();
+ log(`  chave ${comp.kid} revogada; nova ativa ${k3}; JWKS = [${env.cp.jwks().keys.map((k) => k.kid)}]`);
+ attempt('mesmo token vivo apos revogacao', () => gw.validate(vivo, ctx(TENANT_B)));
+ attempt('runtime B reemite e volta a operar (sem novo enrollment)', () => gw.validate(issue(rtB), ctx(TENANT_B)));
++log('== 5. Obsolescencia do estado de revogacao (max_staleness = 90 s, fail-closed)');
++const tR = issue(rtB); env.refreshAll();
++env.cp.revokeTenantCredentials(TENANT_B); // validador ainda nao recebeu o poll (CP "fora")
++env.now.advance(60); attempt('token revogado, 60 s sem refresh (dentro de max_staleness)', () => gw.validate(tR, ctx(TENANT_B)));
++env.now.advance(31); attempt('token revogado, 91 s sem refresh (fora de max_staleness)', () => gw.validate(tR, ctx(TENANT_B)));
++gw.refresh(); attempt('apos refresh bem-sucedido', () => gw.validate(tR, ctx(TENANT_B)));
+ log(`\nchamadas de rede do tool-gateway ao CP (refresh/poll) em toda a demo: ${gw.networkCalls}`);
+diff --git a/documentacoes/arquitetura/poc/dec-004/lib/validator.mjs b/documentacoes/arquitetura/poc/dec-004/lib/validator.mjs
+index 36b6179..b73d709 100644
+--- a/documentacoes/arquitetura/poc/dec-004/lib/validator.mjs
++++ b/documentacoes/arquitetura/poc/dec-004/lib/validator.mjs
+@@ -7,7 +7,8 @@ import { ISS, MAX_TTL_S, Reject } from './control-plane.mjs';
+ export class Validator {
+   /**
+    * @param {{audience: string, now: () => number, fetchJwks: () => object, fetchRevocation: () => object,
+-   *          skewS?: number, singleUse?: boolean, unknownKidRefreshCooldownS?: number}} o
++   *          skewS?: number, singleUse?: boolean, unknownKidRefreshCooldownS?: number,
++   *          maxStalenessS?: number}} o
+    */
+   constructor(o) {
+     this.audience = o.audience;
+@@ -17,6 +18,9 @@ export class Validator {
+     this.skewS = o.skewS ?? 30;
+     this.singleUse = o.singleUse ?? false; // dispatcher: token de uso unico
+     this.cooldown = o.unknownKidRefreshCooldownS ?? 10;
++    this.maxStalenessS = o.maxStalenessS ?? 90; // proposto (ADR-018, decisao 7): 3x o poll de 30 s; decisao humana
++    this.lastRefreshOk = -Infinity; // relogio LOCAL do ultimo refresh bem-sucedido (nao confia em generated_at do CP)
++    this.refreshFailures = 0;
+     this.keys = new Map();
+     this.minVer = {};
+     this.revokedJti = new Set();
+@@ -26,13 +30,25 @@ export class Validator {
+     this.refresh();
+   }
+ 
+-  /** Poll periodico (ex.: 30 s) ou push de emergencia. */
++  /**
++   * Poll periodico (ex.: 30 s) ou push de emergencia. Atomico: busca JWKS e revogacao em variaveis locais
++   * e so entao troca o estado e o carimbo. Em falha, mantem o estado anterior, NAO avanca o carimbo,
++   * contabiliza e propaga o erro (fail-closed por idade em validate()).
++   */
+   refresh() {
+     this.networkCalls += 1;
+-    this.keys = new Map(this.fetchJwks().keys.map((j) => [j.kid, fromPublicJwk(j)]));
+-    const r = this.fetchRevocation();
++    let keys; let r;
++    try {
++      keys = new Map(this.fetchJwks().keys.map((j) => [j.kid, fromPublicJwk(j)]));
++      r = this.fetchRevocation();
++    } catch (e) {
++      this.refreshFailures += 1;
++      throw e;
++    }
++    this.keys = keys;
+     this.minVer = r.min_ver;
+     this.revokedJti = new Set(r.revoked_jti ?? []);
++    this.lastRefreshOk = this.now();
+   }
+ 
+   /**
+@@ -49,9 +65,11 @@ export class Validator {
+     let key = this.keys.get(p.header.kid);
+     if (!key && this.now() - this.lastKidRefresh >= this.cooldown) {
+       this.lastKidRefresh = this.now(); // refresh limitado: kid desconhecido nao vira DoS contra o CP
+-      this.refresh();
++      try { this.refresh(); } catch { /* CP indisponivel: segue com o estado em cache; a idade e checada abaixo */ }
+       key = this.keys.get(p.header.kid);
+     }
++    // fail-closed: estado de revogacao mais velho que max_staleness nao garante o efeito da revogacao
++    if (this.now() - this.lastRefreshOk > this.maxStalenessS) throw new Reject('revocation_state_stale');
+     if (!key) throw new Reject('unknown_kid');
+     if (!verifySignature(p, key)) throw new Reject('bad_signature'); // payload adulterado cai aqui
+ 
+diff --git a/documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs b/documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs
+index d962861..0f1fd7e 100644
+--- a/documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs
++++ b/documentacoes/arquitetura/poc/dec-004/test/poc.test.mjs
+@@ -4,6 +4,7 @@ import { createHmac } from 'node:crypto';
+ import { makeEnv, TENANT_A, TENANT_B } from '../lib/env.mjs';
+ import { b64u, newKeyPair, signJwt } from '../lib/jwt.mjs';
+ import { ISS } from '../lib/control-plane.mjs';
++import { Validator } from '../lib/validator.mjs';
+ 
+ const ctx = (tenant, scope = 'tools:invoke') => ({ expectedTenantId: tenant, requiredScope: scope });
+ const rejects = (fn, code) => assert.throws(fn, (e) => e.code === code, `esperado ${code}`);
+@@ -43,8 +44,10 @@ test('NEGATIVO: token expirado (alem da tolerancia de 30 s)', () => {
+   const t = tokenFor(env, env.enrollRuntime(TENANT_A));
+   const v = env.validators['tool-gateway'];
+   env.now.advance(300 + 30); // exatamente no limite da tolerancia: ainda aceito
++  env.refreshAll(); // poll em dia: o estado de revogacao nao esta obsoleto (ver testes de max_staleness)
+   assert.doesNotThrow(() => v.validate(t, ctx(TENANT_A)));
+   env.now.advance(1);
++  env.refreshAll();
+   rejects(() => v.validate(t, ctx(TENANT_A)), 'expired');
+ });
+ 
+@@ -245,3 +248,74 @@ test('VALIDACAO LOCAL: nenhuma chamada de rede por requisicao', () => {
+   for (let i = 0; i < 1000; i++) v.validate(t, ctx(TENANT_A));
+   assert.equal(v.networkCalls, antes);
+ });
++
++// ---- REV-001 / REV-002: limite de obsolescencia (max_staleness) do estado de revogacao, fail-closed ----
++function staleEnv(extra = {}) {
++  const env = makeEnv();
++  const cp = { down: false };
++  const gw = new Validator({
++    audience: 'tool-gateway', now: env.now, ...extra,
++    fetchJwks: () => { if (cp.down) throw new Error('CP indisponivel'); return env.cp.jwks(); },
++    fetchRevocation: () => { if (cp.down) throw new Error('CP indisponivel'); return env.cp.revocationState(); },
++  });
++  return { env, cp, gw };
++}
++
++test('STALENESS: CP indisponivel - aceita dentro de max_staleness e rejeita fora (revocation_state_stale)', () => {
++  const { env, cp, gw } = staleEnv();
++  assert.equal(gw.maxStalenessS, 90);
++  const t = tokenFor(env, env.enrollRuntime(TENANT_A));
++  cp.down = true;
++  env.now.advance(90); // exatamente no limite: ainda aceito
++  assert.throws(() => gw.refresh(), /CP indisponivel/);
++  assert.doesNotThrow(() => gw.validate(t, ctx(TENANT_A)));
++  env.now.advance(1);
++  rejects(() => gw.validate(t, ctx(TENANT_A)), 'revocation_state_stale');
++  // recuperacao: refresh bem-sucedido restaura a validacao
++  cp.down = false;
++  gw.refresh();
++  assert.doesNotThrow(() => gw.validate(t, ctx(TENANT_A)));
++});
++
++test('STALENESS: token revogado e nunca aceito sem refresh depois do limite', () => {
++  const { env, gw } = staleEnv();
++  const t = tokenFor(env, env.enrollRuntime(TENANT_A));
++  assert.doesNotThrow(() => gw.validate(t, ctx(TENANT_A)));
++  env.cp.revokeTenantCredentials(TENANT_A); // revogacao no CP; o validador NAO recebeu o poll
++  env.now.advance(60);
++  assert.doesNotThrow(() => gw.validate(t, ctx(TENANT_A))); // janela conhecida: ate max_staleness
++  env.now.advance(31);
++  rejects(() => gw.validate(t, ctx(TENANT_A)), 'revocation_state_stale'); // 91 s > 90 s: fail-closed
++  env.now.advance(150); // ainda dentro do TTL do token (exp = +300)
++  rejects(() => gw.validate(t, ctx(TENANT_A)), 'revocation_state_stale');
++  gw.refresh();
++  rejects(() => gw.validate(t, ctx(TENANT_A)), 'version_revoked');
++});
++
++test('STALENESS: carimbo usa o relogio local no refresh bem-sucedido (nao o generated_at do CP)', () => {
++  const { env, gw } = staleEnv();
++  const antes = gw.lastRefreshOk;
++  env.now.advance(40);
++  gw.refresh();
++  assert.equal(gw.lastRefreshOk, antes + 40);
++  assert.equal(gw.lastRefreshOk, env.now());
++});
++
++test('REFRESH atomico: falha em fetchRevocation mantem o estado anterior e nao avanca o carimbo', () => {
++  const env = makeEnv();
++  let falhar = false;
++  const gw = new Validator({
++    audience: 'tool-gateway', now: env.now, fetchJwks: () => env.cp.jwks(),
++    fetchRevocation: () => { if (falhar) throw new Error('revogacao indisponivel'); return env.cp.revocationState(); },
++  });
++  const rt = env.enrollRuntime(TENANT_A);
++  env.cp.publishNextKey(); // JWKS do CP agora difere do cache do validador
++  const keysAntes = gw.keys; const carimbo = gw.lastRefreshOk; const minVer = gw.minVer;
++  env.now.advance(10); falhar = true;
++  assert.throws(() => gw.refresh(), /revogacao indisponivel/);
++  assert.equal(gw.keys, keysAntes); // JWKS NAO foi trocado pela metade
++  assert.equal(gw.minVer, minVer);
++  assert.equal(gw.lastRefreshOk, carimbo);
++  assert.equal(gw.refreshFailures, 1);
++  assert.doesNotThrow(() => gw.validate(tokenFor(env, rt), ctx(TENANT_A)));
++});
+```

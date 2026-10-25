@@ -11,18 +11,22 @@
   REJEITADO dispatcher: replay do mesmo jti -> replay
   REJEITADO assinado por chave do atacante -> bad_signature
 == 3. Rotacao sem downtime (duas chaves ativas no JWKS)
-  chave ativa: cp-ra1_t-HR
-  publicada cp-NAMPSfC8; JWKS = [cp-ra1_t-HR,cp-NAMPSfC8]
-  ativada cp-NAMPSfC8; novo token kid=cp-NAMPSfC8
+  chave ativa: cp-gFTGQ28K
+  publicada cp-nvYNffce; JWKS = [cp-gFTGQ28K,cp-nvYNffce]
+  ativada cp-nvYNffce; novo token kid=cp-nvYNffce
   ACEITO    token antigo (k1) durante a sobreposicao
   ACEITO    token novo (k2)
-  k1 aposentada apos TTL+skew; JWKS = [cp-NAMPSfC8]
+  k1 aposentada apos TTL+skew; JWKS = [cp-nvYNffce]
   REJEITADO token antigo (k1) apos aposentadoria -> unknown_kid
   ACEITO    token novo emitido apos aposentadoria
 == 4. Revogacao de emergencia da chave de assinatura
   ACEITO    token vivo antes da revogacao
-  chave cp-NAMPSfC8 revogada; nova ativa cp-5wDqZMfA; JWKS = [cp-5wDqZMfA]
+  chave cp-nvYNffce revogada; nova ativa cp--6och_XB; JWKS = [cp--6och_XB]
   REJEITADO mesmo token vivo apos revogacao -> unknown_kid
   ACEITO    runtime B reemite e volta a operar (sem novo enrollment)
+== 5. Obsolescencia do estado de revogacao (max_staleness = 90 s, fail-closed)
+  ACEITO    token revogado, 60 s sem refresh (dentro de max_staleness)
+  REJEITADO token revogado, 91 s sem refresh (fora de max_staleness) -> revocation_state_stale
+  REJEITADO apos refresh bem-sucedido -> version_revoked
 
-chamadas de rede do tool-gateway ao CP (refresh/poll) em toda a demo: 6
+chamadas de rede do tool-gateway ao CP (refresh/poll) em toda a demo: 9

@@ -25,7 +25,7 @@ const adulterado = JSON.parse(Buffer.from(p, 'base64url')); adulterado.tenant_id
 attempt('tenant adulterado no payload', () => gw.validate(`${h}.${b64u(JSON.stringify(adulterado))}.${s}`, ctx(TENANT_B)));
 attempt('token de A em contexto de B', () => gw.validate(tA, ctx(TENANT_B)));
 attempt('audiencia errada (ai-gateway no tool-gateway)', () => gw.validate(issue(rtA, 'ai-gateway', ['llm:complete']), ctx(TENANT_A, 'llm:complete')));
-const tExp = issue(rtA); env.now.advance(331);
+const tExp = issue(rtA); env.now.advance(331); env.refreshAll(); // poll em dia
 attempt('expirado (331 s apos emissao)', () => gw.validate(tExp, ctx(TENANT_A)));
 env.now.advance(-331);
 const tV = issue(rtA); env.cp.revokeTenantCredentials(TENANT_A); env.refreshAll();
@@ -60,4 +60,10 @@ const k3 = env.cp.emergencyRevokeKey(comp.kid); env.refreshAll();
 log(`  chave ${comp.kid} revogada; nova ativa ${k3}; JWKS = [${env.cp.jwks().keys.map((k) => k.kid)}]`);
 attempt('mesmo token vivo apos revogacao', () => gw.validate(vivo, ctx(TENANT_B)));
 attempt('runtime B reemite e volta a operar (sem novo enrollment)', () => gw.validate(issue(rtB), ctx(TENANT_B)));
+log('== 5. Obsolescencia do estado de revogacao (max_staleness = 90 s, fail-closed)');
+const tR = issue(rtB); env.refreshAll();
+env.cp.revokeTenantCredentials(TENANT_B); // validador ainda nao recebeu o poll (CP "fora")
+env.now.advance(60); attempt('token revogado, 60 s sem refresh (dentro de max_staleness)', () => gw.validate(tR, ctx(TENANT_B)));
+env.now.advance(31); attempt('token revogado, 91 s sem refresh (fora de max_staleness)', () => gw.validate(tR, ctx(TENANT_B)));
+gw.refresh(); attempt('apos refresh bem-sucedido', () => gw.validate(tR, ctx(TENANT_B)));
 log(`\nchamadas de rede do tool-gateway ao CP (refresh/poll) em toda a demo: ${gw.networkCalls}`);
