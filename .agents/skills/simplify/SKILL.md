@@ -5,6 +5,8 @@ description: Simplifica o código para maior clareza sem alterar o comportamento
 
 # Simplificação de código
 
+Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
+
 ## Visão geral
 
 Simplifique o código reduzindo a complexidade e preservando o comportamento exato. O objetivo não são menos linhas — é um código mais fácil de ler, entender, modificar e depurar. Toda simplificação deve passar por um teste simples: “Será que um novo membro da equipe entenderia isso mais rápido do que o original?”

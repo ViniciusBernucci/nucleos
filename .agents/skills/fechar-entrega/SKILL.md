@@ -5,11 +5,13 @@ description: Registra mudanças, validações e pendências e realiza commit loc
 
 # Fechar entrega
 
+Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
+
 Consolide somente a entrega da sessão. Leia as regras locais e confirme repositório, branch, alterações próprias, validações e gates pendentes. Não transforme uma solicitação de resumo em autorização para commit.
 
 ## Perfil e registro
 
-Na Intranet/Orca, leia [perfil Intranet](references/intranet.md), preservando os marcadores ClickUp e contratos com o planejador. Fora desse contexto, use o padrão documental existente; sem padrão, prefira `docs/historico/entregas/<data>-<assunto>.md`. Não exija ClickUp nem escreva em caminhos externos herdados.
+Na Intranet/Orca, leia [perfil Intranet](references/intranet.md), preservando os marcadores ClickUp, o evento de handoff e os contratos com o planejador/orquestrador. Fora desse contexto, use o padrão documental existente; sem padrão, prefira `docs/historico/entregas/<data>-<assunto>.md`. Não exija ClickUp nem escreva em caminhos externos herdados.
 
 Registre objetivo, mudanças e motivo, arquivos afetados, verificações realmente executadas/resultados, migrations/deploy, limitações e próximos passos. Atualize o registro da mesma sessão em vez de duplicá-lo. Não atribua alterações de terceiros à entrega. Diff completo só quando exigido pelo projeto; exclua o próprio registro, artefatos derivados, binários e segredos.
 
@@ -23,4 +25,4 @@ Registro entra junto da mudança quando o fluxo exige. Se o projeto determina re
 
 Não faça push, merge, deploy ou publicação externa por efeito desta skill. Resumo preparado para ClickUp não significa resumo publicado. Não marque DONE sem revisão e QA exigidos: fechar registro/commit pode terminar com gates pendentes.
 
-Saída: resumo da entrega, validações, pendências, caminho do registro e hash do commit apenas se realizado.
+Saída: resumo da entrega, validações, pendências, caminho do registro, hash do commit apenas se realizado e, no perfil Intranet/ORCA, o `FLUXO_EVENTO` consumido pelo orquestrador.
