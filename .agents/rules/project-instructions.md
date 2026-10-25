@@ -5,12 +5,14 @@ Esta e uma regra de workspace do Antigravity e deve permanecer configurada como
 
 ## Forma de trabalho
 
-- Antes de alterar codigo, leia a estrutura, os arquivos `.sln`, `.csproj`,
-  `global.json`, `Directory.Build.*`, o README e os testes relacionados.
+- Antes de alterar codigo, leia a estrutura, os arquivos `package.json`, `pnpm-workspace.yaml`, `tsconfig*.json`, `pyproject.toml`, `uv.lock`,
+  o README e os testes relacionados.
 - Preserve arquitetura, limites de dominio, convencoes e estilo existentes.
   Nao faca refatoracoes alheias a tarefa.
-- Para C#/.NET, respeite `TargetFramework`, versao da linguagem, nullable
-  reference types, analisadores e formatadores configurados.
+- Para TypeScript/Python, respeite a stack do ADR de 2026-10-25 (TypeScript com NestJS e Next.js; Python
+  para servicos de IA/dados): `tsconfig` em modo `strict`, versoes de Node, `pnpm` e Python
+  declaradas em `.nvmrc`, `package.json` e `pyproject.toml`, e linters, formatadores e
+  verificadores de tipo configurados (ESLint, Prettier, `ruff`, `mypy`).
 - Implemente ou atualize testes proporcionais ao risco. Execute build, testes,
   lint e formatacao aplicaveis; informe exatamente o que foi ou nao executado.
 - Nao exponha segredos, tokens, dados pessoais ou valores de `.env` em codigo,
@@ -82,7 +84,8 @@ Inclua em cada documento:
 
 ## Base didatica viva em lessons
 
-`lessons/` e uma trilha progressiva de C#/.NET, nao um changelog. Toda
+`lessons/` e uma trilha progressiva de TypeScript, Python, Docker/Compose, PostgreSQL e
+seguranca, nao um changelog. Toda
 implementacao deve identificar os conceitos usados e criar ou melhorar as
 lessons correspondentes.
 
@@ -107,15 +110,16 @@ Cada lesson criada ou atualizada deve conter, quando aplicavel:
 1. objetivo, pre-requisitos e posicao na trilha;
 2. explicacao simples e modelo mental;
 3. relacao com a implementacao e link para a documentacao da entrega;
-4. exemplos validos em C#/.NET, com `using`, tipos e configuracao necessarios;
+4. exemplos validos e executaveis em TypeScript ou Python, com imports, tipos e
+   configuracao necessarios (ou Dockerfile/Compose/SQL quando for o caso);
 5. progressao do exemplo minimo ao padrao do projeto;
 6. erros comuns, trade-offs e quando nao usar;
 7. verificacao ou testes e exercicios/perguntas de revisao;
-8. data de criacao, ultima atualizacao e versao de .NET dos exemplos.
+8. data de criacao, ultima atualizacao e versoes de Node, TypeScript e Python dos exemplos.
 
-Use o framework e as convencoes do repositorio. Exemplos devem compilar ou ser
+Use o framework e as convencoes do repositorio. Exemplos devem executar (ou compilar) ou ser
 marcados como pseudocodigo. Nao copie segredos nem regras sensiveis. Se nao
-houver conceito C#/.NET relevante introduzido, alterado ou exercitado, nao crie
+houver conceito relevante de TypeScript, Python, Docker, PostgreSQL ou seguranca introduzido, alterado ou exercitado, nao crie
 conteudo artificial; justifique no documento da entrega por que `lessons/` nao
 mudou.
 
@@ -152,8 +156,8 @@ estas regras e as secoes anteriores deste arquivo.
 - **Perfil:** preset `generic`. Este projeto NAO e Intranet: ignore `references/intranet.md`,
   ORCA, SQL Server, ClickUp e `{FONTE_CLAUDE}`; use a instalacao das skills deste repositorio.
 - **Repositorios:** um unico repositorio Git, `nucleos` (raiz `.`, camada `monorepo`), com
-  branch padrao `main` e branch de trabalho `developer`. `back/` e `front/` sao camadas
-  previstas no mesmo repositorio e ainda nao tem codigo.
+  branch padrao `main` e branch de trabalho `developer`. Camadas conforme o ADR de
+  2026-10-25 (secao 14): `apps/`, `services/`, `packages/` e `infrastructure/`; ainda sem codigo.
 - **Fuso operacional:** `America/Sao_Paulo`.
 - **Documentos:** planos, manifesto e estado do lote em `documentacoes/planejamento-ia/`;
   relatorios de review, auditoria e QA em `documentacoes/reviews/`. O registro de cada
@@ -165,11 +169,14 @@ estas regras e as secoes anteriores deste arquivo.
 - **Commits:** continua valendo "nao crie commits sem pedido explicito". O orquestrador so
   faz commits locais nas branches de tarefa e `revisao/` quando o pedido de execucao
   autorizar commits de forma explicita; nunca em `main`/`master`.
-- **Validacao:** ainda nao ha codigo nem comandos de lint, build ou teste. Quando `back/` ou
-  `front/` receberem codigo, declare aqui os comandos reais. Ate la, gate de build/teste de
-  codigo fica BLOCKED; entrega somente de documentacao registra NA com justificativa.
-- **Dados:** nao ha banco nem servico declarado. Nenhum teste ou script acessa banco ou
-  servico real sem um ambiente isolado declarado nesta secao.
+- **Validacao:** ainda nao ha codigo nem comandos de lint, build ou teste. Os comandos reais
+  serao declarados aqui apos ENT-FND-001 (monorepo `pnpm` e `uv`). Ate la, gate de build/teste
+  de codigo fica BLOCKED; entrega somente de documentacao registra NA com justificativa.
+- **Dados:** nao ha banco nem servico de producao declarado. Nenhum teste ou script acessa
+  banco ou servico real sem um ambiente isolado declarado nesta secao. Ambiente isolado de PoC
+  declarado: containers descartaveis (Docker/Compose) publicados somente em `127.0.0.1`, sem
+  dados reais e sem VPS, destruidos ao final de cada PoC. Qualquer outro banco ou servico
+  continua proibido.
 - **Contexto:** configuracao versionada em `scripts/contexto-projeto.json`, aplicada por
   `bash scripts/instalar-contexto.sh`. A CLI fica em `contexto/contexto.mjs`, pasta
   vizinha ao checkout principal. Antes de usar `_shared/scripts/preparar-contexto.mjs`
