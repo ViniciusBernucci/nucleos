@@ -8,6 +8,7 @@ Documentos de segurança do NÚCLEOS Enterprise: modelo de ameaças, controles, 
 
 Documentos:
 
-- [Threat model STRIDE por fronteira (v0.1, 2026-10-25)](2026-10-25-threat-model-stride-por-fronteira.md) — ENT-DEC-001; revisão humana pendente. Entrega: [dec-001](2026-10-25-dec-001-entrega.md).
+- [Threat model STRIDE por fronteira (v0.2, 2026-10-25)](2026-10-25-threat-model-stride-por-fronteira.md) — ENT-DEC-001; revisão humana (AC-3) e aceite de RISK (AC-2) pendentes. Entrega: [dec-001](2026-10-25-dec-001-entrega.md).
+- [Script de verificação do threat model](2026-10-25-threat-model-stride-por-fronteira.verificar.py) — `python3 -I <script> .` a partir da raiz do repositório; ver seção 8 do modelo.
 
 Estado: pasta criada pela tarefa FND-008.
