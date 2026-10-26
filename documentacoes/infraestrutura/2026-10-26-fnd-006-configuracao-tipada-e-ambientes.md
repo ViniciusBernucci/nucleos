@@ -90,3 +90,41 @@ PATH com Node 24.22.1 e `uv`; Docker 29.8.1, Compose 5.5.1.
 - Tratar os itens do ADR-020 que apontam para este ticket e **nao** foram feitos aqui: formato de producao do broker (ID/versao da KEK, escrita atomica, lock, auditoria encadeada — REVIEW-005/008/009); permanecem com PRV-004.
 - Reconciliar a numeracao das lessons 11 e 12 na trilha (coordenador).
 - Politica do dono do arquivo de segredo (UID do servico, `chown 10001`) deve ser confirmada pelo operador.
+
+## Rodada de correcao 1 (review `866f07b`, auditoria `1951067`)
+
+Commit de codigo: `6269603` (sem amend; o historico anterior, `8e5194d` e `93c7049`, permanece). Evidencia da rodada anterior preservada acima. Diff: secao "Rodada 1" do [arquivo de diffs](2026-10-26-fnd-006-configuracao-tipada-e-ambientes-diffs.md).
+
+| ID | Decisao | O que foi feito | Teste que falha sem a correcao |
+| --- | --- | --- | --- |
+| REVIEW-001/010 | APLICAR | `deploy.sh`: `anterior` so muda se o digest difere; `if subir && aguardar_pronto` com rollback automatico (alvo = `atual` anterior, ou `anterior` em redeploy), sem gravar `atual` do digest falho; `flock` por ambiente | ensaio: A, B, B, `rollback` volta a A (mutante `anterior=atual` incondicional: 4 testes falham, executado); `compose up` com imagem inexistente reverte e preserva o estado; execucao concorrente recusada |
+| REVIEW-002 | APLICAR | `EXTRA_COMPOSE` proibido em `prod`; em staging exige `FND006_ENSAIO=1`; aviso em stderr; runbook e ensaio ajustados | `deploy.sh prod` e staging sem flag saem com codigo 2 sem chamar `docker` (stub no `PATH`) |
+| REVIEW-003 | APLICAR parcial | Python: esquema do banco `postgres`/`postgresql`, `PORT` so `^\d{1,5}$`; TS: `TextDecoder` fatal; tabela unica `packages/config/paridade-casos.json` (52 casos) consumida por um teste em cada pacote | tabela e mutantes (esquema, PORT, UTF-8) falham |
+| REVIEW-004 | APLICAR reduzido | nome de segredo por token (`PASS`, `PASSWORD`, `PASSWD`, `PWD`, `SECRET`, `TOKEN`, `KEY`, `APIKEY`, `CREDENTIAL(S)`, `DSN`) ou sufixo colado, exceto `_FILE`/`_PATH` e `PWD`/`OLDPWD` exatos (variaveis POSIX; sem isso a API nao subia em nenhum shell), em `load.ts`, `settings.py`, `deploy-lib.mjs` (nomes e texto) | casos do review nos tres; `DB_PASS: hunter2` em Compose falha o verificador |
+| REVIEW-005 | APLICAR subconjunto | `verifyRendered`: allowlist de `cap_add` por servico (API nenhuma; Postgres as 5 documentadas), `networks.interna.internal`, Postgres so em `interna`, `tmpfs` com `noexec,nosuid`, `*=unconfined`, qualquer bind mount | um caso `bad({...})` por regra |
+| REVIEW-006 | APLICAR | testes de `dono-diferente` (TS `mock.method`, Python `monkeypatch`), nomes `*_TOKEN/_SECRET/_PASS`, `hide_input_in_errors`, limites de tamanho | mutantes reexecutados (abaixo) |
+| REVIEW-007 | APLICAR parcial | leitura por `open(O_NOFOLLOW|O_NONBLOCK)` + `fstat(fd)` + leitura limitada a `MAX_SECRET_BYTES+1` nos dois pacotes (codigos de erro inalterados) | limite exato aceito e +1 recusado, nos dois pacotes |
+| REVIEW-009 | APLICAR | `password`, `sslpassword`, `passfile`, `pass(wd)`, `pwd`, `token`, `apikey`, `secret`, `credential(s)` na query da URL recusados (case-insensitive); corrigido de passagem um defeito do TS: refinamentos encadeados faziam `new URL` lancar excecao nao-Zod para URL invalida (agora `superRefine` com retorno antecipado) | linhas da tabela compartilhada |
+| REVIEW-011 | APLICAR parcial | diff dos blocos de `CLAUDE.md`/`AGENTS.md`/`.agents/rules` no arquivo de diffs; pendencias abaixo | n/a |
+| REVIEW-012 | APLICAR | exemplo Python da lesson 11 anotado (`SettingsConfigDict`, assinatura completa); verificado com `mypy --strict`; data atualizada | n/a |
+
+Mutantes do REVIEW-006 reexecutados nesta rodada (todos agora falham os testes): TS dono removido; TS `KEY` removido; TS UTF-8 nao fatal; TS verificacao de query removida; Python dono removido; Python `hide_input_in_errors=False`; Python esquema do banco; Python `PORT`; `TOKEN` removido do conjunto E do sufixo (2 falhas). Remover `TOKEN` so do conjunto de tokens sobrevive por ser equivalente (o sufixo colado `TOKEN` cobre o mesmo caso).
+
+Validacoes da rodada (PATH com Node 24.22.1 e `uv`): `make lint` exit 0; `make test` exit 0 (config TS 14 testes; `pytest` 49 passed, 31 em `config-py`); `make build` exit 0; `make test-ambientes` exit 0, 21 testes (6 novos de deploy/guarda/hardening), com 0 containers, volumes e redes remanescentes.
+
+### ADIAR (com destino e condicao de retomada)
+
+| ID | Item adiado | Destino | Condicao |
+| --- | --- | --- | --- |
+| 003 | paridade ampla de mensagens, fuzz do esquema | tickets dos servicos Python de IA/dados | primeiro servico Python real que consuma `config-py` |
+| 004 | allowlist de variaveis por servico (variavel fora do esquema e erro) e arquivo unico da lista de nomes (hoje replicada em 3 arquivos, com a tabela compartilhada como guarda de deriva) | FND-007 ou primeiro ticket que acrescente variavel ao esquema da API | nova variavel de ambiente |
+| 005 | `ulimits`/`init` obrigatorios, `secrets.file` apontando so para `SECRETS_DIR`, seccomp/apparmor completos | ISO-002 | perfil de runtime do ticket |
+| 007 | verificar o diretorio pai do segredo | runbook de deploy e ISO-001 | host de staging definido |
+| 008 | limites (`REQUEST_TIMEOUT`, `MAX_BODY_SIZE`, `SHUTDOWN_TIMEOUT`) validados mas nao consumidos pelo servidor; `telemetryConfigFromEnv(process.env)` le o ambiente fora do esquema (`OTEL_EXPORTER_OTLP_HEADERS` pode carregar credencial; tratar `*_HEADERS` como `*_FILE`) | FND-007 (limites na borda) e ticket de observabilidade com exportador autenticado | consumo dos limites ou exportador OTLP autenticado |
+| 011 | SOPS+age para segredos da plataforma; varredura do conteudo de volumes no ensaio e segredo em `tmpfs` (ensaio local nao tem `tmpfs` de segredo); `audit.log` com hash encadeado e persistencia atomica do broker | ISO-001/deploy real (SOPS), ISO-002/ISO-001 (volumes, tmpfs), PRV-004 (broker) | primeiro segredo versionado de plataforma; host real; consumo do broker |
+| 011 | numeracao das lessons 11/12 | orquestrador, na integracao em `revisao/` | integracao do lote |
+| lacuna 3 do auditor | falha de `docker pull` (rede) no `deploy.sh`: o codigo aborta antes de tocar no estado (`|| exit 1`), mas o ensaio pula o pull (`EXTRA_COMPOSE`), entao o caminho nao e exercitado; a falha de `compose up` por imagem inexistente e coberta | deploy real de staging | host de staging declarado |
+
+Risco novo declarado: a regra de nome de segredo vale para todo o ambiente do processo, tambem em `local`; um shell de desenvolvimento com variavel como `GITHUB_TOKEN` ou `*_API_KEY` exportada impede `loadApiConfig` (ja ocorria com `TOKEN` na regra anterior; so `PWD`/`OLDPWD` foram liberados). Alternativa a decidir pelo humano: aplicar a regra apenas em `staging`/`production`/`ci`.
+
+Commits da tarefa agora: `8e5194d` (codigo), `93c7049` (documentacao), `6269603` (correcoes da rodada 1) e um commit de documentacao da rodada (SHA em `git log`; nao pode constar dele mesmo).

@@ -31,14 +31,16 @@ export SECRETS_DIR=/etc/nucleos/staging-segredos        # nunca versionar
 infrastructure/docker/scripts/deploy.sh staging deploy registry.exemplo/nucleos/api@sha256:<64 hex>
 ```
 
+`EXTRA_COMPOSE` (overlay de ensaio local) e **proibido em `prod`** e, em staging, so funciona com `FND006_ENSAIO=1` (o ensaio de `make test-ambientes` o exporta); nunca o defina no ambiente de um operador. Um unico deploy/rollback por ambiente por vez (`flock` em `.run/deploy/<env>/.lock`; a segunda execucao falha com "em andamento").
+
 O script executa, nesta ordem, e para no primeiro erro:
 
 1. recusa tag (so `repositorio@sha256:<64 hex>`); confere modo `0400`, dono e ausencia de link simbolico do segredo;
 2. `scripts/verificar-deploy.mjs`: configuracao renderizada com digest, hardening, limites, portas em `127.0.0.1` e sem segredo;
 3. `docker pull` do digest (digest imutavel; a verificacao de conteudo e a do CI);
 4. migracao do controle: **NA hoje** (nao ha migracoes versionadas); quando existir `scripts/migrar-controle.sh`, o deploy o executa e aborta se falhar;
-5. guarda `anterior` e sobe Postgres (saudavel) e API;
-6. aguarda `GET http://127.0.0.1:3001/readyz`; sucesso grava o digest em `atual`. Falha: rollback automatico para `anterior` (ou `stop api` se nao houver).
+5. sobe Postgres (saudavel) e API; `anterior` so passa a ser o `atual` quando o novo digest e **diferente** (redeploy do mesmo digest e idempotente);
+6. aguarda `GET http://127.0.0.1:3001/readyz`; sucesso grava `atual` (e `anterior`). Falha de `compose up` **ou** de `readyz`: rollback automatico para a versao que estava em `atual` (ou `anterior`, se o redeploy era do mesmo digest), sem gravar o digest falho; sem versao anterior, `stop api`.
 
 ## Rollback
 

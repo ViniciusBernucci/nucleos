@@ -1,6 +1,6 @@
 # 11 - Configuracao tipada com falha rapida
 
-Criada em 2026-10-26. Ultima atualizacao: 2026-10-26. Numeracao PROVISORIA (o coordenador reconcilia a posicao na trilha). Exemplos executados com Node 24.22.1 (TypeScript por remocao de tipos nativa, `zod` 4.6.7, tipos conferidos com TypeScript 5.9.3) e Python 3.13 (`pydantic` 2.14.1, `pydantic-settings` 2.16.1).
+Criada em 2026-10-26. Ultima atualizacao: 2026-10-26 (rodada de correcao 1: exemplo Python tipado, verificado com `mypy --strict`). Numeracao PROVISORIA (o coordenador reconcilia a posicao na trilha). Exemplos executados com Node 24.22.1 (TypeScript por remocao de tipos nativa, `zod` 4.6.7, tipos conferidos com TypeScript 5.9.3) e Python 3.13 (`pydantic` 2.14.1, `pydantic-settings` 2.16.1).
 
 ## Objetivo, pre-requisitos e posicao
 
@@ -44,18 +44,26 @@ O repositorio acrescenta a isso: duracoes (`30s`), tamanhos (`1mb`), URL sem sen
 
 ```python
 from typing import Literal
+
 from pydantic import Field, ValidationError
-from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 
-class Settings(BaseSettings, frozen=True, hide_input_in_errors=True):
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(frozen=True, hide_input_in_errors=True)
+
     APP_ENV: Literal["local", "staging", "production"] = "local"
     PORT: int = Field(8000, ge=1, le=65535)
 
     @classmethod
     def settings_customise_sources(
-        cls, settings_cls, init_settings: PydanticBaseSettingsSource, **_: PydanticBaseSettingsSource
-    ):
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
         return (init_settings,)  # so o mapa explicito; nao le os.environ por acidente
 
 

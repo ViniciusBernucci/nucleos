@@ -1946,3 +1946,1412 @@ index 71f8941..7b21f91 100644
  name = "urllib3"
  version = "2.8.0"
 ````
+
+## Rodada 1 — diffs
+
+Commit `6269603` (`fix(infra): corrige rollback, bloqueio de segredos e verificador do FND-006 (rodada 1)`), sobre `93c7049`/`1951067`. A evidencia da secao anterior permanece.
+
+### Commit `6269603` (codigo, testes, tabela compartilhada)
+
+````diff
+commit 6269603fa95f7a8b89b3bc41e061704aaea563d0
+fix(infra): corrige rollback, bloqueio de segredos e verificador do FND-006 (rodada 1)
+
+
+diff --git a/infrastructure/docker/scripts/deploy-lib.mjs b/infrastructure/docker/scripts/deploy-lib.mjs
+index d437762..5b2768a 100644
+--- a/infrastructure/docker/scripts/deploy-lib.mjs
++++ b/infrastructure/docker/scripts/deploy-lib.mjs
+@@ -1,8 +1,26 @@
+ // Verificacoes puras de staging/producao (FND-006): usadas por verificar-deploy.mjs (make lint)
+ // e pelo teste efemero (tests/ambientes.test.mjs). Sem dependencias externas.
+ 
+-/** Nome de variavel que indica segredo literal; `*_FILE` (caminho) e o formato permitido. */
+-export const SECRET_NAME = /(PASSWORD|PASSWD|SECRET|TOKEN|API_?KEY|PRIVATE_?KEY|CREDENTIAL)S?$/i;
++const SECRET_TOKENS = new Set([
++  "PASS", "PASSWORD", "PASSWD", "PWD", "SECRET", "TOKEN", "KEY", "APIKEY", "CREDENTIAL", "CREDENTIALS", "DSN",
++]);
++const SECRET_SUFFIXES = ["PASSWORD", "PASSWD", "SECRET", "TOKEN", "APIKEY", "PRIVATEKEY", "CREDENTIAL", "CREDENTIALS"];
++
++/**
++ * Nome de variavel que indica segredo literal (ADR-020 item 1): algum token separado por `_`
++ * (PASS, SECRET, TOKEN, KEY, DSN, ...) ou sufixo colado (DBPASSWORD). Nomes terminados em
++ * `_FILE`/`_PATH` (caminho) sao o formato permitido. Mesma regra de packages/config e config-py.
++ */
++const NOT_SECRET = new Set(["PWD", "OLDPWD"]); // variaveis POSIX/shell
++
++export function isSecretName(name) {
++  const up = name.toUpperCase().replace(/[.-]/g, "_");
++  if (NOT_SECRET.has(up)) return false;
++  if (/_(FILE|PATH)$/.test(up)) return false;
++  if (up.split("_").some((t) => SECRET_TOKENS.has(t))) return true;
++  const compact = up.replaceAll("_", "");
++  return SECRET_SUFFIXES.some((suf) => compact.endsWith(suf));
++}
+ 
+ const SECRET_VALUE_PATTERNS = [
+   [/-----BEGIN [A-Z ]*PRIVATE KEY-----/, "chave privada PEM"],
+@@ -17,7 +35,7 @@ export function secretFindingsInEnv(env) {
+   const findings = [];
+   for (const [name, value] of Object.entries(env)) {
+     const v = value ?? "";
+-    if (v !== "" && SECRET_NAME.test(name)) findings.push(`${name}: nome de segredo no ambiente`);
++    if (v !== "" && isSecretName(name)) findings.push(`${name}: nome de segredo no ambiente`);
+     for (const [re, label] of SECRET_VALUE_PATTERNS) {
+       if (re.test(v)) findings.push(`${name}: ${label}`);
+     }
+@@ -38,11 +56,11 @@ export function secretFindingsInText(text) {
+   const out = [];
+   text.split("\n").forEach((line, i) => {
+     const code = line.replace(/\s+#.*$/, "");
+-    const m = /^\s*([A-Za-z0-9_.-]*(?:password|passwd|secret|token|api_?key|private_?key|credential)s?)\s*[:=]\s*(.+)$/i.exec(code);
+-    if (m) {
++    const m = /^\s*([A-Za-z0-9_.-]+)\s*[:=]\s*(.+)$/.exec(code);
++    if (m?.[1] !== undefined && m[2] !== undefined && isSecretName(m[1])) {
+       const key = m[1];
+       const val = m[2].trim().replace(/^["']|["']$/g, "");
+-      const ok = /_file$/i.test(key) || key === "secrets" || val === "" || val.startsWith("$") || val.startsWith("/run/secrets/") || /^(\[\]|\{\})$/.test(val);
++      const ok = key === "secrets" || val === "" || val.startsWith("$") || val.startsWith("/run/secrets/") || /^(\[\]|\{\})$/.test(val);
+       if (!ok) out.push(`linha ${i + 1}: valor literal para "${key}"`);
+     }
+     for (const [re, label] of SECRET_VALUE_PATTERNS.slice(0, 4)) {
+@@ -52,6 +70,9 @@ export function secretFindingsInText(text) {
+   return out;
+ }
+ 
++/** `cap_add` permitido por servico (excecoes documentadas; ISO-002 reavalia). */
++const CAP_ADD_ALLOW = { postgres: ["CHOWN", "DAC_OVERRIDE", "FOWNER", "SETGID", "SETUID"] };
++
+ const DIGEST = /@sha256:[0-9a-f]{64}$/;
+ const LOOPBACK = "127.0.0.1";
+ 
+@@ -70,11 +91,25 @@ export function verifyRendered(cfg, label) {
+     if (!s.mem_limit || !s.cpus || !s.pids_limit) add(name, "limites de memoria, CPU e PIDs obrigatorios");
+     if (s.user === undefined && name === "api") add(name, "usuario nao-root obrigatorio");
+     if (/^(0|root)(:|$)/.test(s.user ?? "")) add(name, "usuario root proibido");
++    const allow = CAP_ADD_ALLOW[name] ?? [];
++    for (const cap of s.cap_add ?? []) {
++      if (!allow.includes(cap)) add(name, `cap_add ${cap} fora da allowlist`);
++    }
++    for (const opt of s.security_opt ?? []) {
++      if (/unconfined/i.test(opt)) add(name, `security_opt ${opt} proibido`);
++    }
++    for (const t of s.tmpfs ?? []) {
++      if (!/\bnoexec\b/.test(t) || !/\bnosuid\b/.test(t)) add(name, "tmpfs deve ter noexec e nosuid");
++    }
++    if (name === "postgres" && JSON.stringify(Object.keys(s.networks ?? {})) !== '["interna"]') {
++      add(name, "postgres deve estar somente na rede interna");
++    }
+     for (const p of s.ports ?? []) {
+       if (p.host_ip !== LOOPBACK) add(name, "porta publicada fora de 127.0.0.1");
+     }
+     for (const vol of s.volumes ?? []) {
+-      if (/docker\.sock|^\/(proc|sys|run\/containerd)?$/.test(vol.source ?? "")) add(name, "mount proibido");
++      // Somente volumes nomeados; qualquer bind de caminho do host e proibido (segredos entram por `secrets`).
++      if (vol.type !== "volume") add(name, `mount ${String(vol.type)} proibido (${String(vol.source)})`);
+     }
+     for (const f of secretFindingsInEnv(s.environment ?? {})) {
+       // *_FILE contem so o caminho em /run/secrets: o valor nao e segredo.
+@@ -85,6 +120,7 @@ export function verifyRendered(cfg, label) {
+       for (const f of secretFindingsInText(String(arg))) add(name, `command: ${f}`);
+     }
+   }
++  if (cfg.networks?.interna?.internal !== true) add("rede", "interna deve ter internal: true");
+   for (const [n, sec] of Object.entries(cfg.secrets ?? {})) {
+     if (sec.environment !== undefined || sec.content !== undefined) add(n, "secret deve ser file:, nunca environment/content");
+   }
+diff --git a/infrastructure/docker/scripts/deploy.sh b/infrastructure/docker/scripts/deploy.sh
+index 5389d62..46a2b45 100755
+--- a/infrastructure/docker/scripts/deploy.sh
++++ b/infrastructure/docker/scripts/deploy.sh
+@@ -4,13 +4,20 @@
+ #       deploy.sh <staging|prod> rollback
+ #       deploy.sh <staging|prod> status
+ # Ambiente exigido: SECRETS_DIR (diretorio 0700 com database_password 0400, dono = UID do servico).
+-# Opcionais: API_HOST_PORT, STATE_DIR (padrao .run/deploy), EXTRA_COMPOSE (arquivo extra, SO para ensaio local),
++# Opcionais: API_HOST_PORT, STATE_DIR (padrao .run/deploy), EXTRA_COMPOSE (arquivo extra, SO ensaio local + FND006_ENSAIO=1),
+ #            READY_TIMEOUT (s, padrao 120). Nunca imprime segredos.
++# EXTRA_COMPOSE (overlay de ENSAIO local) e proibido em prod e, em staging, exige FND006_ENSAIO=1.
+ set -euo pipefail
+ DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ ROOT="$(cd "$DIR/../.." && pwd)"
+ env_name="${1:-}"; cmd="${2:-}"; ref="${3:-}"
+ case "$env_name" in staging|prod) ;; *) echo "uso: deploy.sh <staging|prod> deploy <ref@sha256:...>|rollback|status" >&2; exit 2 ;; esac
++# Overlay de ensaio nunca entra em producao nem por variavel herdada do shell (REVIEW-002).
++if [ -n "${EXTRA_COMPOSE:-}" ]; then
++  [ "$env_name" != prod ] || { echo "FALHA: EXTRA_COMPOSE e proibido em prod" >&2; exit 2; }
++  [ "${FND006_ENSAIO:-}" = 1 ] || { echo "FALHA: EXTRA_COMPOSE exige FND006_ENSAIO=1 (somente ensaio local)" >&2; exit 2; }
++  echo "AVISO: modo de ensaio local (EXTRA_COMPOSE); sem pull e sem exigir dono do segredo" >&2
++fi
+ STATE="${STATE_DIR:-$ROOT/.run/deploy}/$env_name"
+ mkdir -p "$STATE"
+ files=(-f "$DIR/compose.deploy.yml" -f "$DIR/compose.$env_name.yml")
+@@ -26,6 +33,11 @@ verificar_segredos() {
+   [ "$dono" = "${API_UID:-10001}" ] || [ -n "${EXTRA_COMPOSE:-}" ] || { echo "FALHA: database_password deve pertencer ao UID do servico" >&2; exit 1; }
+ }
+ 
++travar() { # um deploy/rollback por ambiente por vez (REVIEW-010)
++  exec 9>"$STATE/.lock"
++  flock -n 9 || { echo "FALHA: outro deploy/rollback de $env_name em andamento" >&2; exit 1; }
++}
++
+ subir() { # $1 = referencia com digest
+   API_IMAGE="$1" docker compose "${files[@]}" up -d --remove-orphans
+ }
+@@ -39,42 +51,53 @@ aguardar_pronto() {
+   return 1
+ }
+ 
++ler() { cat "$STATE/$1" 2>/dev/null || true; }
++
+ case "$cmd" in
+   deploy)
+     [[ "$ref" =~ ^[a-z0-9][a-z0-9./_:-]*@sha256:[0-9a-f]{64}$ ]] || { echo "FALHA: informe a imagem como <repositorio>@sha256:<64 hex> (tag nao e aceita)" >&2; exit 2; }
+     verificar_segredos
++    travar
+     # 1. configuracao renderizada obedece a politica (digest, hardening, sem segredo)
+     node "$DIR/scripts/verificar-deploy.mjs"
+     # 2. puxar o digest (ja verificado no CI: build-images/trivy). Assinatura (cosign) ainda nao adotada.
+-    if [ -z "${EXTRA_COMPOSE:-}" ]; then docker pull "$ref" >/dev/null; fi
++    if [ -z "${EXTRA_COMPOSE:-}" ]; then docker pull "$ref" >/dev/null || { echo "FALHA: docker pull falhou; estado preservado" >&2; exit 1; }; fi
+     # 3. migrar controle: sem migracoes versionadas ainda (DAT-*); o passo falha fechado quando existir e falhar.
+     if [ -x "$DIR/scripts/migrar-controle.sh" ]; then "$DIR/scripts/migrar-controle.sh" "$env_name"; else echo "NA: nenhuma migracao de controle versionada ate este ticket"; fi
+-    # 4. subir API (postgres antes, saudavel) e 5. verificar readyz
+-    [ -f "$STATE/atual" ] && cp "$STATE/atual" "$STATE/anterior"
+-    subir "$ref"
+-    if aguardar_pronto; then
++    atual_antes="$(ler atual)"; anterior_antes="$(ler anterior)"
++    # `anterior` so muda se a versao em producao difere da nova (redeploy do mesmo digest e idempotente).
++    if [ -n "$atual_antes" ] && [ "$atual_antes" != "$ref" ]; then anterior_novo="$atual_antes"; else anterior_novo="$anterior_antes"; fi
++    # 4. subir Postgres (saudavel) e API e 5. verificar readyz; qualquer falha reverte sem gravar `atual`.
++    if subir "$ref" && aguardar_pronto; then
+       echo "$ref" >"$STATE/atual"
++      if [ -n "$anterior_novo" ]; then echo "$anterior_novo" >"$STATE/anterior"; fi
+       echo "OK: $env_name em $ref"
+     else
+-      echo "FALHA: /readyz nao respondeu em ${READY_TIMEOUT:-120}s; rollback automatico" >&2
+-      if [ -f "$STATE/anterior" ]; then
+-        subir "$(cat "$STATE/anterior")"; aguardar_pronto && echo "rollback concluido para $(cat "$STATE/anterior")" >&2 || echo "ALERTA: rollback tambem falhou" >&2
++      echo "FALHA: subida de $ref ou /readyz falhou; rollback automatico" >&2
++      if [ -n "$atual_antes" ] && [ "$atual_antes" != "$ref" ]; then alvo="$atual_antes"; else alvo="$anterior_antes"; fi
++      if [ -n "$alvo" ]; then
++        if subir "$alvo" && aguardar_pronto; then
++          echo "rollback concluido para $alvo" >&2
++          if [ "$alvo" != "$atual_antes" ]; then echo "$alvo" >"$STATE/atual"; rm -f "$STATE/anterior"; fi
++        else
++          echo "ALERTA: rollback tambem falhou" >&2
++        fi
+       else
+-        API_IMAGE="$ref" docker compose "${files[@]}" stop api
++        API_IMAGE="$ref" docker compose "${files[@]}" stop api || true
+         echo "sem versao anterior: api parada" >&2
+       fi
+       exit 1
+     fi ;;
+   rollback)
+     verificar_segredos
+-    [ -f "$STATE/anterior" ] || { echo "FALHA: nao ha digest anterior registrado em $STATE" >&2; exit 1; }
+-    prev="$(cat "$STATE/anterior")"; atual="$(cat "$STATE/atual" 2>/dev/null || true)"
+-    subir "$prev"
+-    aguardar_pronto || { echo "FALHA: /readyz nao respondeu apos rollback" >&2; exit 1; }
+-    echo "$prev" >"$STATE/atual"; [ -n "$atual" ] && echo "$atual" >"$STATE/anterior"
++    travar
++    prev="$(ler anterior)"; atual="$(ler atual)"
++    [ -n "$prev" ] || { echo "FALHA: nao ha digest anterior registrado em $STATE" >&2; exit 1; }
++    subir "$prev" && aguardar_pronto || { echo "FALHA: subida ou /readyz falhou apos rollback" >&2; exit 1; }
++    echo "$prev" >"$STATE/atual"; if [ -n "$atual" ]; then echo "$atual" >"$STATE/anterior"; fi
+     echo "OK: rollback de $env_name para $prev" ;;
+   status)
+-    echo "atual:    $(cat "$STATE/atual" 2>/dev/null || echo '-')"
+-    echo "anterior: $(cat "$STATE/anterior" 2>/dev/null || echo '-')" ;;
++    echo "atual:    $(ler atual | grep . || echo '-')"
++    echo "anterior: $(ler anterior | grep . || echo '-')" ;;
+   *) echo "uso: deploy.sh <staging|prod> deploy <ref@sha256:...>|rollback|status" >&2; exit 2 ;;
+ esac
+diff --git a/infrastructure/docker/tests/ambientes.test.mjs b/infrastructure/docker/tests/ambientes.test.mjs
+index f7d0678..7993642 100644
+--- a/infrastructure/docker/tests/ambientes.test.mjs
++++ b/infrastructure/docker/tests/ambientes.test.mjs
+@@ -3,14 +3,14 @@
+ // (127.0.0.1, containers descartaveis, destruidos ao final). Executar: make test-ambientes
+ // Pre-requisitos: Docker, `make build` (apps/api/dist) e as imagens do compose (digest) locais ou puxaveis.
+ import assert from "node:assert/strict";
+-import { execFileSync, spawnSync } from "node:child_process";
+-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
++import { execFileSync, spawn, spawnSync } from "node:child_process";
++import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+ import { randomBytes } from "node:crypto";
+ import { tmpdir } from "node:os";
+ import { dirname, join } from "node:path";
+ import { after, before, describe, test } from "node:test";
+ import { fileURLToPath } from "node:url";
+-import { envListToObject, secretFindingsInEnv, secretFindingsInText, verifyRendered } from "../scripts/deploy-lib.mjs";
++import { envListToObject, isSecretName, secretFindingsInEnv, secretFindingsInText, verifyRendered } from "../scripts/deploy-lib.mjs";
+ 
+ const docker = join(dirname(fileURLToPath(import.meta.url)), "..");
+ const root = join(docker, "..", "..");
+@@ -34,7 +34,11 @@ describe("verificador de overlays", () => {
+       },
+     },
+   };
+-  const bad = (patch) => verifyRendered({ services: { api: { ...ok.services.api, ...patch } } }, "t");
++  const interna = { interna: { internal: true } };
++  const bad = (patch, extra = {}) =>
++    verifyRendered({ networks: interna, services: { api: { ...ok.services.api, ...patch } }, ...extra }, "t");
++  const pg = (patch) =>
++    verifyRendered({ networks: interna, services: { postgres: { ...ok.services.api, networks: { interna: null }, ...patch } } }, "t");
+   test("configuracao correta passa", () => assert.deepEqual(bad({}), []));
+   test("cada regra e violada separadamente", () => {
+     assert.match(bad({ image: "r/a:latest" }).join(), /sem digest/);
+@@ -48,6 +52,33 @@ describe("verificador de overlays", () => {
+     assert.match(bad({ mem_limit: undefined }).join(), /limites/);
+     assert.match(bad({ restart: "always" }).join(), /unless-stopped/);
+   });
++  test("regras de hardening adicionais (REVIEW-005), uma por regra", () => {
++    assert.match(bad({ cap_add: ["SYS_ADMIN"] }).join(), /cap_add SYS_ADMIN fora da allowlist/);
++    assert.deepEqual(pg({ cap_add: ["CHOWN", "SETUID"] }), []);
++    assert.match(pg({ cap_add: ["CHOWN", "SYS_ADMIN"] }).join(), /SYS_ADMIN/);
++    assert.match(bad({}, { networks: { interna: { internal: false } } }).join(), /internal: true/);
++    assert.match(bad({}, { networks: {} }).join(), /internal: true/);
++    assert.match(pg({ networks: { interna: null, publicada: null } }).join(), /somente na rede interna/);
++    assert.match(bad({ tmpfs: ["/tmp:rw,size=1m"] }).join(), /noexec e nosuid/);
++    assert.match(bad({ tmpfs: ["/tmp:rw,noexec,size=1m"] }).join(), /noexec e nosuid/);
++    assert.deepEqual(bad({ tmpfs: ["/tmp:rw,noexec,nosuid,size=1m"] }), []);
++    assert.match(bad({ security_opt: ["no-new-privileges:true", "seccomp=unconfined"] }).join(), /unconfined/);
++    assert.match(bad({ security_opt: ["no-new-privileges:true", "apparmor=unconfined"] }).join(), /unconfined/);
++    for (const source of ["/etc", "/var/run", "/home/x", "/var/run/docker.sock"]) {
++      assert.match(bad({ volumes: [{ type: "bind", source }] }).join(), /mount bind proibido/);
++    }
++    assert.deepEqual(bad({ volumes: [{ type: "volume", source: "postgres-data" }] }), []);
++  });
++  test("nomes de segredo por token no ambiente e no texto (REVIEW-004)", () => {
++    for (const n of ["DB_PASS", "SECRET_KEY", "JWT_SECRET_KEY", "AWS_SECRET_ACCESS_KEY", "ACCESS_KEY", "API_TOKEN", "DBPASSWORD"]) {
++      assert.ok(isSecretName(n), n);
++      assert.match(bad({ environment: { [n]: "hunter2" } }).join(), /nome de segredo/, n);
++    }
++    for (const n of ["DATABASE_PASSWORD_FILE", "SSH_KEY_PATH", "KEYBOARD", "PASSTHROUGH"]) assert.ok(!isSecretName(n), n);
++    assert.equal(secretFindingsInText("      DB_PASS: hunter2\n").length, 1);
++    assert.equal(secretFindingsInText("      JWT_SECRET_KEY: abc\n").length, 1);
++    assert.equal(secretFindingsInText("      DB_PASS: ${DB_PASS:?}\n").length, 0);
++  });
+   test("texto de compose com segredo literal e detectado; *_FILE e ${} nao", () => {
+     assert.equal(secretFindingsInText("POSTGRES_PASSWORD: abc12345678\n").length, 1);
+     assert.equal(secretFindingsInText("POSTGRES_PASSWORD_FILE: /run/secrets/x\nA_TOKEN: ${TOKEN:?}\n").length, 0);
+@@ -89,7 +120,7 @@ describe("staging efemero em 127.0.0.1 (AC-2, AC-3)", { skip: !dockerOk() }, ()
+   const env = {
+     ...process.env, SECRETS_DIR: secrets, STATE_DIR: state, API_HOST_PORT: PORT, READY_TIMEOUT: "90",
+     EXTRA_COMPOSE: join(docker, "tests", "ensaio.override.yml"), ENSAIO_UID: String(process.getuid()), ENSAIO_GID: String(process.getgid()),
+-    API_UID: String(process.getuid()),
++    API_UID: String(process.getuid()), FND006_ENSAIO: "1",
+   };
+   const deploy = (...a) => sh(join(docker, "scripts", "deploy.sh"), ["staging", ...a], { env });
+   const compose = (...a) => sh("docker", ["compose", "-p", PROJECT, "-f", join(docker, "compose.deploy.yml"), "-f", join(docker, "compose.staging.yml"),
+@@ -168,23 +199,81 @@ describe("staging efemero em 127.0.0.1 (AC-2, AC-3)", { skip: !dockerOk() }, ()
+     } finally { sh("docker", ["rm", "-f", id]); }
+   });
+ 
+-  test("deploy do digest B e rollback manual para A", () => {
++  const imagem = () => out("docker", ["inspect", "-f", "{{.Config.Image}}", cid("api")]).trim();
++  const estado = () => deploy("status").stdout;
++  const pronto = () => sh("curl", ["-fsS", `http://127.0.0.1:${PORT}/readyz`]).status === 0;
++  const DESCONHECIDA = `registry.invalid/nucleos/nao-existe@sha256:${"0".repeat(64)}`;
++
++  test("deploy B, redeploy de B (idempotente) e rollback volta a A (REVIEW-001)", () => {
+     assert.equal(deploy("deploy", NODE22).status, 0);
+-    assert.match(deploy("status").stdout, new RegExp(`atual:\\s+${NODE22.replace(/[.]/g, "\\.")}`));
+-    const imgB = out("docker", ["inspect", "-f", "{{.Config.Image}}", cid("api")]).trim();
+-    assert.equal(imgB, NODE22);
++    assert.equal(imagem(), NODE22);
++    assert.equal(deploy("deploy", NODE22).status, 0); // retentativa de pipeline
++    assert.match(estado(), new RegExp(`anterior: ${NODE24.replace(/[.]/g, "\\.")}`));
+     const r = deploy("rollback");
+     assert.equal(r.status, 0, r.stdout + r.stderr);
+-    assert.equal(out("docker", ["inspect", "-f", "{{.Config.Image}}", cid("api")]).trim(), NODE24);
+-    assert.equal(sh("curl", ["-fsS", `http://127.0.0.1:${PORT}/readyz`]).status, 0);
++    assert.equal(imagem(), NODE24);
++    assert.ok(pronto());
++    assert.match(estado(), new RegExp(`atual:\\s+${NODE24.replace(/[.]/g, "\\.")}`));
+   });
+ 
+-  test("deploy defeituoso reverte automaticamente para a versao anterior", () => {
++  test("deploy defeituoso (readyz nunca responde) reverte e preserva o estado", () => {
++    const antes = estado();
+     const r = sh(join(docker, "scripts", "deploy.sh"), ["staging", "deploy", PY], { env: { ...env, READY_TIMEOUT: "8" } });
+     assert.equal(r.status, 1);
+-    assert.match(r.stderr, /rollback/);
+-    assert.equal(out("docker", ["inspect", "-f", "{{.Config.Image}}", cid("api")]).trim(), NODE24);
+-    assert.equal(sh("curl", ["-fsS", `http://127.0.0.1:${PORT}/readyz`]).status, 0);
++    assert.match(r.stderr, /rollback concluido/);
++    assert.equal(imagem(), NODE24);
++    assert.ok(pronto());
++    assert.equal(estado(), antes);
++  });
++
++  test("falha em `compose up` (imagem inexistente) aciona rollback e preserva atual/anterior (REVIEW-010)", () => {
++    const antes = estado();
++    const r = deploy("deploy", DESCONHECIDA);
++    assert.equal(r.status, 1);
++    assert.match(r.stderr, /rollback concluido/);
++    assert.equal(imagem(), NODE24);
++    assert.ok(pronto());
++    assert.equal(estado(), antes);
++  });
++
++  test("segunda execucao concorrente e recusada (flock)", async () => {
++    const primeiro = spawn(join(docker, "scripts", "deploy.sh"), ["staging", "deploy", NODE22], { env, stdio: "ignore" });
++    const fim = new Promise((res) => primeiro.on("close", res));
++    await new Promise((res) => setTimeout(res, 1500));
++    const r = deploy("deploy", NODE24);
++    assert.equal(r.status, 1);
++    assert.match(r.stderr, /em andamento/);
++    assert.equal(await fim, 0);
++    assert.equal(deploy("rollback").status, 0); // volta a A para os demais testes
++    assert.equal(imagem(), NODE24);
++  });
++});
++
++// ------------------------------------------- EXTRA_COMPOSE nunca em producao (REVIEW-002), sem Docker
++describe("EXTRA_COMPOSE e restrito ao ensaio", () => {
++  const stubDir = mkdtempSync(join(tmpdir(), "fnd006-stub-"));
++  const marker = join(stubDir, "docker-chamado");
++  writeFileSync(join(stubDir, "docker"), `#!/bin/sh\ntouch '${marker}'\nexit 1\n`, { mode: 0o755 });
++  after(() => rmSync(stubDir, { recursive: true, force: true }));
++  const run = (envName, extra) => {
++    rmSync(marker, { force: true });
++    const r = sh(join(docker, "scripts", "deploy.sh"), [envName, "deploy", `r/a@sha256:${"a".repeat(64)}`], {
++      env: { PATH: `${stubDir}:/usr/bin:/bin`, SECRETS_DIR: stubDir, EXTRA_COMPOSE: "/tmp/x.yml", ...extra },
++    });
++    assert.ok(!existsSync(marker), "docker nao deve ser chamado");
++    return r;
++  };
++  test("prod recusa EXTRA_COMPOSE, mesmo com FND006_ENSAIO=1", () => {
++    for (const extra of [{}, { FND006_ENSAIO: "1" }]) {
++      const r = run("prod", extra);
++      assert.equal(r.status, 2);
++      assert.match(r.stderr, /proibido em prod/);
++    }
++  });
++  test("staging exige FND006_ENSAIO=1", () => {
++    const r = run("staging", {});
++    assert.equal(r.status, 2);
++    assert.match(r.stderr, /FND006_ENSAIO=1/);
+   });
+ });
+ 
+diff --git a/packages/config-py/src/nucleos_config/__init__.py b/packages/config-py/src/nucleos_config/__init__.py
+index d7946e4..2b150bb 100644
+--- a/packages/config-py/src/nucleos_config/__init__.py
++++ b/packages/config-py/src/nucleos_config/__init__.py
+@@ -1,5 +1,12 @@
+ from .secret import MAX_SECRET_BYTES, Secret, SecretFileError, read_secret_file
+-from .settings import ConfigError, ConfigIssue, ServiceSettings, forbidden_secret_env, load_settings
++from .settings import (
++    ConfigError,
++    ConfigIssue,
++    ServiceSettings,
++    forbidden_secret_env,
++    is_secret_name,
++    load_settings,
++)
+ 
+ __all__ = [
+     "MAX_SECRET_BYTES",
+@@ -9,6 +16,7 @@ __all__ = [
+     "SecretFileError",
+     "ServiceSettings",
+     "forbidden_secret_env",
++    "is_secret_name",
+     "load_settings",
+     "read_secret_file",
+ ]
+diff --git a/packages/config-py/src/nucleos_config/secret.py b/packages/config-py/src/nucleos_config/secret.py
+index ea58c9c..5ffaee8 100644
+--- a/packages/config-py/src/nucleos_config/secret.py
++++ b/packages/config-py/src/nucleos_config/secret.py
+@@ -2,6 +2,7 @@
+ 
+ from __future__ import annotations
+ 
++import errno
+ import os
+ import stat
+ 
+@@ -36,30 +37,49 @@ class Secret:
+ def read_secret_file(path: str) -> Secret:
+     """Le o segredo com as mesmas regras da biblioteca TypeScript.
+ 
+-    Arquivo regular (sem link simbolico), sem permissoes para grupo/outros (0o077), do mesmo dono
+-    do processo, nao vazio e com tamanho limitado. Remove um unico `\\n` final.
++    Abre com `O_NOFOLLOW` e confere tudo por `fstat` no descritor aberto (sem janela entre checagem
++    e leitura): arquivo regular, sem permissoes para grupo/outros (0o077), do mesmo dono do
++    processo, nao vazio, no maximo `MAX_SECRET_BYTES` (leitura limitada a esse tamanho + 1) e
++    UTF-8 valido. Remove um unico `\\n` final.
+     """
+     try:
+-        st = os.lstat(path)
+-    except OSError:
+-        raise SecretFileError("ausente") from None
+-    if stat.S_ISLNK(st.st_mode):
+-        raise SecretFileError("link-simbolico")
+-    if not stat.S_ISREG(st.st_mode):
+-        raise SecretFileError("nao-e-arquivo-regular")
+-    if st.st_mode & 0o077:
+-        raise SecretFileError("permissoes-abertas")
+-    if st.st_uid != os.getuid():
+-        raise SecretFileError("dono-diferente")
+-    if st.st_size == 0:
+-        raise SecretFileError("vazio")
+-    if st.st_size > MAX_SECRET_BYTES:
+-        raise SecretFileError("grande-demais")
++        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK)
++    except OSError as exc:
++        if exc.errno == errno.ELOOP:
++            raise SecretFileError("link-simbolico") from None
++        if exc.errno in (errno.ENOENT, errno.ENOTDIR):
++            raise SecretFileError("ausente") from None
++        raise SecretFileError("ilegivel") from None
++    try:
++        st = os.fstat(fd)
++        if not stat.S_ISREG(st.st_mode):
++            raise SecretFileError("nao-e-arquivo-regular")
++        if st.st_mode & 0o077:
++            raise SecretFileError("permissoes-abertas")
++        if st.st_uid != os.getuid():
++            raise SecretFileError("dono-diferente")
++        if st.st_size == 0:
++            raise SecretFileError("vazio")
++        if st.st_size > MAX_SECRET_BYTES:
++            raise SecretFileError("grande-demais")
++        chunks: list[bytes] = []
++        total = 0
++        try:
++            while True:
++                chunk = os.read(fd, MAX_SECRET_BYTES + 1 - total)
++                if not chunk:
++                    break
++                chunks.append(chunk)
++                total += len(chunk)
++                if total > MAX_SECRET_BYTES:
++                    raise SecretFileError("grande-demais")
++        except OSError:
++            raise SecretFileError("ilegivel") from None
++    finally:
++        os.close(fd)
+     try:
+-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+-        with os.fdopen(fd, "r", encoding="utf-8") as fh:
+-            raw = fh.read()
+-    except (OSError, UnicodeDecodeError):
++        raw = b"".join(chunks).decode("utf-8")
++    except UnicodeDecodeError:
+         raise SecretFileError("ilegivel") from None
+     value = raw.removesuffix("\n")
+     if not value:
+diff --git a/packages/config-py/src/nucleos_config/settings.py b/packages/config-py/src/nucleos_config/settings.py
+index ea6317e..802b31a 100644
+--- a/packages/config-py/src/nucleos_config/settings.py
++++ b/packages/config-py/src/nucleos_config/settings.py
+@@ -5,6 +5,7 @@ from __future__ import annotations
+ import re
+ from collections.abc import Mapping
+ from typing import Annotated, Literal
++from urllib.parse import parse_qsl
+ 
+ from pydantic import AfterValidator, AnyUrl, BaseModel, Field, ValidationError, field_validator
+ from pydantic_settings import (
+@@ -15,9 +16,27 @@ from pydantic_settings import (
+ 
+ from .secret import Secret, SecretFileError, read_secret_file
+ 
+-_SECRET_NAME = re.compile(
+-    r"(PASSWORD|PASSWD|SECRET|TOKEN|API_?KEY|PRIVATE_?KEY|CREDENTIAL)S?$", re.I
++_SECRET_TOKENS = frozenset(
++    {"PASS", "PASSWORD", "PASSWD", "PWD", "SECRET", "TOKEN", "KEY", "APIKEY", "CREDENTIAL"}
++    | {"CREDENTIALS", "DSN"}
+ )
++_SECRET_SUFFIXES = (
++    "PASSWORD",
++    "PASSWD",
++    "SECRET",
++    "TOKEN",
++    "APIKEY",
++    "PRIVATEKEY",
++    "CREDENTIAL",
++    "CREDENTIALS",
++)
++_SECRET_QUERY = frozenset(
++    {"password", "sslpassword", "passfile", "pass", "passwd", "pwd", "token", "apikey"}
++    | {"api_key", "secret", "credential", "credentials"}
++)
++# Variaveis POSIX/shell que nao carregam segredo e colidem com os tokens.
++_NOT_SECRET = frozenset({"PWD", "OLDPWD"})
++_DB_SCHEMES = ("postgres", "postgresql")
+ _UNITS_MS = {"ms": 1, "s": 1000, "m": 60_000, "h": 3_600_000}
+ _STRICT = ("staging", "production")
+ 
+@@ -36,14 +55,36 @@ class ConfigError(Exception):
+         super().__init__(f"configuracao invalida ({len(issues)}): {detail}")
+ 
+ 
++def is_secret_name(name: str) -> bool:
++    """Nome que indica segredo literal: token (PASS, SECRET, TOKEN, KEY, DSN...) ou sufixo colado.
++
++    Nomes terminados em `_FILE`/`_PATH` (caminho) sao o formato permitido. Mesma regra de
++    packages/config (TypeScript) e deploy-lib.mjs.
++    """
++    up = re.sub(r"[.-]", "_", name.upper())
++    if up in _NOT_SECRET:
++        return False
++    if up.endswith(("_FILE", "_PATH")):
++        return False
++    if any(t in _SECRET_TOKENS for t in up.split("_")):
++        return True
++    return up.replace("_", "").endswith(_SECRET_SUFFIXES)
++
++
+ def forbidden_secret_env(env: Mapping[str, str]) -> list[str]:
+     """Nomes de variaveis que parecem carregar segredo literal (so `*_FILE` e permitido)."""
+-    return sorted(k for k, v in env.items() if v != "" and _SECRET_NAME.search(k))
++    return sorted(k for k, v in env.items() if v != "" and is_secret_name(k))
+ 
+ 
+ def _no_password(url: AnyUrl) -> AnyUrl:
++    if url.scheme not in _DB_SCHEMES:
++        raise ValueError("protocolo nao permitido")
+     if url.password:
+         raise ValueError("senha embutida na url e proibida (use *_FILE)")
++    if any(
++        k.lower() in _SECRET_QUERY for k, _ in parse_qsl(url.query or "", keep_blank_values=True)
++    ):
++        raise ValueError("credencial na query da url e proibida (use *_FILE)")
+     return url
+ 
+ 
+@@ -84,6 +125,14 @@ class ServiceSettings(BaseSettings):
+         # Somente o mapa explicito: nao le os.environ, .env nem /run/secrets por acidente.
+         return (init_settings,)
+ 
++    @field_validator("PORT", mode="before")
++    @classmethod
++    def _port_text(cls, v: object) -> object:
++        # Texto do ambiente so no formato canonico (paridade com o TS: ^\\d{1,5}$); o padrao e int.
++        if isinstance(v, str) and not re.fullmatch(r"\d{1,5}", v):
++            raise ValueError("porta invalida")
++        return v
++
+     @field_validator("REQUEST_TIMEOUT", mode="before")
+     @classmethod
+     def _duration(cls, v: object) -> int:
+diff --git a/packages/config-py/tests/test_config.py b/packages/config-py/tests/test_config.py
+index 1341543..4a7ab2c 100644
+--- a/packages/config-py/tests/test_config.py
++++ b/packages/config-py/tests/test_config.py
+@@ -1,15 +1,20 @@
++import json
+ import os
+ import stat
+ from pathlib import Path
+ 
+ import pytest
+ from nucleos_config import (
++    MAX_SECRET_BYTES,
+     ConfigError,
+     SecretFileError,
++    ServiceSettings,
+     forbidden_secret_env,
++    is_secret_name,
+     load_settings,
+     read_secret_file,
+ )
++from pydantic import ValidationError
+ 
+ SENTINEL = "SENTINELA_valor_que_nunca_deve_vazar_9f3a"
+ 
+@@ -127,3 +132,96 @@ def test_unreadable_secret_file_reports_without_path(tmp_path: Path) -> None:
+         load_settings({"DATABASE_PASSWORD_FILE": secret_file(tmp_path, mode=0o666)})
+     assert keys(ei.value) == ["DATABASE_PASSWORD_FILE"]
+     assert str(tmp_path) not in str(ei.value)
++
++
++# ------------------------------------------------ REVIEW-003/004/006/007/009
++def test_other_owner_is_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++    path = secret_file(tmp_path)
++    real = os.getuid()
++    monkeypatch.setattr(os, "getuid", lambda: real + 1)
++    with pytest.raises(SecretFileError) as ei:
++        read_secret_file(path)
++    assert ei.value.reason == "dono-diferente"
++
++
++def test_size_boundary(tmp_path: Path) -> None:
++    at = tmp_path / "no-limite"
++    at.write_text("a" * MAX_SECRET_BYTES)
++    at.chmod(0o400)
++    assert len(read_secret_file(str(at)).reveal()) == MAX_SECRET_BYTES
++    over = tmp_path / "acima"
++    over.write_text("a" * (MAX_SECRET_BYTES + 1))
++    over.chmod(0o400)
++    with pytest.raises(SecretFileError) as ei:
++        read_secret_file(str(over))
++    assert ei.value.reason == "grande-demais"
++
++
++def test_invalid_utf8_is_unreadable(tmp_path: Path) -> None:
++    p = tmp_path / "bin"
++    p.write_bytes(bytes([0x61, 0xFF, 0xFE, 0x62]))
++    p.chmod(0o400)
++    with pytest.raises(SecretFileError) as ei:
++        read_secret_file(str(p))
++    assert ei.value.reason == "ilegivel"
++
++
++@pytest.mark.parametrize(
++    "name",
++    [
++        "API_TOKEN",
++        "X_SECRET",
++        "DB_PASS",
++        "SECRET_KEY",
++        "AWS_SECRET_ACCESS_KEY",
++        "DBPASSWORD",
++        "A_DSN",
++    ],
++)
++def test_secret_names(name: str) -> None:
++    assert is_secret_name(name)
++
++
++@pytest.mark.parametrize(
++    "name",
++    [
++        "DATABASE_PASSWORD_FILE",
++        "SSH_KEY_PATH",
++        "OTEL_SERVICE_NAME",
++        "KEYBOARD",
++        "PORT",
++        "PASSTHROUGH",
++    ],
++)
++def test_non_secret_names(name: str) -> None:
++    assert not is_secret_name(name)
++
++
++def test_pydantic_errors_hide_input() -> None:
++    # Mutante: hide_input_in_errors removido. O erro cru do pydantic nao pode ecoar o valor.
++    with pytest.raises(ValidationError) as ei:
++        ServiceSettings.model_validate({"APP_ENV": f"x{SENTINEL}", "PORT": f"1{SENTINEL}"})
++    assert SENTINEL not in str(ei.value)
++    assert SENTINEL not in repr(ei.value)
++
++
++def test_shared_parity_table() -> None:
++    table = json.loads((Path(__file__).parents[2] / "config" / "paridade-casos.json").read_text())
++    assert len(table["casos"]) > 40
++    for case in table["casos"]:
++        message = ""
++        try:
++            load_settings(case["env"])
++        except ConfigError as exc:
++            message = str(exc)
++            accepted = False
++        else:
++            accepted = True
++        assert "SENT" not in message, case["caso"]
++        assert accepted == case["aceita"], case["caso"]
++
++
++def test_shell_pwd_is_not_a_secret() -> None:
++    assert not is_secret_name("PWD")
++    assert not is_secret_name("OLDPWD")
++    assert is_secret_name("X_PWD")
+diff --git a/packages/config/paridade-casos.json b/packages/config/paridade-casos.json
+new file mode 100644
+index 0000000..405fbdd
+--- /dev/null
++++ b/packages/config/paridade-casos.json
+@@ -0,0 +1,311 @@
++{
++ "descricao": "Tabela unica de casos (env => aceita/recusa) consumida por packages/config e packages/config-py (REVIEW-003)",
++ "casos": [
++  {
++   "caso": "vazio usa padroes",
++   "env": {},
++   "aceita": true
++  },
++  {
++   "caso": "porta minima",
++   "env": {
++    "PORT": "1"
++   },
++   "aceita": true
++  },
++  {
++   "caso": "porta maxima",
++   "env": {
++    "PORT": "65535"
++   },
++   "aceita": true
++  },
++  {
++   "caso": "porta comum",
++   "env": {
++    "PORT": "8080"
++   },
++   "aceita": true
++  },
++  {
++   "caso": "porta zero",
++   "env": {
++    "PORT": "0"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "porta acima do limite",
++   "env": {
++    "PORT": "65536"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "porta com espacos",
++   "env": {
++    "PORT": " 80 "
++   },
++   "aceita": false
++  },
++  {
++   "caso": "porta com sinal",
++   "env": {
++    "PORT": "+80"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "porta com underscore",
++   "env": {
++    "PORT": "1_000"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "porta decimal",
++   "env": {
++    "PORT": "80.0"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "porta texto",
++   "env": {
++    "PORT": "abc"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "duracao em segundos",
++   "env": {
++    "REQUEST_TIMEOUT": "30s"
++   },
++   "aceita": true
++  },
++  {
++   "caso": "duracao sem unidade",
++   "env": {
++    "REQUEST_TIMEOUT": "30"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "duracao abaixo do minimo",
++   "env": {
++    "REQUEST_TIMEOUT": "1ms"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "url postgres",
++   "env": {
++    "DATABASE_URL": "postgres://u@h:5432/db"
++   },
++   "aceita": true
++  },
++  {
++   "caso": "url postgresql",
++   "env": {
++    "DATABASE_URL": "postgresql://u@h/db"
++   },
++   "aceita": true
++  },
++  {
++   "caso": "url com sslmode",
++   "env": {
++    "DATABASE_URL": "postgres://u@h/db?sslmode=require"
++   },
++   "aceita": true
++  },
++  {
++   "caso": "url http",
++   "env": {
++    "DATABASE_URL": "http://h/db"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "url ftp",
++   "env": {
++    "DATABASE_URL": "ftp://h/x"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "url com senha",
++   "env": {
++    "DATABASE_URL": "postgres://u:p@h/db"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "url com password na query",
++   "env": {
++    "DATABASE_URL": "postgres://u@h/db?password=SENT"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "url com sslPassword na query",
++   "env": {
++    "DATABASE_URL": "postgres://u@h/db?sslPassword=SENT"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "url com passfile na query",
++   "env": {
++    "DATABASE_URL": "postgres://u@h/db?passfile=/x"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "url com token na query",
++   "env": {
++    "DATABASE_URL": "postgres://u@h/db?sslmode=require&token=SENT"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "url com apikey na query",
++   "env": {
++    "DATABASE_URL": "postgres://u@h/db?apikey=SENT"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "url invalida",
++   "env": {
++    "DATABASE_URL": "nao e url"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "APP_ENV desconhecido",
++   "env": {
++    "APP_ENV": "prod"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "staging sem banco",
++   "env": {
++    "APP_ENV": "staging"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "nome de segredo DB_PASS",
++   "env": {
++    "DB_PASS": "valor"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "nome de segredo SECRET_KEY",
++   "env": {
++    "SECRET_KEY": "valor"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "nome de segredo JWT_SECRET_KEY",
++   "env": {
++    "JWT_SECRET_KEY": "valor"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "nome de segredo AWS_SECRET_ACCESS_KEY",
++   "env": {
++    "AWS_SECRET_ACCESS_KEY": "valor"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "nome de segredo ACCESS_KEY",
++   "env": {
++    "ACCESS_KEY": "valor"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "nome de segredo API_TOKEN",
++   "env": {
++    "API_TOKEN": "valor"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "nome de segredo DB_PASSWORD",
++   "env": {
++    "DB_PASSWORD": "valor"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "nome de segredo STRIPE_SECRET",
++   "env": {
++    "STRIPE_SECRET": "valor"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "nome de segredo DB_DSN",
++   "env": {
++    "DB_DSN": "valor"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "nome de segredo DBPASSWORD",
++   "env": {
++    "DBPASSWORD": "valor"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "nome de segredo API_KEY",
++   "env": {
++    "API_KEY": "valor"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "nome de segredo X_PWD",
++   "env": {
++    "X_PWD": "valor"
++   },
++   "aceita": false
++  },
++  {
++   "caso": "nome legitimo SSH_KEY_PATH",
++   "env": {
++    "SSH_KEY_PATH": "x"
++   },
++   "aceita": true
++  },
++  {
++   "caso": "nome legitimo OTEL_SERVICE_NAME",
++   "env": {
++    "OTEL_SERVICE_NAME": "x"
++   },
++   "aceita": true
++  },
++  {
++   "caso": "nome legitimo KEYBOARD",
++   "env": {
++    "KEYBOARD": "x"
++   },
++   "aceita": true
++  },
++  {
++   "caso": "nome legitimo TOKENIZER_MODE",
++   "env": {
++    "TOKENIZER_MODE": "x"
++   },
++   "aceita": true
++  }
++ ]
++}
+\ No newline at end of file
+diff --git a/packages/config/src/config.test.ts b/packages/config/src/config.test.ts
+index 080c585..a9a7022 100644
+--- a/packages/config/src/config.test.ts
++++ b/packages/config/src/config.test.ts
+@@ -1,9 +1,18 @@
+ import assert from "node:assert/strict";
+-import { chmodSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
++import { chmodSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+ import { tmpdir } from "node:os";
+ import { join } from "node:path";
+-import { test } from "node:test";
+-import { ConfigError, Secret, forbiddenSecretEnv, loadApiConfig, readSecretFile } from "./index.js";
++import { mock, test } from "node:test";
++import {
++  ConfigError,
++  MAX_SECRET_BYTES,
++  Secret,
++  SecretFileError,
++  forbiddenSecretEnv,
++  isSecretName,
++  loadApiConfig,
++  readSecretFile,
++} from "./index.js";
+ 
+ const SENTINEL = "SENTINELA_valor_que_nunca_deve_vazar_9f3a";
+ 
+@@ -138,3 +147,69 @@ test("Secret nunca se serializa", () => {
+     assert.equal(s.reveal(), SENTINEL);
+   });
+ });
++
++// ---------------------------------------------------------------- REVIEW-003/004/006/007/009
++test("dono diferente do processo e recusado (mutante: checagem de dono removida)", () => {
++  withDir((dir) => {
++    const p = secretFile(dir);
++    const real = process.getuid?.() ?? 0;
++    const m = mock.method(process as { getuid: () => number }, "getuid", () => real + 1);
++    try {
++      assert.throws(() => readSecretFile(p), (e: unknown) => e instanceof SecretFileError && e.reason === "dono-diferente");
++    } finally {
++      m.mock.restore();
++    }
++  });
++});
++
++test("limite exato de tamanho aceito; um byte a mais recusado", () => {
++  withDir((dir) => {
++    const at = join(dir, "no-limite");
++    writeFileSync(at, "a".repeat(MAX_SECRET_BYTES), { mode: 0o400 });
++    assert.equal(readSecretFile(at).reveal().length, MAX_SECRET_BYTES);
++    const over = join(dir, "acima");
++    writeFileSync(over, "a".repeat(MAX_SECRET_BYTES + 1), { mode: 0o400 });
++    assert.throws(() => readSecretFile(over), (e: unknown) => e instanceof SecretFileError && e.reason === "grande-demais");
++  });
++});
++
++test("arquivo com bytes UTF-8 invalidos e ilegivel (paridade com Python)", () => {
++  withDir((dir) => {
++    const p = join(dir, "bin");
++    writeFileSync(p, Buffer.from([0x61, 0xff, 0xfe, 0x62]), { mode: 0o400 });
++    assert.throws(() => readSecretFile(p), (e: unknown) => e instanceof SecretFileError && e.reason === "ilegivel");
++  });
++});
++
++test("nomes de segredo por token e sufixo; *_FILE e *_PATH permitidos", () => {
++  for (const n of ["API_TOKEN", "X_SECRET", "DB_PASS", "SECRET_KEY", "AWS_SECRET_ACCESS_KEY", "DBPASSWORD", "A_DSN"]) {
++    assert.ok(isSecretName(n), n);
++  }
++  for (const n of ["DATABASE_PASSWORD_FILE", "SSH_KEY_PATH", "OTEL_SERVICE_NAME", "KEYBOARD", "PORT", "PASSTHROUGH"]) {
++    assert.ok(!isSecretName(n), n);
++  }
++});
++
++test("tabela de paridade compartilhada com config-py", () => {
++  const url = new URL("../paridade-casos.json", import.meta.url);
++  const { casos } = JSON.parse(readFileSync(url, "utf8")) as {
++    casos: { caso: string; env: Record<string, string>; aceita: boolean }[];
++  };
++  assert.ok(casos.length > 40);
++  for (const c of casos) {
++    let aceitou = true;
++    try {
++      loadApiConfig(c.env);
++    } catch (e) {
++      assert.ok(e instanceof ConfigError, c.caso);
++      aceitou = false;
++      assert.ok(!e.message.includes("SENT"), `${c.caso}: vazou`);
++    }
++    assert.equal(aceitou, c.aceita, c.caso);
++  }
++});
++
++test("PWD e OLDPWD do shell nao sao tratados como segredo", () => {
++  assert.ok(!isSecretName("PWD") && !isSecretName("OLDPWD") && isSecretName("X_PWD"));
++  assert.deepEqual(forbiddenSecretEnv({ PWD: "/home/x", OLDPWD: "/", DB_PWD: "x" }), ["DB_PWD"]);
++});
+diff --git a/packages/config/src/index.ts b/packages/config/src/index.ts
+index 012e80c..73e9572 100644
+--- a/packages/config/src/index.ts
++++ b/packages/config/src/index.ts
+@@ -1,4 +1,5 @@
+-export { ConfigError, type ConfigIssue, forbiddenSecretEnv, loadSecret, parseConfig } from "./load.js";
++export { ConfigError, type ConfigIssue, forbiddenSecretEnv,
++  isSecretName, loadSecret, parseConfig } from "./load.js";
+ export { APP_ENVS, type ApiConfig, type AppEnv, loadApiConfig } from "./api.js";
+ export {
+   absolutePathSchema,
+diff --git a/packages/config/src/load.ts b/packages/config/src/load.ts
+index afad7e0..6d990aa 100644
+--- a/packages/config/src/load.ts
++++ b/packages/config/src/load.ts
+@@ -23,16 +23,51 @@ export class ConfigError extends Error {
+   }
+ }
+ 
++const SECRET_TOKENS = new Set([
++  "PASS",
++  "PASSWORD",
++  "PASSWD",
++  "PWD",
++  "SECRET",
++  "TOKEN",
++  "KEY",
++  "APIKEY",
++  "CREDENTIAL",
++  "CREDENTIALS",
++  "DSN",
++]);
++const SECRET_SUFFIXES = [
++  "PASSWORD",
++  "PASSWD",
++  "SECRET",
++  "TOKEN",
++  "APIKEY",
++  "PRIVATEKEY",
++  "CREDENTIAL",
++  "CREDENTIALS",
++];
++
+ /**
+- * Nomes que indicam segredo passado diretamente por ambiente (proibido pelo ADR-020 item 1).
+- * Variaveis terminadas em `_FILE` (caminho) sao o formato permitido.
++ * Nome de variavel que indica segredo literal (ADR-020 item 1): algum token separado por `_`
++ * (PASS, SECRET, TOKEN, KEY, DSN, ...) ou sufixo colado (DBPASSWORD). Nomes terminados em
++ * `_FILE`/`_PATH` (caminho) sao o formato permitido. Mesma regra de config-py e deploy-lib.mjs.
+  */
+-const SECRET_NAME = /(PASSWORD|PASSWD|SECRET|TOKEN|API_?KEY|PRIVATE_?KEY|CREDENTIAL)S?$/i;
++/** Variaveis POSIX/shell que nao carregam segredo e colidem com os tokens. */
++const NOT_SECRET = new Set(["PWD", "OLDPWD"]);
++
++export function isSecretName(name: string): boolean {
++  const up = name.toUpperCase().replace(/[.-]/g, "_");
++  if (NOT_SECRET.has(up)) return false;
++  if (/_(FILE|PATH)$/.test(up)) return false;
++  if (up.split("_").some((t) => SECRET_TOKENS.has(t))) return true;
++  const compact = up.replaceAll("_", "");
++  return SECRET_SUFFIXES.some((suf) => compact.endsWith(suf));
++}
+ 
+ /** Devolve as variaveis do ambiente cujo NOME parece carregar um segredo literal. */
+ export function forbiddenSecretEnv(env: Readonly<Record<string, string | undefined>>): string[] {
+   return Object.entries(env)
+-    .filter(([k, v]) => v !== undefined && v !== "" && SECRET_NAME.test(k))
++    .filter(([k, v]) => v !== undefined && v !== "" && isSecretName(k))
+     .map(([k]) => k)
+     .sort();
+ }
+diff --git a/packages/config/src/primitives.ts b/packages/config/src/primitives.ts
+index 82074c0..60c4ac5 100644
+--- a/packages/config/src/primitives.ts
++++ b/packages/config/src/primitives.ts
+@@ -1,5 +1,12 @@
+ import { z } from "zod";
+ 
++const SECRET_QUERY = new Set(["password", "sslpassword", "passfile", "pass", "passwd", "pwd", "token", "apikey", "api_key", "secret", "credential", "credentials"]);
++
++/** Parametro de query que carrega (ou aponta para) credencial: recusado em DATABASE_URL e similares. */
++function isSecretQueryParam(name: string): boolean {
++  return SECRET_QUERY.has(name.toLowerCase());
++}
++
+ /** Porta TCP valida (1-65535), a partir de texto de variavel de ambiente. */
+ export const portSchema = z
+   .string()
+@@ -42,12 +49,27 @@ export function serviceUrl(protocols: readonly string[]): z.ZodType<string, stri
+   return z
+     .string()
+     .max(2048)
+-    .refine((v) => URL.canParse(v), "url invalida")
+-    .refine((v) => {
++    .superRefine((v, ctx) => {
++      // Uma unica passada com retorno antecipado: refinamentos encadeados continuariam rodando
++      // com URL invalida e `new URL` lancaria uma excecao que nao e ZodError.
++      if (!URL.canParse(v)) {
++        ctx.addIssue({ code: "custom", message: "url invalida" });
++        return;
++      }
+       const u = new URL(v);
+-      return protocols.includes(u.protocol.replace(/:$/, ""));
+-    }, "protocolo nao permitido")
+-    .refine((v) => new URL(v).password === "", "senha embutida na url e proibida (use *_FILE)");
++      if (!protocols.includes(u.protocol.replace(/:$/, ""))) {
++        ctx.addIssue({ code: "custom", message: "protocolo nao permitido" });
++        return;
++      }
++      if (u.password !== "") {
++        ctx.addIssue({ code: "custom", message: "senha embutida na url e proibida (use *_FILE)" });
++        return;
++      }
++      if ([...u.searchParams.keys()].some(isSecretQueryParam)) {
++        ctx.addIssue({ code: "custom", message: "credencial na query da url e proibida (use *_FILE)" });
++        return;
++      }
++    });
+ }
+ 
+ /** Caminho absoluto de arquivo (sem NUL nem `..`), para variaveis `*_FILE`. */
+diff --git a/packages/config/src/secret.ts b/packages/config/src/secret.ts
+index 290d720..8a955ab 100644
+--- a/packages/config/src/secret.ts
++++ b/packages/config/src/secret.ts
+@@ -1,4 +1,4 @@
+-import { constants, lstatSync, readFileSync } from "node:fs";
++import { closeSync, constants, fstatSync, openSync, readSync } from "node:fs";
+ 
+ /** Tamanho maximo aceito para um arquivo de segredo (evita ler arquivo arbitrario grande). */
+ export const MAX_SECRET_BYTES = 16 * 1024;
+@@ -49,34 +49,62 @@ export type SecretFileReason =
+   | "grande-demais"
+   | "ilegivel";
+ 
++function openNoFollow(path: string): number {
++  try {
++    // O_NOFOLLOW: link simbolico no ultimo componente => ELOOP. O_NONBLOCK: nao trava em FIFO.
++    // (o Node ja abre com close-on-exec)
++    return openSync(
++      path,
++      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
++    );
++  } catch (e) {
++    const code = (e as NodeJS.ErrnoException).code;
++    if (code === "ELOOP") throw new SecretFileError("link-simbolico");
++    if (code === "ENOENT" || code === "ENOTDIR") throw new SecretFileError("ausente");
++    throw new SecretFileError("ilegivel");
++  }
++}
++
+ /**
+- * Le um segredo de arquivo com checagens (ADR-020, item 1): arquivo regular (sem link simbolico),
+- * sem nenhuma permissao para grupo/outros (mascara 0o077), do mesmo dono do processo, nao vazio
+- * e com tamanho limitado. Remove um unico `\n` final (formato comum de arquivos criados por shell).
++ * Le um segredo de arquivo (ADR-020, item 1). Abre primeiro (`O_NOFOLLOW`) e confere tudo por
++ * `fstat` no descritor aberto, sem janela entre checagem e leitura: arquivo regular, sem
++ * permissoes para grupo/outros (mascara 0o077), do mesmo dono do processo, nao vazio, no maximo
++ * `MAX_SECRET_BYTES` (a leitura e limitada a esse tamanho + 1), UTF-8 valido. Remove um `\n` final.
+  */
+ export function readSecretFile(path: string): Secret {
+-  let st;
++  const fd = openNoFollow(path);
+   try {
+-    st = lstatSync(path);
+-  } catch {
+-    throw new SecretFileError("ausente");
+-  }
+-  if (st.isSymbolicLink()) throw new SecretFileError("link-simbolico");
+-  if (!st.isFile()) throw new SecretFileError("nao-e-arquivo-regular");
+-  if ((st.mode & 0o077) !== 0) throw new SecretFileError("permissoes-abertas");
+-  if (typeof process.getuid === "function" && st.uid !== process.getuid()) {
+-    throw new SecretFileError("dono-diferente");
+-  }
+-  if (st.size === 0) throw new SecretFileError("vazio");
+-  if (st.size > MAX_SECRET_BYTES) throw new SecretFileError("grande-demais");
+-  let raw: string;
+-  try {
+-    // O_NOFOLLOW fecha a janela entre lstat e leitura (troca por link simbolico).
+-    raw = readFileSync(path, { encoding: "utf8", flag: constants.O_RDONLY | constants.O_NOFOLLOW });
+-  } catch {
+-    throw new SecretFileError("ilegivel");
++    const st = fstatSync(fd);
++    if (!st.isFile()) throw new SecretFileError("nao-e-arquivo-regular");
++    if ((st.mode & 0o077) !== 0) throw new SecretFileError("permissoes-abertas");
++    if (typeof process.getuid === "function" && st.uid !== process.getuid()) {
++      throw new SecretFileError("dono-diferente");
++    }
++    if (st.size === 0) throw new SecretFileError("vazio");
++    if (st.size > MAX_SECRET_BYTES) throw new SecretFileError("grande-demais");
++    const buf = Buffer.alloc(MAX_SECRET_BYTES + 1);
++    let total = 0;
++    try {
++      for (;;) {
++        const n = readSync(fd, buf, total, buf.length - total, null);
++        if (n === 0) break;
++        total += n;
++        if (total > MAX_SECRET_BYTES) throw new SecretFileError("grande-demais");
++      }
++    } catch (e) {
++      if (e instanceof SecretFileError) throw e;
++      throw new SecretFileError("ilegivel");
++    }
++    let raw: string;
++    try {
++      raw = new TextDecoder("utf-8", { fatal: true }).decode(buf.subarray(0, total));
++    } catch {
++      throw new SecretFileError("ilegivel");
++    }
++    const value = raw.endsWith("\n") ? raw.slice(0, -1) : raw;
++    if (value.length === 0) throw new SecretFileError("vazio");
++    return new Secret(value);
++  } finally {
++    closeSync(fd);
+   }
+-  const value = raw.endsWith("\n") ? raw.slice(0, -1) : raw;
+-  if (value.length === 0) throw new SecretFileError("vazio");
+-  return new Secret(value);
+ }
+````
+
+### Blocos "Validacao" de `CLAUDE.md`, `AGENTS.md` e `.agents/rules/project-instructions.md` (commit `93c7049`, REVIEW-011)
+
+Sao as mesmas 5 linhas nos tres arquivos (CRLF preservado); por serem de instrucoes e nao de `documentacoes/`/`lessons/`, seguem a regra de diffs:
+
+````diff
+diff --git a/.agents/rules/project-instructions.md b/.agents/rules/project-instructions.md
+index 9977b14..28b2fd3 100755
+--- a/.agents/rules/project-instructions.md
++++ b/.agents/rules/project-instructions.md
+@@ -180,6 +180,11 @@ estas regras e as secoes anteriores deste arquivo.
+   alvos (`make lint-ts`, `lint-py`, `lint`, `test-ts`, `test-py`, `build`) mais varreduras de
+   seguranca; `make lint-workflows` e `make ci-regressao` validam o proprio CI localmente. A
+   branch protection e manual (ver `documentacoes/engenharia/2026-10-26-fnd-005-ci-bloqueante.md`).
++  Configuracao e ambientes (FND-006): `make lint` inclui `make lint-deploy` (overlays de staging/prod
++  sem segredo literal, com digest e hardening); `make test-ambientes` (requer Docker e `make build`)
++  ensaia config invalida, deploy/rollback e ausencia de segredo em `docker inspect`/env/logs em
++  containers efemeros em `127.0.0.1`; ainda nao roda no CI. Nao ha ambiente de staging declarado:
++  deploy real fica BLOCKED (ver `documentacoes/runbooks/deploy-staging-producao.md`).
+   Entrega somente de documentacao registra NA com justificativa.
+ - **Dados:** nao ha banco nem servico de producao declarado. Nenhum teste ou script acessa
+   banco ou servico real sem um ambiente isolado declarado nesta secao. Ambiente isolado de PoC
+diff --git a/AGENTS.md b/AGENTS.md
+index 2d3cbe4..3dbbc6a 100755
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -197,6 +197,11 @@ estas regras e as secoes anteriores deste arquivo.
+   alvos (`make lint-ts`, `lint-py`, `lint`, `test-ts`, `test-py`, `build`) mais varreduras de
+   seguranca; `make lint-workflows` e `make ci-regressao` validam o proprio CI localmente. A
+   branch protection e manual (ver `documentacoes/engenharia/2026-10-26-fnd-005-ci-bloqueante.md`).
++  Configuracao e ambientes (FND-006): `make lint` inclui `make lint-deploy` (overlays de staging/prod
++  sem segredo literal, com digest e hardening); `make test-ambientes` (requer Docker e `make build`)
++  ensaia config invalida, deploy/rollback e ausencia de segredo em `docker inspect`/env/logs em
++  containers efemeros em `127.0.0.1`; ainda nao roda no CI. Nao ha ambiente de staging declarado:
++  deploy real fica BLOCKED (ver `documentacoes/runbooks/deploy-staging-producao.md`).
+   Entrega somente de documentacao registra NA com justificativa.
+ - **Dados:** nao ha banco nem servico de producao declarado. Nenhum teste ou script acessa
+   banco ou servico real sem um ambiente isolado declarado nesta secao. Ambiente isolado de PoC
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 5ca95c1..0b5f16c 100755
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -187,6 +187,11 @@ estas regras e as secoes anteriores deste arquivo.
+   alvos (`make lint-ts`, `lint-py`, `lint`, `test-ts`, `test-py`, `build`) mais varreduras de
+   seguranca; `make lint-workflows` e `make ci-regressao` validam o proprio CI localmente. A
+   branch protection e manual (ver `documentacoes/engenharia/2026-10-26-fnd-005-ci-bloqueante.md`).
++  Configuracao e ambientes (FND-006): `make lint` inclui `make lint-deploy` (overlays de staging/prod
++  sem segredo literal, com digest e hardening); `make test-ambientes` (requer Docker e `make build`)
++  ensaia config invalida, deploy/rollback e ausencia de segredo em `docker inspect`/env/logs em
++  containers efemeros em `127.0.0.1`; ainda nao roda no CI. Nao ha ambiente de staging declarado:
++  deploy real fica BLOCKED (ver `documentacoes/runbooks/deploy-staging-producao.md`).
+   Entrega somente de documentacao registra NA com justificativa.
+ - **Dados:** nao ha banco nem servico de producao declarado. Nenhum teste ou script acessa
+   banco ou servico real sem um ambiente isolado declarado nesta secao. Ambiente isolado de PoC
+````
+
+(Os `\r` foram removidos apenas desta exibicao.) Arquivos de `documentacoes/` e `lessons/` da rodada ficam fora do patch para evitar recursao: runbook, lesson 11 (exemplo Python tipado) e este documento.
