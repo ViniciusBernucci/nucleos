@@ -3768,3 +3768,89 @@ index 599cf81..26f9396 100644
      assert record["service"] == "tool-gateway"
      assert SENTINEL not in out.getvalue()
 ```
+
+## Correcao rodada 2 (commit 3, sobre 6217fd4)
+
+Patch unificado do terceiro commit (BUG-001; exclui `documentacoes/`).
+
+```diff
+diff --git a/packages/observability-py/src/nucleos_observability/http.py b/packages/observability-py/src/nucleos_observability/http.py
+index 14c3629..1394cbd 100644
+--- a/packages/observability-py/src/nucleos_observability/http.py
++++ b/packages/observability-py/src/nucleos_observability/http.py
+@@ -53,6 +53,9 @@ def _run_checks(kit: Observability, readiness: Mapping[str, Callable[[], bool]])
+     return ready
+ 
+ 
++_Reply = tuple[int, dict[str, str] | None, dict[str, str] | None]
++
++
+ def make_handler(
+     kit: Observability,
+     service: str,
+@@ -103,7 +106,7 @@ def make_handler(
+             route = path if path in PROBES else None
+             try:
+                 with use_context(RequestContext(correlation_id=correlation_id, span=span)):
+-                    status = self._dispatch(method, route, correlation_id)
++                    status, body, extra = self._dispatch(method, route)
+                     duration_ms = (time.perf_counter() - started) * 1000
+                     span.update_name(f"HTTP {method} {route or 'unmatched'}")
+                     span.set_attribute("http.route", route or "unmatched")
+@@ -122,26 +125,28 @@ def make_handler(
+                             "duration_ms": round(duration_ms),
+                         },
+                     )
++                    # Resposta enviada SO depois de metricas/log: quem recebe a resposta ja encontra o
++                    # registro escrito (sem corrida entre cliente e thread do handler).
++                    self._send(status, body, correlation_id, extra)
+             except Exception:
+                 span.set_status(StatusCode.ERROR)
+                 raise
+             finally:
+                 span.end()
+ 
+-        def _dispatch(self, method: str, route: str | None, correlation_id: str) -> int:
++        def _dispatch(self, method: str, route: str | None) -> _Reply:
+             if route is None:
+-                return self._send(404, None, correlation_id)
++                return 404, None, None
+             if method != "GET":
+-                return self._send(405, None, correlation_id, {"allow": "GET"})
++                return 405, None, {"allow": "GET"}
+             if route == "/healthz":
+-                return self._send(200, {"status": "ok", "service": service}, correlation_id)
++                return 200, {"status": "ok", "service": service}, None
+             ready = _run_checks(kit, readiness)
+-            body = {"status": "ready" if ready else "not_ready", "service": service}
+-            return self._send(200 if ready else 503, body, correlation_id)
++            return 200 if ready else 503, {"status": "ready" if ready else "not_ready", "service": service}, None
+ 
+         def _send(
+             self, code: int, body: dict[str, str] | None, correlation_id: str, extra: dict[str, str] | None = None
+-        ) -> int:
++        ) -> None:
+             payload = json.dumps(body).encode() if body is not None else b""
+             self.send_response(code)
+             self.send_header(CORRELATION_HEADER, correlation_id)
+@@ -154,7 +159,6 @@ def make_handler(
+             self.end_headers()
+             if self.command != "HEAD":
+                 self.wfile.write(payload)
+-            return code
+ 
+         def log_message(self, format: str, *args: object) -> None:  # noqa: A002 - log padrao silenciado
+             return
+diff --git a/packages/observability-py/tests/test_observability.py b/packages/observability-py/tests/test_observability.py
+index bfaedc2..cb13546 100644
+--- a/packages/observability-py/tests/test_observability.py
++++ b/packages/observability-py/tests/test_observability.py
+@@ -291,7 +291,6 @@ def test_header_server_neutro_e_metodos_nao_get_com_red_e_log() -> None:
+             assert err.value.code == code
+             assert len(err.value.headers["x-request-id"]) == 36
+             assert "python" not in err.value.headers["Server"].lower()
+-        time.sleep(0.05)
+         records = [json.loads(line) for line in out.getvalue().splitlines()]
+         assert [r["data"]["method"] for r in records if r["event"] == "http.request"][-3:] == ["POST", "DELETE", "PUT"]
+     finally:
+```

@@ -291,7 +291,6 @@ def test_header_server_neutro_e_metodos_nao_get_com_red_e_log() -> None:
             assert err.value.code == code
             assert len(err.value.headers["x-request-id"]) == 36
             assert "python" not in err.value.headers["Server"].lower()
-        time.sleep(0.05)
         records = [json.loads(line) for line in out.getvalue().splitlines()]
         assert [r["data"]["method"] for r in records if r["event"] == "http.request"][-3:] == ["POST", "DELETE", "PUT"]
     finally:

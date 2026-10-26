@@ -101,6 +101,25 @@ Ambiente: Node 24.22.1, uv, Python 3.13.17 (`PATH` com `~/.local/opt/node-v24.22
 
 Correcao do AC-2: considerado provado somente nas classes listadas acima (e nas anteriores); nao ha afirmacao alem disso. Nao reexecutado por revisor independente.
 
+## Correcao rodada 2 (BUG-001 do QA `documentacoes/reviews/2026-10-25-qa-fnd-009.md`)
+
+**Sintoma:** a suite Python falhava de forma intermitente (4 de 20 execucoes no QA): `test_header_server_neutro_e_metodos_nao_get_com_red_e_log` (observability-py) e `test_healthz_readyz_correlation_e_sem_vazamento` (tenant-runtime).
+
+**Causa raiz (reproduzida):** em `nucleos_observability/http.py` o handler enviava a resposta HTTP (`_send` dentro de `_dispatch`) ANTES de registrar metrica e log. O cliente de teste, ao receber a resposta, lia o stream de log imediatamente; a thread do handler (ThreadingHTTPServer) ainda nao tinha escrito o registro. O teste do observability-py mascarava a corrida com `time.sleep(0.05)` (insuficiente sob carga); o do tenant-runtime nao tinha espera alguma. Reproducao ANTES da correcao: suite `packages/observability-py` + `services/tenant-runtime` em loop com 4 processos de carga de CPU (nproc=4): **5 falhas em 30 execucoes**.
+
+**Correcao (deterministica, sem enfraquecer assercoes):** `_dispatch` agora so decide `(status, corpo, cabecalhos)`; `_handle` registra RED/span/log e SO ENTAO chama `_send`. Assim, quando o cliente recebe a resposta, o registro ja foi escrito (happens-before). O `time.sleep(0.05)` foi removido do teste; nenhuma assercao foi alterada. Consequencia: `duration_ms` mede o processamento ate a decisao da resposta, sem o tempo de escrita no socket (aceitavel e documentado aqui). Alternativa descartada: polling/sleep no teste, que apenas esconderia a ordem real (log depois da resposta).
+
+**Validacao da rodada 2 (reais):**
+
+| Verificacao | Resultado |
+|---|---|
+| Reproducao antes (subset py, carga 4x CPU) | 5/30 falhas |
+| Depois, subset py com carga 4x CPU | 0/60 falhas |
+| Depois, `uv run --frozen --all-packages pytest` completo, 50 execucoes consecutivas, sem carga | 0/50 falhas |
+| `make lint` / `make test` | OK; pytest 18 passed; turbo 12/12 |
+
+Notas N1..N3 do QA permanecem conhecidas e nao tratadas aqui; itens ADIADOS inalterados. Lessons: nao aplicavel (mesma justificativa acima).
+
 ## Impactos, riscos e rollback
 
 - `GET /healthz` mantem o formato anterior; `/readyz` e novo. Log JSON agora vai a stdout nos servicos (probes em nivel `debug`, ocultos por padrao).
@@ -114,7 +133,9 @@ Base `4be3ce391a51b9e24cd85f7c894d841636dcd50f`.
 1. `e383f8884006b8e3a0b4234476edd607388aad0d` - `feat(observabilidade): baseline de logging, redacao, OTel e sondas (FND-009)`. **Historia:** este commit e resultado de um `git commit --amend` de `b7ec5f3` (reflog: `b7ec5f3` -> `e383f88`); o amend alterou somente `documentacoes/` (o patch de codigo nao mudou). `b7ec5f3` nao esta mais na branch.
 2. Commit da correcao rodada 1 (sem amend, sobre `e383f88`): mensagem `fix(observabilidade): correcoes da rodada 1 de review (FND-009)`; o SHA nao pode constar no proprio commit e e reportado ao coordenador (consulte `git log`).
 
-Patches de ambos: [diffs](2026-10-25-fnd-009-baseline-observabilidade-diffs.md) (a secao "Correcao rodada 1" contem o diff do commit 2; a escrita em `documentacoes/` nao entra no patch).
+3. Commit da correcao rodada 2 (sem amend, sobre `6217fd4`): mensagem `fix(observabilidade): resposta HTTP apos o log, elimina corrida nos testes (FND-009)`; SHA reportado ao coordenador (consulte `git log`).
+
+Patches (secoes "Correcao rodada 1" e "Correcao rodada 2" para os commits 2 e 3): [diffs](2026-10-25-fnd-009-baseline-observabilidade-diffs.md) (a secao "Correcao rodada 1" contem o diff do commit 2; a escrita em `documentacoes/` nao entra no patch).
 
 ## Lessons
 
