@@ -3,6 +3,7 @@
 # Uso: scripts/smoke.sh [--runtime] [--observability]   Falha (rc != 0) se algum item falhar.
 set -uo pipefail
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
+[ -r "$DIR/.env.local" ] || { echo "FALHA: .env.local ausente; rode 'make compose-up'" >&2; exit 2; }
 set -a; . "$DIR/.env.local"; set +a
 DC=(docker compose --env-file "$DIR/.env.local" -f "$DIR/compose.dev.yml" --profile core --profile runtime --profile observability)
 H=127.0.0.1

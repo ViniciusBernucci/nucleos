@@ -32,7 +32,7 @@ x-app-python: &app-python
   working_dir: /workspace
   networks: [interna]
   depends_on: *app-deps
-  volumes: ["../../:/workspace:ro"]
+  volumes: ["../../:/workspace:ro", "/dev/null:/workspace/infrastructure/docker/.env.local:ro"]
 
 services:
   # ---------------------------------------------------------------- perfil core
@@ -159,7 +159,7 @@ services:
   # Requer `make build` previo (dist/) e `make setup` (node_modules). Nao publicam portas: so via proxy.
   web:
     <<: *app-node
-    volumes: ["../../:/workspace"]
+    volumes: ["../../:/workspace:ro", "../../apps/web:/workspace/apps/web", "/dev/null:/workspace/infrastructure/docker/.env.local:ro"]
     working_dir: /workspace/apps/web
     environment: {<<: *app-env, PORT: "3000"}
     command: ["node", "node_modules/next/dist/bin/next", "dev", "-H", "0.0.0.0", "-p", "3000"]
@@ -172,7 +172,7 @@ services:
 
   api:
     <<: *app-node
-    volumes: ["../../:/workspace:ro"]
+    volumes: ["../../:/workspace:ro", "/dev/null:/workspace/infrastructure/docker/.env.local:ro"]
     environment: {<<: *app-env, PORT: "3001"}
     command: ["node", "--watch", "apps/api/dist/main.js"]
     healthcheck:
@@ -183,7 +183,7 @@ services:
 
   tenant-provisioner:
     <<: *app-node
-    volumes: ["../../:/workspace:ro"]
+    volumes: ["../../:/workspace:ro", "/dev/null:/workspace/infrastructure/docker/.env.local:ro"]
     environment: {<<: *app-env, PORT: "3002"}
     command: ["node", "--watch", "apps/tenant-provisioner/dist/main.js"]
     healthcheck:

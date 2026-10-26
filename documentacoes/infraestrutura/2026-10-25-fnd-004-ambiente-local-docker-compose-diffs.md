@@ -621,3 +621,75 @@ index 0000000..ffbf867
 @@ -0,0 +1 @@
 +Arquivo ficticio de seed (FND-004). Conteudo deterministico, sem dados reais.
 ```
+
+## Correcao rodada 1 (2026-10-26)
+
+Diff unificado do commit de correcao sobre `023da3dacb13ba8770b768bf6435419659eaf1aa` (README, compose, smoke.sh; sem `documentacoes/`). SHA no retorno ao coordenador.
+
+```diff
+diff --git a/infrastructure/docker/README.md b/infrastructure/docker/README.md
+index 50f7c6d..9cdce90 100644
+--- a/infrastructure/docker/README.md
++++ b/infrastructure/docker/README.md
+@@ -3,6 +3,8 @@
+ Compose de desenvolvimento (FND-004): `compose.dev.yml`, scripts em `scripts/`. Dockerfiles de producao: ISO-007/RUN-002.
+ 
+ - `make compose-up [PERFIS="runtime observability"]`, `make compose-smoke`, `make compose-down`, `make compose-reset`.
++- Equivalencia do AC-1 do ticket (decisao a registrar pelo coordenador): **AC-1 := `make compose-up`** (perfil core; `PERFIS=...` para runtime/observability). `make up` permanece o da FND-001.
+ - `make up` (FND-001) continua rodando os componentes localmente; nao use junto com o perfil `runtime` (portas de app distintas no host: o perfil runtime so publica o proxy).
+ - Segredos descartaveis: `scripts/gerar-segredos.sh` (gera `.env.local`, ignorado pelo git).
+ - Detalhes e validacoes: `documentacoes/infraestrutura/2026-10-25-fnd-004-ambiente-local-docker-compose.md`.
++- Apps do perfil `runtime`: repo montado somente leitura (web tem escrita so em `apps/web`) e `.env.local` mascarado por `/dev/null` (apps nao recebem segredos do Compose).
+diff --git a/infrastructure/docker/compose.dev.yml b/infrastructure/docker/compose.dev.yml
+index f8f1d2c..4e687fd 100644
+--- a/infrastructure/docker/compose.dev.yml
++++ b/infrastructure/docker/compose.dev.yml
+@@ -32,7 +32,7 @@ x-app-python: &app-python
+   working_dir: /workspace
+   networks: [interna]
+   depends_on: *app-deps
+-  volumes: ["../../:/workspace:ro"]
++  volumes: ["../../:/workspace:ro", "/dev/null:/workspace/infrastructure/docker/.env.local:ro"]
+ 
+ services:
+   # ---------------------------------------------------------------- perfil core
+@@ -159,7 +159,7 @@ services:
+   # Requer `make build` previo (dist/) e `make setup` (node_modules). Nao publicam portas: so via proxy.
+   web:
+     <<: *app-node
+-    volumes: ["../../:/workspace"]
++    volumes: ["../../:/workspace:ro", "../../apps/web:/workspace/apps/web", "/dev/null:/workspace/infrastructure/docker/.env.local:ro"]
+     working_dir: /workspace/apps/web
+     environment: {<<: *app-env, PORT: "3000"}
+     command: ["node", "node_modules/next/dist/bin/next", "dev", "-H", "0.0.0.0", "-p", "3000"]
+@@ -172,7 +172,7 @@ services:
+ 
+   api:
+     <<: *app-node
+-    volumes: ["../../:/workspace:ro"]
++    volumes: ["../../:/workspace:ro", "/dev/null:/workspace/infrastructure/docker/.env.local:ro"]
+     environment: {<<: *app-env, PORT: "3001"}
+     command: ["node", "--watch", "apps/api/dist/main.js"]
+     healthcheck:
+@@ -183,7 +183,7 @@ services:
+ 
+   tenant-provisioner:
+     <<: *app-node
+-    volumes: ["../../:/workspace:ro"]
++    volumes: ["../../:/workspace:ro", "/dev/null:/workspace/infrastructure/docker/.env.local:ro"]
+     environment: {<<: *app-env, PORT: "3002"}
+     command: ["node", "--watch", "apps/tenant-provisioner/dist/main.js"]
+     healthcheck:
+diff --git a/infrastructure/docker/scripts/smoke.sh b/infrastructure/docker/scripts/smoke.sh
+index bcf6f75..233245a 100755
+--- a/infrastructure/docker/scripts/smoke.sh
++++ b/infrastructure/docker/scripts/smoke.sh
+@@ -3,6 +3,7 @@
+ # Uso: scripts/smoke.sh [--runtime] [--observability]   Falha (rc != 0) se algum item falhar.
+ set -uo pipefail
+ DIR="$(cd "$(dirname "$0")/.." && pwd)"
++[ -r "$DIR/.env.local" ] || { echo "FALHA: .env.local ausente; rode 'make compose-up'" >&2; exit 2; }
+ set -a; . "$DIR/.env.local"; set +a
+ DC=(docker compose --env-file "$DIR/.env.local" -f "$DIR/compose.dev.yml" --profile core --profile runtime --profile observability)
+ H=127.0.0.1
+```

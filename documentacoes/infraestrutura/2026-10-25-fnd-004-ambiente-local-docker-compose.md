@@ -64,6 +64,32 @@ Nao executado: `make lint/test` completos (nenhum codigo TS/Python alterado); ha
 
 Um commit local em `tarefa/fnd-004` (SHA reportado ao coordenador; nao consta no proprio commit). Diff: [diffs](2026-10-25-fnd-004-ambiente-local-docker-compose-diffs.md).
 
+## Correcao rodada 1 (2026-10-26)
+
+Origem: [auditoria](../reviews/2026-10-25-auditoria-fnd-004.md) (veredito CORRECOES_NECESSARIAS). Base: HEAD `023da3dacb13ba8770b768bf6435419659eaf1aa`; um novo commit, sem amend.
+
+| Achado | Decisao | O que foi feito |
+| --- | --- | --- |
+| REVIEW-001 | APLICAR (documental) | Equivalencia registrada aqui e em `infrastructure/docker/README.md`: **AC-1 := `make compose-up`** (core; `PERFIS=...` para runtime/observability). `make up` da FND-001 nao mudou; `CLAUDE.md` nao tocado. O registro no ticket/QA e do coordenador. |
+| REVIEW-002 | APLICAR | `compose.dev.yml`: os tres pontos de app (`x-app-python`, `api`, `tenant-provisioner`) e `web` montam `/dev/null:/workspace/infrastructure/docker/.env.local:ro`; `web` passa a `../../:/workspace:ro` mais `../../apps/web:/workspace/apps/web` (rw). |
+| REVIEW-005 (smoke.sh) | APLICAR | `smoke.sh` falha com mensagem clara e rc=2 se `.env.local` estiver ausente. |
+| REVIEW-003 | REJEITAR | Sem mudanca; ressalva ao QA (repetir `ss -ltn`; probe externo opcional). |
+| REVIEW-004 | ADIAR | Para FND-005 (digests/scan) e DEC-009. |
+| REVIEW-005 (restart, senha Redis em ps/inspect, healthcheck do otel) | ADIAR (restart, otel) / REJEITAR (senha) | Sem mudanca; ver auditoria. |
+
+Validacao real (Docker, Node 24.22.1; `make setup && make build` antes; `make compose-up PERFIS=runtime` levou ~22 s com cache, todos healthy):
+
+- `.env.local` visto como 0 bytes em `api`, `tenant-provisioner`, `web` e `tenant-runtime`.
+- `web`: `touch /workspace/x` falha (Read-only file system); `touch /workspace/apps/web/.t` funciona (rw); `api` tambem somente leitura.
+- `touch /workspace/.git/x` no `web` falhou com "Not a directory", porque na worktree `.git` e um arquivo (ponteiro), nao diretorio: a falha ocorre, mas **nao prova** por si so a protecao por `:ro`; a prova de somente leitura vem do `touch` na raiz. O `.git` real da worktree fica fora do mount.
+- `make compose-smoke PERFIS=runtime`: `SMOKE OK` (rc=0), incluindo web/api via proxy e 140 checagens de LAN.
+- `make compose-smoke` sem `.env.local`: mensagem `FALHA: .env.local ausente; rode 'make compose-up'`, rc=2.
+- `next dev` reescreveu `apps/web/next-env.d.ts` (ja documentado); revertido com `git checkout`.
+- Limpeza: `reset.sh --destroy-only`; 0 containers, volumes e redes do projeto `nucleos-dev` (recursos de outros projetos e portas 5432/6379/8080 do host nao tocados).
+- Nao executado: perfil observability nesta rodada; lint/test completos; gitleaks nao reexecutado.
+
+Arquivos: `infrastructure/docker/compose.dev.yml`, `infrastructure/docker/scripts/smoke.sh`, `infrastructure/docker/README.md`. Diff desta rodada: secao "Correcao rodada 1" do [arquivo de diffs](2026-10-25-fnd-004-ambiente-local-docker-compose-diffs.md). Lessons: nao aplicavel (infraestrutura).
+
 ## Lessons
 
 Nao aplicavel: a trilha `lessons/` e de C#/.NET e esta entrega e infraestrutura (Compose, shell). Nenhum conceito C#/.NET introduzido.
