@@ -144,7 +144,7 @@ Arquivos `documentacoes/`/`lessons/` desta entrega: este documento, o de diffs, 
 ## Pendencias
 
 - Executar o CI no GitHub, registrar o tempo (AC-2) e as provas dos 3 PRs sinteticos (AC-1) — **acao humana**.
-- Decisao sobre `multer` (vulnerabilidade real em `apps/api`) e sobre 2 revisoes em caminhos de seguranca / segundo revisor em `CODEOWNERS`.
+- Decisao sobre 2 revisoes em caminhos de seguranca / segundo revisor em `CODEOWNERS`.
 - Coordenar com FND-003: criar `make contracts-check` (ate la `contracts-drift` e inativo, com aviso).
 - Primeiro Dockerfile: confirmar que `build-images.sh` (contexto = pasta do Dockerfile; pode exigir `make build` antes) atende; trocar para `docker/build-push-action` se necessario.
 - Relatorio de cobertura (ticket): `node --test` sem script de cobertura e Python sem `pytest-cov` (dependencia nova — decisao humana); hoje so o JUnit do pytest e publicado.
@@ -205,3 +205,9 @@ Origem: QA `documentacoes/reviews/2026-10-26-qa-fnd-005.md` (`acc6b98`). Somente
   como serem mergeados. Opcoes: (a) cadastrar um segundo dono/revisor (necessario tambem para as 2 revisoes em caminhos de seguranca) e manter 1+ aprovacao; (b) manter **0 aprovacoes obrigatorias** (e desmarcar *Require review from Code Owners*)
   ate existir um segundo revisor, mantendo os checks obrigatorios e a proibicao de force-push. Escolha pendente do dono do repositorio; a politica do ticket (1 revisao) so e atendida na opcao (a).
 - **BUG-003:** permanece ADIADO (sem alteracao).
+
+## Atualizacao no fechamento (2026-10-26)
+
+A vulnerabilidade `multer` 2.4.0 (GHSA-q7qp-rjg7-q26m) foi corrigida pela tarefa FND-005-FIX: `overrides: multer: 2.5.0` em `pnpm-workspace.yaml` e `pnpm-lock.yaml` atualizado,
+sem excecao em `osv-scanner.toml`. `scripts/ci/auditar-dependencias.sh` passa (pnpm audit, osv-scanner, pip-audit). A pendencia 5 e a decisao sobre `multer` acima estao encerradas;
+as mencoes anteriores a "multer barra o `security`" descrevem o estado historico. Registro: [correcao do multer](2026-10-26-correcao-multer.md).
