@@ -79,8 +79,30 @@ Criada [lessons/09 - Papeis e privilegios minimos no PostgreSQL.md](../../lesson
 
 Releitura feita após a última edição: ADR, README do PoC, lesson e este documento coerentes com a saída real (40 verificações, números de RAM recalculados). Links relativos conferidos por inspeção: `../../lessons/...` a partir de `documentacoes/arquitetura/`, `../../../lessons/...` a partir de `adr/`. Datas: 2026-10-26 (local, America/Sao_Paulo).
 
+## 10.1 Rodada de correção 1 (review `1329c4d`, auditoria `46664af`)
+
+Aplicados: REVIEW-001 (2ª asserção com `res`, sidecar compara com o argumento e consome `jti`; ACL por documento como requisito com duas origens; risco residual R-1; P7'/P8' reescritos; H-11; teste proposto (d)), REVIEW-002 (bootstrap com superuser x operação do provisioner; `SET TRUE` no owner; fase do PoC com provisioner `NOSUPERUSER CREATEDB CREATEROLE` e leitura de `datacl`), REVIEW-003 (benefício reescrito; poder do CP com a chave; chaves distintas por finalidade como requisito; `iss`/`kid` na auditoria), REVIEW-004 (chave do bundle entregue em arquivo, rotação fora do canal, `valid_until`, `bundle_version` persistida, ligação com ADR-018 7.1, H-4), REVIEW-005 (runner, backup, offboarding, exporter, superuser de bootstrap; `app`/`tools` em E-1; H-12; frase final restringida), REVIEW-006 (PoC cobre `statement_timeout`, `CONNECTION LIMIT`, `REVOKE ALL ON SCHEMA public`, `ALTER DEFAULT PRIVILEGES`; `expect_deny` exige a mensagem), REVIEW-007 parcial (3 GiB marcado como estimativa sem fonte), REVIEW-009 (redação: `internal` só para runtime-sidecar; decisão 5 com `res` e `jti`).
+
+Adiados: REVIEW-007 digest da imagem e senhas por `--env-file` (retomar se `run.sh` virar teste de CI); REVIEW-008 renumeração da lesson 09 (integração em `revisao/`, provável 07). Lacunas do auditor registradas no ADR: visibilidade de catálogo `pg_database`/`pg_roles` → DAT-005; `jti` em memória por instância (premissa do ADR-018) citada nas decisões 5 e 8; versão do bundle persistida (REVIEW-004).
+
+Achados novos do PoC nesta rodada: a revogação de `CONNECT` em `postgres` retira o acesso do provisioner ao banco de manutenção (o bootstrap lhe concede `CONNECT`); sem superuser a revogação em `template1` falha com `permission denied`.
+
+Validações da rodada:
+
+| Comando | Resultado |
+| --- | --- |
+| `./run.sh > evidencia/saida.txt` (container efêmero, sem porta publicada) | `PASS=56 FAIL=0`, exit 0; `docker ps -a --filter name=dec013` retornou 0 |
+| 1ª execução com a fase do provisioner | `PASS=46 FAIL=10`: `expect_deny` pegou erros mascarados antes (SIGPIPE de `echo \| grep -q` sob `pipefail`, corrigido com here-string), `datacl` ainda tinha `TEMPORARY` para PUBLIC (teste restrito a `CONNECT`) e o provisioner sem `CONNECT` em `postgres` (bootstrap corrigido) |
+| Mutantes em clone `git clone --no-hardlinks` no scratchpad (fora da worktree), `run.sh` atual copiado: sem `ALTER ROLE ... statement_timeout` | `PASS=54 FAIL=2` (morto) |
+| sem `CONNECTION LIMIT` | `PASS=55 FAIL=1` (morto) |
+| sem `REVOKE ALL ON SCHEMA public` (1ª tentativa removeu também a linha do teste: mutação inválida, `FAIL=0`; refeita só na linha do provisionamento) | `PASS=55 FAIL=1` (morto) |
+| sem `ALTER DEFAULT PRIVILEGES` | `PASS=55 FAIL=1` (morto) |
+| sem `REVOKE CONNECT` em `postgres`/`template1` (bootstrap) | `PASS=48 FAIL=7` (morto) |
+
+Os IDs M8, M9, M12 e M13 do review correspondem aos quatro controles acima (mapeamento por controle; o review não nomeia cada linha). O clone do scratchpad foi removido. Contagens "40 verificações" nas seções 3 e 6 e na conferência acima descrevem a entrega original; a vigente é 56. Commit da rodada: `{sha}` (código/ADR); um segundo commit adiciona esta seção e o patch. Sem revalidação independente nesta sessão.
+
 ## 11. Pendências
 
-- **Decisões humanas (H-1 a H-10 do ADR-025):** aceite 1-A + 2-Y (Q-08); interpretação do critério com as exceções E-1/E-2; adendo ao ADR-018 e chaves por finalidade; bundle por push e intervalos; reserva de RAM do sidecar; esquemas/tabelas e pooler; rede de controle; ticket do RISK-013; fluxo OAuth pelo CP; numeração dos testes novos.
+- **Decisões humanas (H-1 a H-12 do ADR-025):** aceite 1-A + 2-Y (Q-08); interpretação do critério com as exceções E-1/E-2; adendo ao ADR-018 e chaves por finalidade; bundle por push e intervalos; reserva de RAM do sidecar; esquemas/tabelas e pooler; rede de controle; ticket do RISK-013; fluxo OAuth pelo CP; numeração dos testes novos.
 - **AC-1** só se cumpre com o aceite do usuário; **AC-2** (orçamento de RAM) está revisado, mas com valor de sidecar não medido; **AC-3** (fluxo ponta a ponta com pontos de autorização) cumprido na tabela P1–P11.
 - Medir o sidecar em RUN-001/TGW-001; validar redes por tenant em FND-004/PRV; revisão independente e QA.
