@@ -19,7 +19,7 @@
 
 ## 3. Resumo da implementação
 
-Proposta 1-A + 2-Y: o CP faz proxy para uma Tenant API somente leitura do runtime, usando uma asserção de leitura de usuário (JWT EdDSA, audiência única `tenant-api:<tenant>`, TTL ≤ 60 s); o Tool Gateway é um sidecar por tenant com o papel PostgreSQL `tools`, as credenciais de integração e a chave de storage apenas daquele tenant, recebendo política, JWKS e revogação por bundle assinado empurrado pelo CP (fail-closed após `max_staleness`). Quatro papéis por tenant (`owner`, `migrator`, `app`, `tools`) foram verificados em PostgreSQL 16.15 efêmero: 40 verificações, `PASS=40 FAIL=0`. Orçamento de RAM com sidecar de 128 MiB (hipótese): 11,13 GiB com 5 tenants, teto de 14 tenants até 70% de RAM.
+Proposta 1-A + 2-Y: o CP faz proxy para uma Tenant API somente leitura do runtime, usando uma asserção de leitura de usuário (JWT EdDSA, audiência única `tenant-api:<tenant>`, TTL ≤ 60 s); o Tool Gateway é um sidecar por tenant com o papel PostgreSQL `tools`, as credenciais de integração e a chave de storage apenas daquele tenant, recebendo política, JWKS e revogação por bundle assinado empurrado pelo CP (fail-closed após `max_staleness`). Quatro papéis por tenant (`owner`, `migrator`, `app`, `tools`) foram verificados em PostgreSQL 16.15 efêmero: 40 verificações na entrega original, `PASS=40 FAIL=0`; vigente após a rodada 1: 56. Orçamento de RAM com sidecar de 128 MiB (hipótese): 11,13 GiB com 5 tenants, teto de 14 tenants até 70% de RAM.
 
 ## 4. Mudanças por arquivo
 
@@ -77,7 +77,7 @@ Criada [lessons/09 - Papeis e privilegios minimos no PostgreSQL.md](../../lesson
 
 ## 10. Conferência final
 
-Releitura feita após a última edição: ADR, README do PoC, lesson e este documento coerentes com a saída real (40 verificações, números de RAM recalculados). Links relativos conferidos por inspeção: `../../lessons/...` a partir de `documentacoes/arquitetura/`, `../../../lessons/...` a partir de `adr/`. Datas: 2026-10-26 (local, America/Sao_Paulo).
+Releitura feita após a última edição: ADR, README do PoC, lesson e este documento coerentes com a saída real (40 verificações da entrega original; vigente 56, números de RAM recalculados). Links relativos conferidos por inspeção: `../../lessons/...` a partir de `documentacoes/arquitetura/`, `../../../lessons/...` a partir de `adr/`. Datas: 2026-10-26 (local, America/Sao_Paulo).
 
 ## 10.1 Rodada de correção 1 (review `1329c4d`, auditoria `46664af`)
 
@@ -99,7 +99,15 @@ Validações da rodada:
 | sem `ALTER DEFAULT PRIVILEGES` | `PASS=55 FAIL=1` (morto) |
 | sem `REVOKE CONNECT` em `postgres`/`template1` (bootstrap) | `PASS=48 FAIL=7` (morto) |
 
-Os IDs M8, M9, M12 e M13 do review correspondem aos quatro controles acima (mapeamento por controle; o review não nomeia cada linha). O clone do scratchpad foi removido. Contagens "40 verificações" nas seções 3 e 6 e na conferência acima descrevem a entrega original; a vigente é 56. Commit da rodada: `616ebb6` (código/ADR); um segundo commit adiciona esta seção e o patch. Sem revalidação independente nesta sessão.
+Os IDs M8, M9, M12 e M13 do review correspondem aos quatro controles acima (mapeamento por controle; o review não nomeia cada linha). O clone do scratchpad foi removido. Contagens "40 verificações" nas seções 3 e 6 e na conferência acima descrevem a entrega original; a vigente é 56. Commit da rodada: `616ebb6` (código/ADR); dois commits posteriores (`67a7ae3`, `086851a`) adicionam esta seção, o patch e a correção do SHA. Sem revalidação independente nesta sessão.
+
+## 10.2 Rodada de correção 2 (revalidação `b53298c`, APPROVED WITH NOTES; só documentos, PoC intocado)
+
+- **REV-001:** P8', R-1, decisão 5 e H-11 do ADR-025 qualificados: o limite "um documento, uma vez" vale só para o endpoint de leitura da UI; o caminho de ferramentas de agente (token ADR-018 e `ator` declarado pelo runtime) fica sob `allowed_tools` e o RISK-013 (H-8). Novo requisito: o endpoint de leitura da UI no sidecar não aceita o token de runtime sozinho, e as ferramentas de agente não aceitam a asserção em seu lugar.
+- **REV-002:** contagens "40" rotuladas como entrega original (vigente 56) nas seções 3 e 6 e na conferência; "dois commits" corrigido na seção 8.
+- **REV-003:** decisão 9: `bundle_version` persistida em volume próprio do sidecar, não montado nem gravável pelo runtime (requisito de PRV-004).
+- **REV-004 (limitação registrada, sem ação):** o padrão padrão de `expect_deny` (`permission denied|password authentication failed`) aceita duas mensagens; uma negação por senha errada poderia, em teoria, mascarar um `REVOKE` ausente. Coberto pelo controle positivo do harness; regex específica por caso pode ser adotada se `run.sh` virar teste de CI.
+- Validações: sem comandos executáveis (só texto); `run.sh` não foi reexecutado nem alterado.
 
 ## 11. Pendências
 
