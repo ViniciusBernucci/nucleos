@@ -2,6 +2,7 @@
 // Suporta PUT/GET/DELETE/HEAD/LIST, URL pre-assinada, credencial temporaria (session token)
 // e o STS AssumeRole do MinIO. Nao e codigo de producao: producao usa SDK mantido.
 import { createHash, createHmac } from "node:crypto";
+import { validarTtl } from "./politica.mjs";
 
 const sha256 = (dados) => createHash("sha256").update(dados).digest("hex");
 const hmac = (chave, dados) => createHmac("sha256", chave).update(dados).digest();
@@ -69,9 +70,9 @@ export class S3 {
   head(bucket, chave) {
     return this.pedido("HEAD", `/${bucket}/${chave}`);
   }
-  del(bucket, chave, versionId) {
+  del(bucket, chave, versionId, cabecalhos = {}) {
     const consulta = versionId ? { versionId } : {};
-    return this.pedido("DELETE", `/${bucket}/${chave}`, { consulta });
+    return this.pedido("DELETE", `/${bucket}/${chave}`, { consulta, cabecalhos });
   }
   list(bucket, prefixo = "") {
     return this.pedido("GET", `/${bucket}`, { consulta: { "list-type": "2", prefix: prefixo } });
@@ -82,6 +83,7 @@ export class S3 {
 
   // URL pre-assinada (query string). Retorna a URL completa.
   presign(metodo, bucket, chave, expiraSegundos, agora = new Date()) {
+    validarTtl(expiraSegundos); // politica do servidor (ADR-023): recusa antes de assinar
     const { amz, dia } = stamp(agora);
     const escopo = `${dia}/${this.regiao}/s3/aws4_request`;
     const consulta = {
