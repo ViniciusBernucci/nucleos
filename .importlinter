@@ -1,0 +1,26 @@
+# Regras de arquitetura de imports Python (ENT-FND-002). Executar: lint-imports
+[importlinter]
+root_packages =
+    ai_gateway
+    tool_gateway
+    event_dispatcher
+    tenant_runtime
+include_external_packages = True
+
+[importlinter:contract:servicos-independentes]
+name = Servicos Python nao importam uns aos outros
+type = independence
+modules =
+    ai_gateway
+    tool_gateway
+    event_dispatcher
+    tenant_runtime
+
+[importlinter:contract:tenant-runtime-sem-sdk-provisioner]
+name = tenant-runtime nao importa o SDK do provisioner
+type = forbidden
+source_modules =
+    tenant_runtime
+forbidden_modules =
+    tenant_provisioner
+    nucleos_provisioner

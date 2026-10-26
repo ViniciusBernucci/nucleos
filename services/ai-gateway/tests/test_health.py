@@ -3,6 +3,7 @@ import threading
 import urllib.error
 import urllib.request
 
+import pytest
 from ai_gateway.app import make_server
 
 
@@ -15,11 +16,9 @@ def test_healthz() -> None:
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/healthz") as res:
             assert res.status == 200
             assert json.load(res) == {"status": "ok", "service": "ai-gateway"}
-        try:
+        with pytest.raises(urllib.error.HTTPError) as excinfo:
             urllib.request.urlopen(f"http://127.0.0.1:{port}/outra")
-            raise AssertionError("esperava 404")
-        except urllib.error.HTTPError as err:
-            assert err.code == 404
+        assert excinfo.value.code == 404
     finally:
         server.shutdown()
         server.server_close()
