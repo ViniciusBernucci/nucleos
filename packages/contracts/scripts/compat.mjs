@@ -131,7 +131,12 @@ export function incompatibilidades(antigo, novo) {
         erros.push(`${caminho}: palavra-chave nova nao analisada (${k})`);
   };
   visitar(antigo, novo, "#");
-  return erros;
+  // $defs e superficie publica (ex.: handshake tem raiz so com $defs): cada definicao e comparada.
+  for (const k of Object.keys(antigo.$defs ?? {})) {
+    if (novo.$defs?.[k] === undefined) erros.push(`#/$defs/${k}: definicao removida`);
+    else visitar(antigo.$defs[k], novo.$defs[k], `#/$defs/${k}`);
+  }
+  return [...new Set(erros)];
 }
 
 const versao = (s) => {

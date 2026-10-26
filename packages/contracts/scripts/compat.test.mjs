@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -119,4 +119,72 @@ test("verificarDiretorios: contrato removido e mudanca incompativel falham; ok p
 test("schemas reais estao compativeis com o baseline", () => {
   const pacote = join(import.meta.dirname, "..");
   assert.deepEqual(verificarDiretorios(join(pacote, "baseline"), join(pacote, "schemas")), []);
+});
+
+// REVIEW-001: schemas cuja raiz so tem $defs (ex.: handshake) tambem sao comparados.
+const soDefs = () => ({
+  "x-schema-version": "1.0",
+  $defs: {
+    msg: {
+      type: "object",
+      additionalProperties: false,
+      required: ["a"],
+      properties: { a: { type: "string" }, n: { type: "integer", maximum: 600 } },
+    },
+  },
+});
+const mudarDefs = (f, versao = "1.1") => {
+  const s = soDefs();
+  f(s.$defs.msg);
+  s["x-schema-version"] = versao;
+  return s;
+};
+
+test("$defs-only: adicao de campo opcional passa com minor", () => {
+  const novo = mudarDefs((d) => (d.properties.b = { type: "string" }));
+  assert.deepEqual(verificarPar("c", soDefs(), novo), []);
+});
+
+const quebrasDefs = {
+  "campo removido": (d) => delete d.properties.n,
+  "campo obrigatorio novo": (d) => {
+    d.properties.b = { type: "string" };
+    d.required.push("b");
+  },
+  "maximum mais estrito": (d) => (d.properties.n.maximum = 60),
+};
+for (const [nome, f] of Object.entries(quebrasDefs)) {
+  test(`$defs-only: ${nome} e detectado`, () => {
+    assert.match(verificarPar("c", soDefs(), mudarDefs(f)).join("\n"), /INCOMPATIVEL/);
+  });
+}
+
+test("$defs-only: definicao removida e detectada", () => {
+  const novo = soDefs();
+  delete novo.$defs.msg;
+  novo["x-schema-version"] = "1.1";
+  assert.match(verificarPar("c", soDefs(), novo).join("\n"), /definicao removida/);
+});
+
+test("handshake real mutado (3 mutacoes do review) falha mesmo com minor", () => {
+  const real = JSON.parse(
+    readFileSync(join(import.meta.dirname, "..", "schemas", "handshake.schema.json"), "utf8"),
+  );
+  const mutar = (f) => {
+    const s = structuredClone(real);
+    f(s.$defs);
+    s["x-schema-version"] = "1.1";
+    return s;
+  };
+  const mutacoes = {
+    "remover campo de token_request": (d) => delete d.token_request.properties.scope,
+    "campo obrigatorio novo em token_request": (d) => {
+      d.token_request.properties.extra = { type: "string" };
+      d.token_request.required.push("extra");
+    },
+    "expires_in.maximum 600 -> 60": (d) => (d.token_response.properties.expires_in.maximum = 60),
+  };
+  for (const [nome, f] of Object.entries(mutacoes)) {
+    assert.match(verificarPar("handshake", real, mutar(f)).join("\n"), /INCOMPATIVEL/, nome);
+  }
 });

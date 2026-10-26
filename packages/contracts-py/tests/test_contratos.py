@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import importlib
 import json
+import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +18,7 @@ from nucleos_contracts import (
     schema_names,
     validate,
 )
+from nucleos_contracts.validation import _ecma_to_python
 from pydantic import BaseModel, ValidationError
 
 PACOTE = Path(__file__).resolve().parents[2] / "contracts"
@@ -176,3 +179,32 @@ def test_copia_dos_schemas_no_pacote_python_e_identica_a_fonte() -> None:
         assert (copia / f"{nome}.schema.json").read_bytes() == (
             PACOTE / "schemas" / f"{nome}.schema.json"
         ).read_bytes()
+
+
+CODEPOINTS = [*range(0xD800), *range(0xE000, 0x10000), 0x10000, 0x1F600, 0x10FFFF]
+
+
+def test_varredura_de_codepoints_todos_os_patterns_iguais_ao_ecma() -> None:
+    """Todo `pattern` casa os MESMOS codepoints em ECMA-262 (node/ajv) e no motor Python."""
+    script = PACOTE / "scripts" / "varrer-patterns.mjs"
+    saida = subprocess.run(  # noqa: S603 - script do repositorio, sem entrada externa
+        ["node", str(script)],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=PACOTE,
+    ).stdout
+    ecma: dict[str, list[list[int]]] = json.loads(saida)
+    assert len(ecma) >= 40  # protege contra varredura vazia
+    for chave, faixas in ecma.items():
+        padrao, prefixo = json.loads(chave)
+        esperado = {c for ini, fim in faixas for c in range(ini, fim + 1)}
+        regex = re.compile(_ecma_to_python(padrao))
+        obtido = {
+            c
+            for c in list(range(0xD800))
+            + list(range(0xE000, 0x10000))
+            + [0x10000, 0x1F600, 0x10FFFF]
+            if regex.search(prefixo + chr(c))
+        }
+        assert obtido == esperado, (padrao, prefixo, sorted(obtido ^ esperado)[:10])

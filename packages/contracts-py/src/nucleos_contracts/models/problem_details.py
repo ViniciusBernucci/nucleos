@@ -23,13 +23,15 @@ class ProblemDetails(BaseModel):
         str,
         Field(
             max_length=2048,
-            pattern='^(about:blank|[A-Za-z][A-Za-z0-9+.-]*:[^\\s]*|/[^\\s]*)$',
+            pattern='^(about:blank|[A-Za-z][A-Za-z0-9+.-]*:[\\u0021-\\u007e]*|/[\\u0021-\\u007e]*)$',
         ),
     ]
     title: Annotated[str, Field(max_length=256, min_length=1)]
     status: Annotated[int, Field(ge=400, le=599)]
     detail: Annotated[str | None, Field(max_length=2048)] = None
-    instance: Annotated[str | None, Field(max_length=2048, pattern='^[^\\s]+$')] = None
+    instance: Annotated[
+        str | None, Field(max_length=2048, pattern='^[\\u0021-\\u007e]+$')
+    ] = None
     code: Annotated[str | None, Field(pattern='^[a-z][a-z0-9_]{0,63}$')] = None
     correlation_id: Annotated[
         str | None, Field(max_length=64, min_length=8, pattern='^[A-Za-z0-9_-]+$')

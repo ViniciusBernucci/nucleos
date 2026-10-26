@@ -530,7 +530,7 @@ export const schemas: Readonly<Record<SchemaName, Readonly<Record<string, unknow
     "type": {
       "type": "string",
       "maxLength": 2048,
-      "pattern": "^(about:blank|[A-Za-z][A-Za-z0-9+.-]*:[^\\s]*|/[^\\s]*)$"
+      "pattern": "^(about:blank|[A-Za-z][A-Za-z0-9+.-]*:[\\u0021-\\u007e]*|/[\\u0021-\\u007e]*)$"
     },
     "title": {
       "type": "string",
@@ -549,7 +549,7 @@ export const schemas: Readonly<Record<SchemaName, Readonly<Record<string, unknow
     "instance": {
       "type": "string",
       "maxLength": 2048,
-      "pattern": "^[^\\s]+$"
+      "pattern": "^[\\u0021-\\u007e]+$"
     },
     "code": {
       "type": "string",
