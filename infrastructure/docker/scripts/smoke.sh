@@ -33,6 +33,13 @@ chk "proxy -> minio console (Host minio.localhost)" curl -fsS -o /dev/null -H "H
 for a in "$@"; do
   case "$a" in
     --runtime)
+      # INT-002: /healthz de CADA servico runtime, de dentro do container (nao publicam portas); falha se cair.
+      for sv in tenant-runtime:8001 ai-gateway:8002 tool-gateway:8003 event-dispatcher:8004; do
+        chk "${sv%%:*} /healthz" "${DC[@]}" exec -T "${sv%%:*}" python -c "import urllib.request as u; u.urlopen('http://127.0.0.1:${sv##*:}/healthz', timeout=3)"
+      done
+      for sv in api:3001 web:3000 tenant-provisioner:3002; do
+        chk "${sv%%:*} /healthz" "${DC[@]}" exec -T "${sv%%:*}" node -e "fetch('http://127.0.0.1:${sv##*:}/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      done
       chk "proxy -> api /healthz" curl -fsS -H "Host: app.localhost:8080" "http://$H:${PROXY_HOST_PORT:-18080}/api/healthz"
       chk "proxy -> web /healthz" curl -fsS -H "Host: app.localhost:8080" "http://$H:${PROXY_HOST_PORT:-18080}/healthz" ;;
     --observability) chk "otel-collector health_check" curl -fsS "http://$H:${OTEL_HEALTH_HOST_PORT:-13133}/" ;;
