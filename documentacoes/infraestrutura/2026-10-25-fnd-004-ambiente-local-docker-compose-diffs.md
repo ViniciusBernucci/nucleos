@@ -693,3 +693,77 @@ index bcf6f75..233245a 100755
  DC=(docker compose --env-file "$DIR/.env.local" -f "$DIR/compose.dev.yml" --profile core --profile runtime --profile observability)
  H=127.0.0.1
 ```
+
+## Correcao rodada 2 (integracao)
+
+Commit `6b3251f` (merge `4bb1332` nao reproduzido: integra a revisao).
+
+```diff
+diff --git a/infrastructure/docker/compose.dev.yml b/infrastructure/docker/compose.dev.yml
+index 4e687fd..0ae6fba 100644
+--- a/infrastructure/docker/compose.dev.yml
++++ b/infrastructure/docker/compose.dev.yml
+@@ -24,6 +24,8 @@ x-app-node: &app-node
+     redis: {condition: service_healthy}
+     minio: {condition: service_healthy}
+ 
++# PYTHONPATH comum dos servicos Python (INT-001): fonte de nucleos_observability + site-packages do .venv do uv
++# (make setup), montado ro em /workspace. Evita pip ad hoc na imagem slim; mesmas versoes travadas em uv.lock.
+ x-app-python: &app-python
+   <<: *seguro
+   image: python:3.13.17-slim-bookworm@sha256:e32be0e55814a08977501ca863271d9bd02443710db8f2afaf8372e2c4508530
+@@ -194,7 +196,7 @@ services:
+ 
+   tenant-runtime:
+     <<: *app-python
+-    environment: {HOST: 0.0.0.0, PORT: "8001", PYTHONPATH: /workspace/services/tenant-runtime/src, PYTHONDONTWRITEBYTECODE: "1"}
++    environment: {HOST: 0.0.0.0, PORT: "8001", PYTHONPATH: "/workspace/services/tenant-runtime/src:/workspace/packages/observability-py/src:/workspace/.venv/lib/python3.13/site-packages", PYTHONDONTWRITEBYTECODE: "1"}
+     command: ["python", "-m", "tenant_runtime"]
+     healthcheck:
+       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8001/healthz', timeout=3)"]
+@@ -204,7 +206,7 @@ services:
+ 
+   ai-gateway:
+     <<: *app-python
+-    environment: {HOST: 0.0.0.0, PORT: "8002", PYTHONPATH: /workspace/services/ai-gateway/src, PYTHONDONTWRITEBYTECODE: "1"}
++    environment: {HOST: 0.0.0.0, PORT: "8002", PYTHONPATH: "/workspace/services/ai-gateway/src:/workspace/packages/observability-py/src:/workspace/.venv/lib/python3.13/site-packages", PYTHONDONTWRITEBYTECODE: "1"}
+     command: ["python", "-m", "ai_gateway"]
+     healthcheck:
+       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8002/healthz', timeout=3)"]
+@@ -214,7 +216,7 @@ services:
+ 
+   tool-gateway:
+     <<: *app-python
+-    environment: {HOST: 0.0.0.0, PORT: "8003", PYTHONPATH: /workspace/services/tool-gateway/src, PYTHONDONTWRITEBYTECODE: "1"}
++    environment: {HOST: 0.0.0.0, PORT: "8003", PYTHONPATH: "/workspace/services/tool-gateway/src:/workspace/packages/observability-py/src:/workspace/.venv/lib/python3.13/site-packages", PYTHONDONTWRITEBYTECODE: "1"}
+     command: ["python", "-m", "tool_gateway"]
+     healthcheck:
+       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8003/healthz', timeout=3)"]
+@@ -224,7 +226,7 @@ services:
+ 
+   event-dispatcher:
+     <<: *app-python
+-    environment: {HOST: 0.0.0.0, PORT: "8004", PYTHONPATH: /workspace/services/event-dispatcher/src, PYTHONDONTWRITEBYTECODE: "1"}
++    environment: {HOST: 0.0.0.0, PORT: "8004", PYTHONPATH: "/workspace/services/event-dispatcher/src:/workspace/packages/observability-py/src:/workspace/.venv/lib/python3.13/site-packages", PYTHONDONTWRITEBYTECODE: "1"}
+     command: ["python", "-m", "event_dispatcher"]
+     healthcheck:
+       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8004/healthz', timeout=3)"]
+diff --git a/infrastructure/docker/scripts/smoke.sh b/infrastructure/docker/scripts/smoke.sh
+index 233245a..d18fa22 100755
+--- a/infrastructure/docker/scripts/smoke.sh
++++ b/infrastructure/docker/scripts/smoke.sh
+@@ -33,6 +33,13 @@ chk "proxy -> minio console (Host minio.localhost)" curl -fsS -o /dev/null -H "H
+ for a in "$@"; do
+   case "$a" in
+     --runtime)
++      # INT-002: /healthz de CADA servico runtime, de dentro do container (nao publicam portas); falha se cair.
++      for sv in tenant-runtime:8001 ai-gateway:8002 tool-gateway:8003 event-dispatcher:8004; do
++        chk "${sv%%:*} /healthz" "${DC[@]}" exec -T "${sv%%:*}" python -c "import urllib.request as u; u.urlopen('http://127.0.0.1:${sv##*:}/healthz', timeout=3)"
++      done
++      for sv in api:3001 web:3000 tenant-provisioner:3002; do
++        chk "${sv%%:*} /healthz" "${DC[@]}" exec -T "${sv%%:*}" node -e "fetch('http://127.0.0.1:${sv##*:}/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
++      done
+       chk "proxy -> api /healthz" curl -fsS -H "Host: app.localhost:8080" "http://$H:${PROXY_HOST_PORT:-18080}/api/healthz"
+       chk "proxy -> web /healthz" curl -fsS -H "Host: app.localhost:8080" "http://$H:${PROXY_HOST_PORT:-18080}/healthz" ;;
+     --observability) chk "otel-collector health_check" curl -fsS "http://$H:${OTEL_HEALTH_HOST_PORT:-13133}/" ;;
+```

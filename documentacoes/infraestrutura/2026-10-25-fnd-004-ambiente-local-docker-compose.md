@@ -90,6 +90,16 @@ Validacao real (Docker, Node 24.22.1; `make setup && make build` antes; `make co
 
 Arquivos: `infrastructure/docker/compose.dev.yml`, `infrastructure/docker/scripts/smoke.sh`, `infrastructure/docker/README.md`. Diff desta rodada: secao "Correcao rodada 1" do [arquivo de diffs](2026-10-25-fnd-004-ambiente-local-docker-compose-diffs.md). Lessons: nao aplicavel (infraestrutura).
 
+## Correcao rodada 2 (integracao, 2026-10-26)
+
+Origem: INT-001 e INT-002 de [validacao integrada](../reviews/2026-10-26-validacao-integrada-onda1-onda2.md). Base: HEAD `70b4a25`; merge `4bb1332` de `revisao/2026-10-25-ep00-ep01-fundacao` (`ba1f700`, inclui FND-009) sem conflitos; commit de correcao `6b3251f`. Diff em [diffs](2026-10-25-fnd-004-ambiente-local-docker-compose-diffs.md#correcao-rodada-2-integracao).
+
+- INT-001: o `PYTHONPATH` dos 4 servicos Python agora e `/workspace/services/<svc>/src:/workspace/packages/observability-py/src:/workspace/.venv/lib/python3.13/site-packages` (`infrastructure/docker/compose.dev.yml`). O `.venv` e o do `uv sync --frozen --all-packages` (`make setup`), montado ro em `/workspace`: mesmas versoes travadas no `uv.lock` (structlog, opentelemetry-*), sem rede nem instalacao no container. As dependencias sao Python puro e a imagem e 3.13 como o `.venv`.
+- Alternativa descartada: `pip install` ad hoc no entrypoint (ou imagem propria) por exigir rede/rebuild a cada start e divergir do `uv.lock`. Consequencia aceita: `make setup` e pre-requisito do perfil runtime (ja era para o Node); `.venv` com ABI diferente de 3.13 nao serve.
+- INT-002: `smoke.sh --runtime` executa `/healthz` dentro de cada um dos 7 servicos (tenant-runtime, ai-gateway, tool-gateway, event-dispatcher, api, web, tenant-provisioner) e marca FALHA se algum nao responder.
+
+Validacoes reais (Docker, Node 24.22.1): `make setup && make build` OK; `make compose-up PERFIS=runtime` com todos healthy; `make compose-smoke PERFIS=runtime` SMOKE OK (rc=0, 7 healthz + proxy->api/web); teste negativo com `docker stop nucleos-dev-ai-gateway-1`: "FALHA ai-gateway /healthz", "SMOKE COM FALHAS", rc!=0; `make compose-up`/`compose-smoke` core SMOKE OK; `PERFIS=observability` sobe e smoke OK (otel-collector health_check). Recursos do compose destruidos ao final (`compose-down`, 0 containers). Servicos do host (5432/6379/8080) nao tocados. Sem pendencias novas; lessons: sem alteracao (nenhum conceito C#/.NET novo).
+
 ## Lessons
 
 Nao aplicavel: a trilha `lessons/` e de C#/.NET e esta entrega e infraestrutura (Compose, shell). Nenhum conceito C#/.NET introduzido.
