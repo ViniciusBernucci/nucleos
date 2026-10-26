@@ -1,0 +1,16 @@
+name: ruim
+on:
+  workflow_dispatch:
+    inputs:
+      alvo:
+        type: string
+permissions:
+  contents: read
+jobs:
+  a:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - id: s
+        run: echo ok
+      - run: echo "${{ inputs.alvo }}"

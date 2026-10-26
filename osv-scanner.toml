@@ -1,0 +1,6 @@
+# Excecoes do osv-scanner (ENT-FND-005). Vazio por padrao: cada excecao exige id, motivo e prazo.
+# Exemplo (nao ativo):
+# [[IgnoredVulns]]
+# id = "GHSA-xxxx-xxxx-xxxx"
+# ignoreUntil = 2026-12-31
+# reason = "Nao alcancavel: <justificativa revisada por humano>; issue/PR de correcao: <link>"
