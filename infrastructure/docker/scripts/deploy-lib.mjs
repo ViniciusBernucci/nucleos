@@ -11,11 +11,10 @@ const SECRET_SUFFIXES = ["PASSWORD", "PASSWD", "SECRET", "TOKEN", "APIKEY", "PRI
  * (PASS, SECRET, TOKEN, KEY, DSN, ...) ou sufixo colado (DBPASSWORD). Nomes terminados em
  * `_FILE`/`_PATH` (caminho) sao o formato permitido. Mesma regra de packages/config e config-py.
  */
-const NOT_SECRET = new Set(["PWD", "OLDPWD"]); // variaveis POSIX/shell
-
+// Sem excecao para PWD/OLDPWD aqui: em Compose/inspect qualquer PWD e literal declarado (REV-002). A isencao
+// vale so no carregador do processo (packages/config e config-py), que le o ambiente do shell.
 export function isSecretName(name) {
   const up = name.toUpperCase().replace(/[.-]/g, "_");
-  if (NOT_SECRET.has(up)) return false;
   if (/_(FILE|PATH)$/.test(up)) return false;
   if (up.split("_").some((t) => SECRET_TOKENS.has(t))) return true;
   const compact = up.replaceAll("_", "");

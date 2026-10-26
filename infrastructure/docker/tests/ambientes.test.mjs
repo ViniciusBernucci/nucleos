@@ -76,6 +76,11 @@ describe("verificador de overlays", () => {
     }
     for (const n of ["DATABASE_PASSWORD_FILE", "SSH_KEY_PATH", "KEYBOARD", "PASSTHROUGH"]) assert.ok(!isSecretName(n), n);
     assert.equal(secretFindingsInText("      DB_PASS: hunter2\n").length, 1);
+    // REV-002: PWD/OLDPWD sao isentos so no carregador do processo, nunca em Compose.
+    assert.ok(isSecretName("PWD"));
+    assert.match(bad({ environment: { PWD: "hunter2" } }).join(), /nome de segredo/);
+    assert.equal(secretFindingsInText("      PWD: hunter2\n").length, 1);
+    assert.equal(secretFindingsInText("      DB_PWD: hunter2\n").length, 1);
     assert.equal(secretFindingsInText("      JWT_SECRET_KEY: abc\n").length, 1);
     assert.equal(secretFindingsInText("      DB_PASS: ${DB_PASS:?}\n").length, 0);
   });
@@ -268,6 +273,26 @@ describe("EXTRA_COMPOSE e restrito ao ensaio", () => {
       const r = run("prod", extra);
       assert.equal(r.status, 2);
       assert.match(r.stderr, /proibido em prod/);
+    }
+  });
+  test("dono do segredo != API_UID e recusado sem EXTRA_COMPOSE, sem chamar docker (REV-001)", () => {
+    const segredos = mkdtempSync(join(tmpdir(), "fnd006-dono-"));
+    try {
+      writeFileSync(join(segredos, "database_password"), "x\n", { mode: 0o400 });
+      rmSync(marker, { force: true });
+      const r = sh(join(docker, "scripts", "deploy.sh"), ["staging", "deploy", `r/a@sha256:${"a".repeat(64)}`], {
+        env: { PATH: `${stubDir}:/usr/bin:/bin`, SECRETS_DIR: segredos, API_UID: String(process.getuid() + 1) },
+      });
+      assert.equal(r.status, 1, r.stderr);
+      assert.match(r.stderr, /pertencer ao UID/);
+      assert.ok(!existsSync(marker), "docker nao deve ser chamado");
+      // controle positivo: com o UID certo a checagem de dono passa (o script segue e falha adiante)
+      const ok = sh(join(docker, "scripts", "deploy.sh"), ["staging", "deploy", `r/a@sha256:${"a".repeat(64)}`], {
+        env: { PATH: `${stubDir}:/usr/bin:/bin`, SECRETS_DIR: segredos, API_UID: String(process.getuid()) },
+      });
+      assert.doesNotMatch(ok.stderr, /pertencer ao UID/);
+    } finally {
+      rmSync(segredos, { recursive: true, force: true });
     }
   });
   test("staging exige FND006_ENSAIO=1", () => {
