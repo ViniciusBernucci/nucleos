@@ -197,6 +197,11 @@ estas regras e as secoes anteriores deste arquivo.
   alvos (`make lint-ts`, `lint-py`, `lint`, `test-ts`, `test-py`, `build`) mais varreduras de
   seguranca; `make lint-workflows` e `make ci-regressao` validam o proprio CI localmente. A
   branch protection e manual (ver `documentacoes/engenharia/2026-10-26-fnd-005-ci-bloqueante.md`).
+  Configuracao e ambientes (FND-006): `make lint` inclui `make lint-deploy` (overlays de staging/prod
+  sem segredo literal, com digest e hardening); `make test-ambientes` (requer Docker e `make build`)
+  ensaia config invalida, deploy/rollback e ausencia de segredo em `docker inspect`/env/logs em
+  containers efemeros em `127.0.0.1`; ainda nao roda no CI. Nao ha ambiente de staging declarado:
+  deploy real fica BLOCKED (ver `documentacoes/runbooks/deploy-staging-producao.md`).
   Entrega somente de documentacao registra NA com justificativa.
 - **Dados:** nao ha banco nem servico de producao declarado. Nenhum teste ou script acessa
   banco ou servico real sem um ambiente isolado declarado nesta secao. Ambiente isolado de PoC

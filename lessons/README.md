@@ -45,3 +45,5 @@ numerado quando uma entrega o exercitar):
 - [01 - Sessao opaca e revogacao](01%20-%20Sessao%20opaca%20e%20revogacao.md) (bloco 7, seguranca; entrega DEC-002, ADR-016 Proposto).
 - [02 - CI bloqueante e cadeia de suprimentos](02%20-%20CI%20bloqueante%20e%20cadeia%20de%20suprimentos.md) (blocos 7 e 8, seguranca e CI; entrega FND-005).
 - [03 - Isolamento de telemetria por tenant](03%20-%20Isolamento%20de%20telemetria%20por%20tenant.md) (bloco 7, seguranca; entrega DEC-010, ADR-024 Proposto). A lesson de redacao/logging de FND-009 segue pendente e entrara em posicao propria.
+- [11 - Configuracao tipada com falha rapida](11%20-%20Configuracao%20tipada%20com%20falha%20rapida.md) (bloco 7, seguranca; entrega FND-006; numeracao provisoria).
+- [12 - Segredos por arquivo e verificacao de vazamento](12%20-%20Segredos%20por%20arquivo%20e%20verificacao%20de%20vazamento.md) (blocos 4 e 7, Docker e seguranca; entrega FND-006; numeracao provisoria).
