@@ -3355,3 +3355,75 @@ index 5ca95c1..0b5f16c 100755
 ````
 
 (Os `\r` foram removidos apenas desta exibicao.) Arquivos de `documentacoes/` e `lessons/` da rodada ficam fora do patch para evitar recursao: runbook, lesson 11 (exemplo Python tipado) e este documento.
+
+## Rodada 2 — diffs
+
+Commit `d259238` (REV-001 e REV-002). Evidencia anterior preservada.
+
+````diff
+commit d259238a6dda325c43d1239b7e5491f369a756e3
+fix(infra): teste de dono do segredo no deploy e PWD nao isento em Compose (FND-006 rodada 2)
+
+
+diff --git a/infrastructure/docker/scripts/deploy-lib.mjs b/infrastructure/docker/scripts/deploy-lib.mjs
+index 5b2768a..b8f29b4 100644
+--- a/infrastructure/docker/scripts/deploy-lib.mjs
++++ b/infrastructure/docker/scripts/deploy-lib.mjs
+@@ -11,11 +11,10 @@ const SECRET_SUFFIXES = ["PASSWORD", "PASSWD", "SECRET", "TOKEN", "APIKEY", "PRI
+  * (PASS, SECRET, TOKEN, KEY, DSN, ...) ou sufixo colado (DBPASSWORD). Nomes terminados em
+  * `_FILE`/`_PATH` (caminho) sao o formato permitido. Mesma regra de packages/config e config-py.
+  */
+-const NOT_SECRET = new Set(["PWD", "OLDPWD"]); // variaveis POSIX/shell
+-
++// Sem excecao para PWD/OLDPWD aqui: em Compose/inspect qualquer PWD e literal declarado (REV-002). A isencao
++// vale so no carregador do processo (packages/config e config-py), que le o ambiente do shell.
+ export function isSecretName(name) {
+   const up = name.toUpperCase().replace(/[.-]/g, "_");
+-  if (NOT_SECRET.has(up)) return false;
+   if (/_(FILE|PATH)$/.test(up)) return false;
+   if (up.split("_").some((t) => SECRET_TOKENS.has(t))) return true;
+   const compact = up.replaceAll("_", "");
+diff --git a/infrastructure/docker/tests/ambientes.test.mjs b/infrastructure/docker/tests/ambientes.test.mjs
+index 7993642..bd647a6 100644
+--- a/infrastructure/docker/tests/ambientes.test.mjs
++++ b/infrastructure/docker/tests/ambientes.test.mjs
+@@ -76,6 +76,11 @@ describe("verificador de overlays", () => {
+     }
+     for (const n of ["DATABASE_PASSWORD_FILE", "SSH_KEY_PATH", "KEYBOARD", "PASSTHROUGH"]) assert.ok(!isSecretName(n), n);
+     assert.equal(secretFindingsInText("      DB_PASS: hunter2\n").length, 1);
++    // REV-002: PWD/OLDPWD sao isentos so no carregador do processo, nunca em Compose.
++    assert.ok(isSecretName("PWD"));
++    assert.match(bad({ environment: { PWD: "hunter2" } }).join(), /nome de segredo/);
++    assert.equal(secretFindingsInText("      PWD: hunter2\n").length, 1);
++    assert.equal(secretFindingsInText("      DB_PWD: hunter2\n").length, 1);
+     assert.equal(secretFindingsInText("      JWT_SECRET_KEY: abc\n").length, 1);
+     assert.equal(secretFindingsInText("      DB_PASS: ${DB_PASS:?}\n").length, 0);
+   });
+@@ -270,6 +275,26 @@ describe("EXTRA_COMPOSE e restrito ao ensaio", () => {
+       assert.match(r.stderr, /proibido em prod/);
+     }
+   });
++  test("dono do segredo != API_UID e recusado sem EXTRA_COMPOSE, sem chamar docker (REV-001)", () => {
++    const segredos = mkdtempSync(join(tmpdir(), "fnd006-dono-"));
++    try {
++      writeFileSync(join(segredos, "database_password"), "x\n", { mode: 0o400 });
++      rmSync(marker, { force: true });
++      const r = sh(join(docker, "scripts", "deploy.sh"), ["staging", "deploy", `r/a@sha256:${"a".repeat(64)}`], {
++        env: { PATH: `${stubDir}:/usr/bin:/bin`, SECRETS_DIR: segredos, API_UID: String(process.getuid() + 1) },
++      });
++      assert.equal(r.status, 1, r.stderr);
++      assert.match(r.stderr, /pertencer ao UID/);
++      assert.ok(!existsSync(marker), "docker nao deve ser chamado");
++      // controle positivo: com o UID certo a checagem de dono passa (o script segue e falha adiante)
++      const ok = sh(join(docker, "scripts", "deploy.sh"), ["staging", "deploy", `r/a@sha256:${"a".repeat(64)}`], {
++        env: { PATH: `${stubDir}:/usr/bin:/bin`, SECRETS_DIR: segredos, API_UID: String(process.getuid()) },
++      });
++      assert.doesNotMatch(ok.stderr, /pertencer ao UID/);
++    } finally {
++      rmSync(segredos, { recursive: true, force: true });
++    }
++  });
+   test("staging exige FND006_ENSAIO=1", () => {
+     const r = run("staging", {});
+     assert.equal(r.status, 2);
+````

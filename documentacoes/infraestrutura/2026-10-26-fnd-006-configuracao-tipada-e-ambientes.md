@@ -128,3 +128,18 @@ Validacoes da rodada (PATH com Node 24.22.1 e `uv`): `make lint` exit 0; `make t
 Risco novo declarado: a regra de nome de segredo vale para todo o ambiente do processo, tambem em `local`; um shell de desenvolvimento com variavel como `GITHUB_TOKEN` ou `*_API_KEY` exportada impede `loadApiConfig` (ja ocorria com `TOKEN` na regra anterior; so `PWD`/`OLDPWD` foram liberados). Alternativa a decidir pelo humano: aplicar a regra apenas em `staging`/`production`/`ci`.
 
 Commits da tarefa agora: `8e5194d` (codigo), `93c7049` (documentacao), `6269603` (correcoes da rodada 1) e um commit de documentacao da rodada (SHA em `git log`; nao pode constar dele mesmo).
+
+## Rodada de correcao 2 (revalidacao `986e126`)
+
+Commit de codigo: `d259238` (sem amend). Evidencia das rodadas anteriores preservada.
+
+| ID | Decisao | O que foi feito | Prova |
+| --- | --- | --- | --- |
+| REV-001 | CORRIGIDO | teste sem `EXTRA_COMPOSE`: arquivo `0400` do usuario atual com `API_UID` diferente => `deploy.sh staging deploy` sai com codigo 1, "pertencer ao UID", sem chamar `docker` (stub no `PATH`); controle positivo com o UID certo nao emite a mensagem | mutante `[ "$dono" = ... ] \|\|` => `true \|\|` em `git clone --no-hardlinks` (scratchpad, descartado): o teste novo falha (antes sobrevivia 21/21) |
+| REV-002 | CORRIGIDO | `deploy-lib.mjs` sem excecao para `PWD`/`OLDPWD` (a isencao fica so em `load.ts`/`settings.py`, o carregador do processo) | testes: `PWD: hunter2` em `environment:` e no texto do Compose e `DB_PWD` sao recusados |
+| REV-003 | REGISTRADO | ordem `verificar_segredos`/`travar`/`verificar-deploy.mjs` nao uniforme, e `EXTRA_COMPOSE` ainda dispensa o dono em staging (so ensaio, com aviso e `FND006_ENSAIO=1`) | aceito; revisitar no deploy real de staging |
+| REV-004 | REGISTRADO | falsos positivos `*_KEY_ID` (ex.: `AWS_ACCESS_KEY_ID`) e `PASSWORD_FILE_X`: fail-closed, coerente com a politica | acompanhar no primeiro ticket que acrescentar variavel (ADIAR da rodada 1, item 004) |
+
+Validacoes: `make lint` exit 0; `make test` exit 0 (`pytest` 49 passed); `make build` exit 0; `make test-ambientes` exit 0, 22 testes, 0 containers/volumes/redes remanescentes. A decisao humana sobre a regra de nome de segredo em `local` (GITHUB_TOKEN etc.) segue aberta.
+
+Commits da tarefa: `8e5194d`, `93c7049`, `6269603`, `d259238` e o commit de documentacao desta rodada (SHA em `git log`).
