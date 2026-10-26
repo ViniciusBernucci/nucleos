@@ -11,3 +11,9 @@ packages:
 allowBuilds:
   lefthook: false
 minimumReleaseAge: 1440
+
+# Correcao de vulnerabilidade transitiva (FND-005-FIX): multer 2.4.0 (via @nestjs/platform-express)
+# tem GHSA-q7qp-rjg7-q26m (HIGH), corrigida em 2.5.0. Versao exata (npm, publicada em 2026-10-22).
+# Remover quando @nestjs/platform-express passar a depender de multer >= 2.5.0.
+overrides:
+  multer: 2.5.0
