@@ -9,5 +9,5 @@
     "test": "node --test \"dist/**/*.test.js\"",
     "start": "node dist/main.js"
   },
-  "dependencies": { "@nucleos/contracts": "workspace:*" }
+  "dependencies": { "@nucleos/contracts": "workspace:*", "@nucleos/observability": "workspace:*" }
 }
