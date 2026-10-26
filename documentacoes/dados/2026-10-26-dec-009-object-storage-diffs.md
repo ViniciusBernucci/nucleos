@@ -628,3 +628,291 @@ index 0000000..8f1f10e
 +  return { status: r.status, texto, codigo, cab: Object.fromEntries(r.headers) };
 +}
 ```
+
+## Rodada 1 - commit 70a66c7 - fix(dados): rodada 1 do PoC de object storage (REVIEW-001..006, DEC-009)
+
+Patch do codigo da rodada 1 (docs e lessons fora, por nao recursao). O commit anterior acima permanece inalterado.
+
+```diff
+diff --git a/infrastructure/docker/poc-object-storage/poc.mjs b/infrastructure/docker/poc-object-storage/poc.mjs
+index db397f1..7a18893 100644
+--- a/infrastructure/docker/poc-object-storage/poc.mjs
++++ b/infrastructure/docker/poc-object-storage/poc.mjs
+@@ -10,7 +10,6 @@ import {
+   construirChave,
+   politicaBucketDoTenant,
+   politicaPrefixoDoTenant,
+-  TTL_MAXIMO_SEGUNDOS,
+   validarChaveDoTenant,
+   validarTtl,
+ } from "./politica.mjs";
+@@ -32,7 +31,7 @@ const resumo = (r) => `${r.status} ${r.codigo ?? "-"}`;
+ 
+ async function mc(...args) {
+   const { stdout } = await execFileAsync("docker", [
+-    "run", "--rm", "--network", `container:${POC_CONTAINER}`, "--user", `${process.getuid()}`,
++    "run", "--rm", "--pull=never", "--network", `container:${POC_CONTAINER}`, "--user", `${process.getuid()}`,
+     "-v", `${POC_TMP}/mc:/mc`, POC_MC_IMAGE, "--config-dir", "/mc", ...args,
+   ]);
+   return stdout;
+@@ -42,6 +41,11 @@ const segredo = () => {
+   appendFileSync(SEGREDOS, `${v}\n`);
+   return v;
+ };
++const registrar = (t) => {
++  if (t instanceof S3) appendFileSync(SEGREDOS, `${t.secretKey}\n${t.sessionToken}\n`);
++  return t;
++};
++const info = (nome, detalhe) => console.log(`INFO  ${nome} [${detalhe}]`);
+ const sufixo = () => randomBytes(3).toString("hex");
+ 
+ async function criarUsuario(prefixo, politicaNome, politica) {
+@@ -155,8 +159,13 @@ async function modeloS() {
+   r = await a.get(bucket, "tenants/b/juridico/inexistente");
+   verificar("S: A le chave inexistente no prefixo de B -> AccessDenied (sem oraculo)", negado(r), resumo(r));
+   r = await a.put(bucket, "tenants/a/juridico/x/..%2F..%2F..%2Fb%2Fjuridico%2Fy", "x");
+-  const confinada = r.status === 200 ? (await b.get(bucket, "tenants/b/juridico/y")).status === 404 || (await b.get(bucket, "tenants/b/juridico/y")).status === 403 : true;
+-  verificar("S: chave com '..%2F' literal nao escapa do prefixo de A (recusada ou confinada)", confinada, resumo(r));
++  const listaB = await b.list(bucket, "tenants/b/");
++  const chavesB = [...listaB.texto.matchAll(/<Key>([^<]+)<\/Key>/g)].map((m) => m[1]);
++  verificar("S: chave com '..%2F' gravada por A nao aparece no prefixo de B (so a chave original de B)", chavesB.length === 1 && chavesB[0] === kB, `PUT ${resumo(r)}; chaves em tenants/b/: ${chavesB.length}`);
++  if (r.status === 200) {
++    const listaA = await a.list(bucket, "tenants/a/");
++    verificar("S: o objeto '..%2F' existe apenas sob tenants/a/ (chave literal)", listaA.texto.includes("..%2F") && !listaB.texto.includes("..%2F"));
++  }
+   r = await pegarUrl(a.presign("GET", bucket, kB, 60));
+   verificar("S: URL que A assina para objeto de B -> AccessDenied", negado(r), resumo(r));
+   r = await pegarUrl(a.presign("GET", bucket, kA, 60).replace(kA, kB));
+@@ -178,7 +187,7 @@ async function modeloT() {
+   await plataforma.put(bucket, kB, "dado-b");
+   verificar("T: a credencial da plataforma e ampla (le A e B): por isso nunca sai do servico", (await plataforma.get(bucket, kB)).texto === "dado-b");
+ 
+-  const tA = await plataforma.assumirPapel(politicaPrefixoDoTenant(bucket, "a"));
++  const tA = registrar(await plataforma.assumirPapel(politicaPrefixoDoTenant(bucket, "a")));
+   verificar("T: AssumeRole com politica de sessao de A funciona", tA instanceof S3, tA.erro ? resumo(tA.erro) : "");
+   verificar("T: credencial temporaria de A le/grava o proprio prefixo", (await tA.get(bucket, kA)).texto === "dado-a" && (await tA.put(bucket, chaveDe("a", DOC_B, "novo.txt"), "n")).status === 200);
+   let r = await tA.get(bucket, kB);
+@@ -192,11 +201,11 @@ async function modeloT() {
+ 
+   // Politica de sessao so reduz: pedir mais que a politica-pai nao amplia.
+   const outra = await criarUsuario("fraca", "pol-t-fraca", politicaPrefixoDoTenant(bucket, "a"));
+-  const tAmpliada = await outra.assumirPapel(ampla);
++  const tAmpliada = registrar(await outra.assumirPapel(ampla));
+   verificar("T: politica de sessao nao amplia a politica do usuario (le B -> AccessDenied)", tAmpliada instanceof S3 && negado(await tAmpliada.get(bucket, kB)));
+ 
+   // Revogacao: remover o usuario-pai invalida as credenciais temporarias derivadas?
+-  const tFraca = await outra.assumirPapel(politicaPrefixoDoTenant(bucket, "a"));
++  const tFraca = registrar(await outra.assumirPapel(politicaPrefixoDoTenant(bucket, "a")));
+   const antes = (await tFraca.get(bucket, kA)).status;
+   await mc("admin", "user", "remove", "local", outra.accessKey);
+   const depois = await tFraca.get(bucket, kA);
+@@ -231,8 +240,14 @@ function guardas() {
+   const k = construirChave({ tenantId: "a", departamento: "x", documentId: DOC_A, nome: "../../etc/passwd" });
+   verificar("guarda: nome com caminho e reduzido ao nome-base", k.endsWith("/passwd") && !k.includes(".."), k);
+   rejeita("TTL 0", () => validarTtl(0));
+-  rejeita(`TTL ${TTL_MAXIMO_SEGUNDOS + 1}`, () => validarTtl(TTL_MAXIMO_SEGUNDOS + 1));
+-  verificar("guarda: TTL 300 aceito", validarTtl(300) === 300);
++  rejeita("TTL 301 (literal)", () => validarTtl(301));
++  rejeita("TTL fracionado 1.5", () => validarTtl(1.5));
++  rejeita("TTL texto '60'", () => validarTtl("60"));
++  rejeita("TTL 604800 (maximo do S3, 7 dias)", () => validarTtl(604800));
++  rejeita("presign com TTL 301 recusa antes de assinar", () =>
++    new S3({ endpoint: ENDPOINT, accessKey: "k", secretKey: "s" }).presign("GET", "b", "k", 301));
++  verificar("guarda: TTL 1 aceito", validarTtl(1) === 1);
++  verificar("guarda: TTL 300 aceito (literal)", validarTtl(300) === 300);
+ }
+ 
+ // ------------------------------------ Versionamento, object lock e criptografia em repouso
+@@ -248,21 +263,55 @@ async function backupECriptografia() {
+   const u = await criarUsuario("lock", "pol-lock", total);
+   let r = await u.put(bucket, "obj", "v1");
+   const vLock = r.cab["x-amz-version-id"];
+-  verificar("lock: PUT em bucket com object lock devolve versionId", r.status === 200 && Boolean(vLock));
++  verificar("lock (credencial s3:*, mede o mecanismo): PUT devolve versionId", r.status === 200 && Boolean(vLock));
+   r = await u.del(bucket, "obj", vLock);
+   const msg = /<Message>([^<]+)<\/Message>/.exec(r.texto)?.[1] ?? "";
+-  verificar("lock: apagar a versao retida (GOVERNANCE) sem bypass e recusado", r.status >= 400 && /WORM|retention|bypass|locked/i.test(msg), `${resumo(r)} ${msg}`);
+-  r = await u.pedido("GET", `/${bucket}/obj`, { consulta: { versionId: vLock } });
+-  verificar("lock: a versao retida continua legivel", r.status === 200 && r.texto === "v1");
++  verificar("lock (s3:*): apagar a versao retida (GOVERNANCE) sem bypass e recusado", r.status >= 400 && /WORM|retention|bypass|locked/i.test(msg), `${resumo(r)} ${msg}`);
+   r = await u.put(livre, "obj", "v1");
+   const vLivre = r.cab["x-amz-version-id"];
+   await u.put(livre, "obj", "v2");
+   r = await u.del(livre, "obj");
+-  verificar("versionamento: DELETE simples cria delete marker (dado recuperavel)", r.status === 204 && r.cab["x-amz-delete-marker"] === "true", resumo(r));
++  verificar("versionamento (s3:*): DELETE simples cria delete marker (dado recuperavel)", r.status === 204 && r.cab["x-amz-delete-marker"] === "true", resumo(r));
+   r = await u.get(livre, "obj");
+-  verificar("versionamento: objeto some da leitura corrente (404)", r.status === 404, resumo(r));
++  verificar("versionamento (s3:*): objeto some da leitura corrente (404)", r.status === 404, resumo(r));
+   const v1 = await u.pedido("GET", `/${livre}/obj`, { consulta: { versionId: vLivre } });
+-  verificar("versionamento: a versao antiga continua recuperavel por versionId", v1.status === 200 && v1.texto === "v1");
++  verificar("versionamento (s3:*): a versao antiga continua recuperavel por versionId", v1.status === 200 && v1.texto === "v1");
++
++  // Rodada 1 (REVIEW-002): a mesma configuracao com a politica REAL do tenant (Modelo P).
++  console.log("-- rodada 1: lock/versionamento com a politica real do tenant (politicaBucketDoTenant)");
++  const lockT = "lock-tenant";
++  const verT = "versao-tenant";
++  await mc("mb", "--with-lock", `local/${lockT}`);
++  await mc("retention", "set", "--default", "GOVERNANCE", "1d", `local/${lockT}`);
++  await mc("mb", `local/${verT}`);
++  await mc("version", "enable", `local/${verT}`);
++  const t1 = await criarUsuario("tl", "pol-tl", politicaBucketDoTenant(lockT));
++  const t2 = await criarUsuario("tv", "pol-tv", politicaBucketDoTenant(verT));
++  r = await t1.put(lockT, "obj", "v1");
++  const vt = r.cab["x-amz-version-id"];
++  verificar("lock (tenant): PUT funciona e devolve versionId", r.status === 200 && Boolean(vt));
++  r = await t1.del(lockT, "obj", vt);
++  verificar("lock (tenant): DELETE da versao retida sem bypass e recusado", r.status >= 400, resumo(r));
++  r = await t1.del(lockT, "obj", vt, { "x-amz-bypass-governance-retention": "true" });
++  verificar("lock (tenant): DELETE com cabecalho de bypass tambem e recusado (falta permissao)", r.status >= 400, resumo(r));
++  r = await t1.pedido("GET", `/${lockT}/obj`, { consulta: { versionId: vt } });
++  info("lock (tenant): GET da versao por versionId com a politica P (s3:GetObjectVersion nao concedida)", resumo(r));
++  r = await t1.del(lockT, "obj");
++  info("lock (tenant): DELETE simples (sem versionId) pelo tenant", `${resumo(r)} marker=${r.cab["x-amz-delete-marker"] ?? "-"}`);
++  r = await t1.get(lockT, "obj");
++  info("lock (tenant): GET corrente apos o DELETE simples", resumo(r));
++  r = await t2.put(verT, "obj", "v1");
++  const vt1 = r.cab["x-amz-version-id"];
++  await t2.put(verT, "obj", "v2");
++  r = await t2.del(verT, "obj");
++  info("versionamento (tenant): DELETE simples cria delete marker", `${resumo(r)} marker=${r.cab["x-amz-delete-marker"] ?? "-"}`);
++  r = await t2.pedido("GET", `/${verT}/obj`, { consulta: { versionId: vt1 } });
++  info("versionamento (tenant): GET da versao antiga por versionId", resumo(r));
++  r = await t2.del(verT, "obj", vt1);
++  const apagada = r.status === 204;
++  const depois = await t2.pedido("GET", `/${verT}/obj`, { consulta: { versionId: vt1 } });
++  verificar("versionamento (tenant): ACHADO - s3:DeleteObject basta para apagar versao especifica no MinIO; versionamento sozinho NAO protege contra credencial comprometida", apagada && depois.status === 404, `DELETE ${resumo(r)}; GET depois ${resumo(depois)}`);
++  verificar("lock (tenant): o object lock (GOVERNANCE) e o que protege a versao: ela continua legivel apos as tentativas de apagar", (await t1.pedido("GET", `/${lockT}/obj`, { consulta: { versionId: vt } })).status === 200);
+ 
+   // Criptografia em repouso (SSE-S3 do MinIO) com controle negativo/positivo.
+   await mc("mb", "local/enc-bucket");
+@@ -273,17 +322,17 @@ async function backupECriptografia() {
+   await e.put("enc-bucket", "obj", sentinela);
+   await e.put("claro-bucket", "obj", sentinela);
+   const lido = await e.get("enc-bucket", "obj");
+-  verificar("SSE-S3: leitura via API devolve o texto original", lido.texto === sentinela);
++  verificar("SSE-S3 (credencial s3:*; mede criptografia, nao autorizacao): leitura via API devolve o texto original", lido.texto === sentinela);
+   const buscar = async (pasta) => {
+     try {
+-      const { stdout } = await execFileAsync("docker", ["run", "--rm", "-v", `${POC_VOLUME}:/d:ro`, POC_HELPER_IMAGE, "grep", "-rlF", sentinela, `/d/${pasta}`]);
++      const { stdout } = await execFileAsync("docker", ["run", "--rm", "--pull=never", "-v", `${POC_VOLUME}:/d:ro`, POC_HELPER_IMAGE, "grep", "-rlF", sentinela, `/d/${pasta}`]);
+       return stdout.trim() !== "";
+     } catch {
+       return false; // grep sai com 1 quando nao encontra
+     }
+   };
+-  verificar("SSE-S3: controle positivo - bucket sem criptografia guarda o texto em claro no disco", await buscar("claro-bucket"));
+-  verificar("SSE-S3: bucket com SSE-S3 NAO guarda o texto em claro no disco", !(await buscar("enc-bucket")));
++  verificar("SSE-S3 (s3:*): controle positivo - bucket sem criptografia guarda o texto em claro no disco", await buscar("claro-bucket"));
++  verificar("SSE-S3 (s3:*): bucket com SSE-S3 NAO guarda o texto em claro no disco", !(await buscar("enc-bucket")));
+ }
+ 
+ // ---------------------------------------------------------------------------------- main
+diff --git a/infrastructure/docker/poc-object-storage/run-poc.sh b/infrastructure/docker/poc-object-storage/run-poc.sh
+index 6965e43..3cde011 100755
+--- a/infrastructure/docker/poc-object-storage/run-poc.sh
++++ b/infrastructure/docker/poc-object-storage/run-poc.sh
+@@ -2,6 +2,7 @@
+ # PoC DEC-009 (ADR-023): MinIO em container efemero (127.0.0.1), sem dados reais, destruido ao final.
+ # Prova isolamento entre tenants (bucket por tenant, prefixo, credencial temporaria), revogacao,
+ # versionamento/object lock e criptografia em repouso. Uso: infrastructure/docker/poc-object-storage/run-poc.sh
++# Segredos do host em 0700/0600; o MinIO le uma copia 0400 (uid 65532) em volume proprio. Imagens so locais (--pull=never).
+ # Requer docker, node >= 24, openssl. Imagens: MINIO_IMAGE e MC_IMAGE (padrao: ja presentes localmente).
+ set -euo pipefail
+ 
+@@ -10,6 +11,7 @@ export POC_TMP POC_PORT POC_CONTAINER POC_VOLUME POC_MC_IMAGE POC_HELPER_IMAGE
+ POC_TMP="$(mktemp -d)"
+ POC_CONTAINER="poc-object-storage-$$"
+ POC_VOLUME="poc-object-storage-vol-$$"
++SEC_VOLUME="poc-object-storage-sec-$$"
+ POC_PORT="${POC_PORT:-19000}"
+ POC_MC_IMAGE="${MC_IMAGE:-cgr.dev/chainguard/minio-client:latest}"
+ POC_HELPER_IMAGE="${HELPER_IMAGE:-nginx:1.28-alpine}"
+@@ -19,7 +21,7 @@ SAIDA="$POC_TMP/saida.txt"
+ limpar() {
+   local rc=$?
+   docker rm -f -v "$POC_CONTAINER" >/dev/null 2>&1 || true
+-  docker volume rm -f "$POC_VOLUME" >/dev/null 2>&1 || true
++  docker volume rm -f "$POC_VOLUME" "$SEC_VOLUME" >/dev/null 2>&1 || true
+   rm -rf "$POC_TMP"
+   echo "== limpeza: container, volume e segredos temporarios removidos (rc=$rc)"
+   docker ps -a --filter "name=poc-object-storage" --format 'RESTO: {{.Names}}' || true
+@@ -35,18 +37,28 @@ ROOT_SECRET="$(openssl rand -hex 20)"
+ printf '%s' "$ROOT_USER" > "$POC_TMP/secrets/root-user"
+ printf '%s' "$ROOT_SECRET" > "$POC_TMP/secrets/root-password"
+ printf 'poc-key:%s' "$(openssl rand -base64 32)" > "$POC_TMP/secrets/kms-key"
+-chmod 0755 "$POC_TMP" "$POC_TMP/secrets"; chmod 0644 "$POC_TMP"/secrets/*   # efemeros; leitura pelo usuario do container
+ printf '{"version":"10","aliases":{"local":{"url":"http://127.0.0.1:9000","accessKey":"%s","secretKey":"%s","api":"S3v4","path":"auto"}}}' \
+   "$ROOT_USER" "$ROOT_SECRET" > "$POC_TMP/mc/config.json"
+-chmod 0755 "$POC_TMP/mc"; chmod 0644 "$POC_TMP/mc/config.json"
++chmod 0700 "$POC_TMP" "$POC_TMP/secrets" "$POC_TMP/mc"; chmod 0600 "$POC_TMP"/secrets/* "$POC_TMP/mc/config.json"
+ 
+-echo "== imagens"
+-docker image inspect --format '{{index .RepoTags 0}} {{.Id}}' "$MINIO_IMAGE" "$POC_MC_IMAGE"
+-docker run --rm "$MINIO_IMAGE" --version | head -n 1
++echo "== imagens (sem pull: a imagem precisa existir localmente)"
++for img in "$MINIO_IMAGE" "$POC_MC_IMAGE" "$POC_HELPER_IMAGE"; do
++  docker image inspect --format '{{index .RepoTags 0}} {{.Id}}' "$img" 2>/dev/null \
++    || { echo "FALHA: imagem ausente localmente: $img (este PoC usa --pull=never; faca o pull manualmente ou informe MINIO_IMAGE/MC_IMAGE/HELPER_IMAGE)"; exit 1; }
++done
++docker run --rm --pull=never "$MINIO_IMAGE" --version | head -n 1
++echo "== preparando segredos para o usuario do container (volume proprio, 0400 para uid 65532; arquivos do host ficam 0600)"
++docker volume create "$SEC_VOLUME" >/dev/null
++docker run --rm --pull=never --user 0 -v "$SEC_VOLUME:/dst" -v "$POC_TMP/secrets:/src:ro" "$POC_HELPER_IMAGE" \
++  sh -c 'cp /src/* /dst/ && chown 65532:65532 /dst /dst/* && chmod 0500 /dst && chmod 0400 /dst/*'
++echo "== modos no host (nenhum legivel por 'outros'):"
++ls -ld "$POC_TMP" "$POC_TMP/secrets" "$POC_TMP/mc" | awk '{print $1, "dir"}'
++ls -l "$POC_TMP/secrets" "$POC_TMP/mc/config.json" | awk 'NR>1 && $1!="" {print $1}' | sort | uniq -c
++if find "$POC_TMP" -perm /o+rwx | grep -q .; then echo "FALHA: arquivo/dir acessivel por outros em $POC_TMP"; exit 1; fi
+ echo "== subindo MinIO (porta somente em 127.0.0.1:$POC_PORT; segredos por arquivo, nao por ambiente)"
+ docker volume create "$POC_VOLUME" >/dev/null
+-docker run -d --name "$POC_CONTAINER" -p "127.0.0.1:$POC_PORT:9000" \
+-  -v "$POC_VOLUME:/data" -v "$POC_TMP/secrets:/run/poc:ro" \
++docker run -d --pull=never --name "$POC_CONTAINER" -p "127.0.0.1:$POC_PORT:9000" \
++  -v "$POC_VOLUME:/data" -v "$SEC_VOLUME:/run/poc:ro" \
+   -e MINIO_ROOT_USER_FILE=/run/poc/root-user -e MINIO_ROOT_PASSWORD_FILE=/run/poc/root-password \
+   -e MINIO_KMS_SECRET_KEY_FILE=/run/poc/kms-key -e MINIO_BROWSER=off \
+   "$MINIO_IMAGE" server /data --address ":9000" >/dev/null
+@@ -68,7 +80,8 @@ rc=${PIPESTATUS[0]}
+ set -e
+ 
+ echo "== varredura de vazamento: nenhum segredo gerado aparece na saida"
+-SEGREDOS=("$ROOT_SECRET")
++KMS_VALOR="$(cut -d: -f2- "$POC_TMP/secrets/kms-key")"
++SEGREDOS=("$ROOT_SECRET" "$KMS_VALOR" "$(cat "$POC_TMP/secrets/kms-key")")
+ while IFS= read -r s; do [ -n "$s" ] && SEGREDOS+=("$s"); done < "$POC_TMP/segredos.txt"
+ vazou=0
+ for s in "${SEGREDOS[@]}"; do grep -qF -- "$s" "$SAIDA" && vazou=1; done
+diff --git a/infrastructure/docker/poc-object-storage/sigv4.mjs b/infrastructure/docker/poc-object-storage/sigv4.mjs
+index 8f1f10e..1731ebf 100644
+--- a/infrastructure/docker/poc-object-storage/sigv4.mjs
++++ b/infrastructure/docker/poc-object-storage/sigv4.mjs
+@@ -2,6 +2,7 @@
+ // Suporta PUT/GET/DELETE/HEAD/LIST, URL pre-assinada, credencial temporaria (session token)
+ // e o STS AssumeRole do MinIO. Nao e codigo de producao: producao usa SDK mantido.
+ import { createHash, createHmac } from "node:crypto";
++import { validarTtl } from "./politica.mjs";
+ 
+ const sha256 = (dados) => createHash("sha256").update(dados).digest("hex");
+ const hmac = (chave, dados) => createHmac("sha256", chave).update(dados).digest();
+@@ -69,9 +70,9 @@ export class S3 {
+   head(bucket, chave) {
+     return this.pedido("HEAD", `/${bucket}/${chave}`);
+   }
+-  del(bucket, chave, versionId) {
++  del(bucket, chave, versionId, cabecalhos = {}) {
+     const consulta = versionId ? { versionId } : {};
+-    return this.pedido("DELETE", `/${bucket}/${chave}`, { consulta });
++    return this.pedido("DELETE", `/${bucket}/${chave}`, { consulta, cabecalhos });
+   }
+   list(bucket, prefixo = "") {
+     return this.pedido("GET", `/${bucket}`, { consulta: { "list-type": "2", prefix: prefixo } });
+@@ -82,6 +83,7 @@ export class S3 {
+ 
+   // URL pre-assinada (query string). Retorna a URL completa.
+   presign(metodo, bucket, chave, expiraSegundos, agora = new Date()) {
++    validarTtl(expiraSegundos); // politica do servidor (ADR-023): recusa antes de assinar
+     const { amz, dia } = stamp(agora);
+     const escopo = `${dia}/${this.regiao}/s3/aws4_request`;
+     const consulta = {
+```

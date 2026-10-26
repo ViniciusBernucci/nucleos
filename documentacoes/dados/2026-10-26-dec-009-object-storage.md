@@ -19,7 +19,7 @@ Fora do escopo: implementar DAT-006 (servico de storage de producao), antimalwar
 
 - [ADR-023](../arquitetura/adr/0023-provedor-e-autorizacao-de-object-storage.md), **Proposto**, no template, com decisao, alternativas, fatos com fonte/data, gatilhos de revisao. Indice [adr/README.md](../arquitetura/adr/README.md) atualizado.
 - PoC efemero `infrastructure/docker/poc-object-storage/`: MinIO `RELEASE.2026-10-23T20-06-51Z` (imagem `cgr.dev/chainguard/minio:latest`, ja presente localmente, digest na saida) em container descartavel, porta somente em `127.0.0.1`, segredos por arquivo (`*_FILE`, nao por ambiente), volume e container destruidos por `trap`. Cliente SigV4 proprio (`sigv4.mjs`, sem dependencias) e `mc` (imagem local) so para administracao.
-- 73 verificacoes, 0 falha, na saida real (`rc=0`), em 4 blocos: guardas do servidor (16), Modelo P bucket por tenant (23), Modelo S prefixo (16), Modelo T credencial temporaria/STS (9) e versionamento/lock/SSE (9).
+- (Execucao original) 73 verificacoes, 0 falha, na saida real (`rc=0`), em 4 blocos: guardas do servidor (16), Modelo P bucket por tenant (23), Modelo S prefixo (16), Modelo T credencial temporaria/STS (9) e versionamento/lock/SSE (9).
 
 ### Criterios do ticket
 
@@ -29,14 +29,16 @@ Fora do escopo: implementar DAT-006 (servico de storage de producao), antimalwar
 
 ### Resultados medidos que importam para a decisao
 
+- Tudo abaixo foi medido no MinIO; nao vale como regra para outros provedores sem reconfirmar.
 - O MinIO responde `AccessDenied` (nao 404) a chave inexistente no namespace alheio: sem oraculo de existencia.
 - Confusao de prefixo `tenants/a/` x `tenants/ab/` negada nos dois sentidos quando a politica termina em `/`.
 - `s3:ListAllMyBuckets` nao e negado: devolve 200 listando so os buckets permitidos.
 - Chave com `..%2F` literal nao escapa: o S3 trata como string; o servidor deve rejeitar mesmo assim (guarda testada).
 - Politica de sessao do STS so reduz permissoes; remover o usuario-pai invalida a credencial temporaria derivada.
+- (Rodada 1) Com a politica real do tenant (P) no MinIO: lock GOVERNANCE recusa DELETE de versao com e sem cabecalho de bypass; em bucket so versionado, `s3:DeleteObject` basta para apagar versao especifica (versionamento nao protege sozinho); versoes antigas sao legiveis por `versionId`; DELETE simples cria delete marker. Todos "medido no MinIO".
 - Credencial ampla da plataforma le A e B (demonstrado): justifica nunca entrega-la ao runtime e preferir bucket por tenant ou credencial temporaria por chamada.
-- Object lock GOVERNANCE: apagar a versao retida sem bypass e recusado (`Object is WORM protected`); DELETE simples em bucket versionado cria delete marker e a versao antiga continua recuperavel.
-- SSE-S3: texto nao aparece no disco; no bucket sem SSE (controle positivo) aparece. A chave KMS do PoC e estatica e aleatoria por execucao (so PoC).
+- (Credencial `s3:*`, mede o mecanismo) Object lock GOVERNANCE: apagar a versao retida sem bypass e recusado (`Object is WORM protected`); DELETE simples em bucket versionado cria delete marker e a versao antiga continua recuperavel.
+- SSE-S3 (credencial `s3:*`; mede criptografia, nao autorizacao): texto nao aparece no disco; no bucket sem SSE (controle positivo) aparece. A chave KMS do PoC e estatica e aleatoria por execucao (so PoC).
 
 ### Custos estimados (5 tenants; fontes consultadas em 2026-10-26)
 
@@ -78,6 +80,12 @@ Ambiente: Docker 29.8.1, Node 24.22.1 (`PATH` com `~/.local/opt/node-v24.22.1-li
 
 O commit foi criado com `core.hooksPath` desativado na chamada (`git -c core.hooksPath=/dev/null`) apos rodar o gitleaks manualmente; os hooks do lefthook nao rodaram.
 
+## Rodada 1 de correcao (review 1fe0e18, auditoria ffa87fa)
+
+Commit de codigo `70a66c7`. Aplicados: REVIEW-001 (TTL com literais 300 aceito/301 recusado, 1.5, "60", 604800; `presign` chama `validarTtl`; mutacao da constante para 604800 produziu 3 FALHA, revertida), REVIEW-002 (lock/versionamento com a politica real do tenant, inclusive cabecalho de bypass; ADR decisao 8 reescrita com o achado de que `s3:DeleteObject` apaga versao especifica), REVIEW-003 (host em 0700/0600, verificado por `find -perm /o+rwx`; segredos copiados para volume proprio `0400` uid 65532 por container auxiliar; o MinIO subiu sem a premissa de host de usuario unico), REVIEW-004 (varredura cobre chave KMS, valor e arquivo, e SecretAccessKey/SessionToken do STS: 21 segredos, 0 vazados), REVIEW-005 (check por listagem do prefixo de B: so a chave original de B; objeto `..%2F` existe so sob `tenants/a/`), REVIEW-006 parte script (`--pull=never` em todos os `docker run`; falha clara se a imagem nao existir), REVIEW-007 (ADR decisoes 1, 6, 8 e alternativas com "no MinIO"; pendencias 7 e 8 acima).
+Adiados (retomada na decisao humana sobre o ADR-023): licenca AGPLv3/distribuicao do MinIO e digest por padrao.
+Reexecucao: `run-poc.sh` rc 0; **83 OK, 0 FALHA**; 21 segredos verificados, 0 vazamentos; zero residuo (`docker ps -a` e `docker volume ls`). Saida na secao "RODADA 1" de `-saida-poc.txt` (a execucao anterior de 73 OK foi preservada). Commits: `70a66c7` (codigo) e o de documentacao seguinte. A contagem "73" nas secoes anteriores refere-se a execucao original.
+
 ## Impactos, riscos, compatibilidade, rollback
 
 - Nenhum impacto em runtime/producao: so PoC e documentos. Rollback: reverter os commits da branch.
@@ -101,7 +109,8 @@ O commit foi criado com `core.hooksPath` desativado na chamada (`git -c core.hoo
 4. Aceitar a licenca AGPLv3 do MinIO e a origem da imagem (Chainguard vs oficial/build proprio) e fixar digest.
 5. Politica de antimalware, cota por tenant e tamanho maximo de upload (DAT-006).
 6. TTL maximo de 300 s (herdado do ticket DAT-006) e se downloads grandes exigem outro valor.
-7. Confirmar com o provedor escolhido (quando houver conta) limites de buckets/chaves e suporte a STS/escopo por prefixo; reexecutar os testes negativos contra ele.
+7. Confirmar com o provedor escolhido (quando houver conta) limites de buckets/chaves, suporte a STS/escopo por prefixo e que a revogacao invalida URLs ja assinadas (medido so no MinIO); reexecutar os testes negativos contra ele.
+8. (Rodada 1) Aceitar ou nao o risco do DELETE simples do tenant (delete marker) e definir a credencial de backup sem permissao de apagar/bypass (versionamento sozinho nao protege).
 
 ## Pendencias
 

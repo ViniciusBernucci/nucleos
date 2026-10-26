@@ -1,6 +1,6 @@
 # 08 - Autorizacao de object storage e URLs assinadas
 
-Criada em 2026-10-26. Ultima atualizacao: 2026-10-26.
+Criada em 2026-10-26. Ultima atualizacao: 2026-10-26 (rodada 1 de correcao).
 Versoes: Node 24.22.1, TypeScript 5.9.3 (o exemplo e JavaScript valido em TypeScript), Python 3.13.17 declarado pelo repositorio (nao usado aqui). Numeracao **provisoria**: o coordenador reconcilia a posicao na trilha.
 
 ## Objetivo, pre-requisitos e posicao na trilha
@@ -14,11 +14,11 @@ Object storage nao tem pastas: a chave `tenants/a/doc/x.pdf` e uma string. Duas 
 1. **O servidor monta a chave** a partir da identidade verificada (nunca do que o cliente ou o LLM enviam) e rejeita o que foge do formato antes de falar com o provedor.
 2. **O provedor nega** o que a credencial nao cobre (`AccessDenied`), mesmo que a camada 1 falhe.
 
-URL assinada e um "cheque" com o caminho e a validade dentro da assinatura: mudar o caminho invalida a assinatura; quem emitiu so assina o que a propria credencial pode acessar; apagar a credencial invalida as URLs que ela assinou.
+URL assinada e um "cheque" com o caminho e a validade dentro da assinatura: mudar o caminho invalida a assinatura; quem emitiu so assina o que a propria credencial pode acessar; apagar a credencial invalida as URLs que ela assinou (medido no MinIO; reconfirme no provedor).
 
 ## Conexao com a entrega real
 
-PoC do ENT-DEC-009 (ADR-023, **Proposto**): [registro](../documentacoes/dados/2026-10-26-dec-009-object-storage.md) e [ADR-023](../documentacoes/arquitetura/adr/0023-provedor-e-autorizacao-de-object-storage.md). O PoC sobe MinIO efemero e prova, com 73 verificacoes, bucket por tenant, prefixo, credencial temporaria por chamada, revogacao, versionamento/object lock e criptografia em repouso.
+PoC do ENT-DEC-009 (ADR-023, **Proposto**): [registro](../documentacoes/dados/2026-10-26-dec-009-object-storage.md) e [ADR-023](../documentacoes/arquitetura/adr/0023-provedor-e-autorizacao-de-object-storage.md). O PoC sobe MinIO efemero e prova, com 83 verificacoes (rodada 1), bucket por tenant, prefixo, credencial temporaria por chamada, revogacao, versionamento/object lock e criptografia em repouso.
 
 ## Exemplo minimo executavel (Node 24, sem dependencias)
 
@@ -78,12 +78,13 @@ Salve como `exemplo.mjs` e rode `node exemplo.mjs` (imprime `ok`). O codigo comp
 - Aceitar a chave ou o `tenant_id` do cliente; confiar so no `startsWith` sem validar segmentos.
 - Achar que `..` e travessia no S3: nao e (a chave e literal), mas o servidor deve rejeitar mesmo assim, porque o armazenamento local, logs e outros componentes podem interpretar o caminho.
 - Entregar a credencial ao runtime em vez de URL de curta duracao.
+- Versionamento sozinho nao protege backup: no MinIO, `s3:DeleteObject` apaga uma versao especifica; use object lock e credencial sem permissao de apagar.
 - URL de PUT nao limita tamanho sozinha; exija cota/tamanho no servidor ou POST policy.
 - Nao se aplica a dados que cabem no banco do tenant ou a conteudo publico por design.
 
 ## Verificacao e exercicios
 
-- Verificacao: `node exemplo.mjs`; para a prova completa, `infrastructure/docker/poc-object-storage/run-poc.sh` (precisa de Docker; termina com `73 OK, 0 FALHA` e remove tudo).
+- Verificacao: `node exemplo.mjs`; para a prova completa, `infrastructure/docker/poc-object-storage/run-poc.sh` (precisa de Docker; termina com `83 OK, 0 FALHA` e remove tudo).
 - Exercicio 1: acrescente ao exemplo uma politica que permita `PutObject` e escreva o teste negativo de `ab` gravando em `tenants/a/`.
 - Exercicio 2: por que a revogacao da chave do tenant invalida URLs ainda dentro do TTL, e o que isso muda no desenho do TTL?
 - Exercicio 3: liste o que o provedor ve e o que so o servidor sabe quando o tenant e deduzido do corpo da requisicao.

@@ -93,3 +93,125 @@ OK    SSE-S3: bucket com SSE-S3 NAO guarda o texto em claro no disco
 == varredura de vazamento: nenhum segredo gerado aparece na saida
 segredos verificados: 11; vazamento: 0
 == limpeza: container, volume e segredos temporarios removidos (rc=0)
+
+########## RODADA 1 DE CORRECAO (2026-10-26): saida real da reexecucao; a saida acima (73 OK) e preservada ##########
+== imagens (sem pull: a imagem precisa existir localmente)
+cgr.dev/chainguard/minio:latest sha256:268d68a2a3b6fc65f905a61f84d7eab6345ce6bff14f551e2b028ec31e6a1341
+cgr.dev/chainguard/minio-client:latest sha256:59f1924e417b6fcfdc0aca321e3bdebe8a56fd0efa7da80037d5eb65a203d687
+nginx:1.28-alpine sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236
+minio version RELEASE.2026-10-23T20-06-51Z (commit-id=76c06ff1d2cc844050fdeb1d54bf8fa70db72278)
+== preparando segredos para o usuario do container (volume proprio, 0400 para uid 65532; arquivos do host ficam 0600)
+== modos no host (nenhum legivel por 'outros'):
+drwx------ dir
+drwx------ dir
+drwx------ dir
+      3 -rw-------
+      1 /tmp/tmp.jfInHNnk4x/secrets:
+      1 total
+== subindo MinIO (porta somente em 127.0.0.1:19000; segredos por arquivo, nao por ambiente)
+== portas publicadas (todas devem ser 127.0.0.1)
+9000/tcp -> 127.0.0.1:19000
+== env do container nao contem valor de segredo (somente caminhos *_FILE)
+MINIO_ROOT_PASSWORD_FILE=/run/poc/root-password
+MINIO_KMS_SECRET_KEY_FILE=/run/poc/kms-key
+MINIO_BROWSER=off
+MINIO_ROOT_USER_FILE=/run/poc/root-user
+== PoC
+== Guardas do servico de storage (antes de qualquer chamada ao provedor)
+OK    guarda: chave valida do proprio tenant aceita
+OK    guarda: chave de outro tenant
+OK    guarda: prefixo parecido (tenant 'ab' vs 'a')
+OK    guarda: '..' como segmento
+OK    guarda: travessia '../'
+OK    guarda: chave absoluta
+OK    guarda: byte nulo
+OK    guarda: barra invertida
+OK    guarda: segmento extra
+OK    guarda: tenant com maiuscula/ponto
+OK    guarda: document_id que nao e UUID
+OK    guarda: nome so com '..'
+OK    guarda: nome com caminho e reduzido ao nome-base [tenants/a/x/11111111-1111-4111-8111-111111111111/passwd]
+OK    guarda: TTL 0
+OK    guarda: TTL 301 (literal)
+OK    guarda: TTL fracionado 1.5
+OK    guarda: TTL texto '60'
+OK    guarda: TTL 604800 (maximo do S3, 7 dias)
+OK    guarda: presign com TTL 301 recusa antes de assinar
+OK    guarda: TTL 1 aceito
+OK    guarda: TTL 300 aceito (literal)
+== Modelo P: bucket por tenant + credencial restrita ao bucket
+OK    P: A grava e le o proprio objeto
+OK    P: B grava e le o proprio objeto
+OK    P: A le objeto de B -> AccessDenied [403 AccessDenied]
+OK    P: A sobrescreve objeto de B -> AccessDenied [403 AccessDenied]
+OK    P: A apaga objeto de B -> AccessDenied [403 AccessDenied]
+OK    P: objeto de B intacto apos ataques de A
+OK    P: A lista bucket de B -> AccessDenied [403 AccessDenied]
+OK    P: A le chave inexistente em B -> AccessDenied (sem oraculo de existencia, T-F9-I) [403 AccessDenied]
+OK    P: A lista buckets da conta e ve somente o proprio (MinIO filtra por permissao) [200 -]
+OK    P: A lista o proprio bucket e ve so a propria chave
+OK    P: segredo errado -> SignatureDoesNotMatch [403 SignatureDoesNotMatch]
+OK    P: pedido anonimo -> AccessDenied [403 AccessDenied]
+OK    P: URL pre-assinada de A funciona sem credencial
+OK    P: URL de A adulterada para chave/bucket de B -> SignatureDoesNotMatch [403 SignatureDoesNotMatch]
+OK    P: URL que A assina para objeto de B -> AccessDenied [403 AccessDenied]
+OK    P: URL de PUT que A assina para B -> AccessDenied [403 AccessDenied]
+OK    P: URL de GET reutilizada como DELETE -> SignatureDoesNotMatch [403 SignatureDoesNotMatch]
+OK    P: URL expirada (1 s) -> AccessDenied [403 AccessDenied]
+OK    P: antes da revogacao a URL de A (300 s) funciona
+OK    P: apos revogar A, a chave de A e recusada [403 InvalidAccessKeyId]
+OK    P: apos revogar A, URL ja assinada por A (ainda dentro do TTL) tambem e recusada [403 InvalidAccessKeyId]
+OK    P: apos revogar A, B continua lendo e gravando
+OK    P: nova chave de A (rotacao) le o dado antigo de A
+== Modelo S: bucket compartilhado, credencial por prefixo
+OK    S: a grava o proprio objeto
+OK    S: ab grava o proprio objeto
+OK    S: b grava o proprio objeto
+OK    S: A le objeto de B -> AccessDenied [403 AccessDenied]
+OK    S: A sobrescreve objeto de B -> AccessDenied [403 AccessDenied]
+OK    S: confusao de prefixo: A (tenants/a/) le tenants/ab/ -> AccessDenied [403 AccessDenied]
+OK    S: confusao de prefixo inversa: AB le tenants/a/ -> AccessDenied [403 AccessDenied]
+OK    S: A lista o prefixo raiz tenants/ -> AccessDenied [403 AccessDenied]
+OK    S: A lista o bucket sem prefixo -> AccessDenied [403 AccessDenied]
+OK    S: A lista o prefixo de B -> AccessDenied [403 AccessDenied]
+OK    S: A lista o proprio prefixo e ve so as proprias chaves
+OK    S: A le chave inexistente no prefixo de B -> AccessDenied (sem oraculo) [403 AccessDenied]
+OK    S: chave com '..%2F' gravada por A nao aparece no prefixo de B (so a chave original de B) [PUT 200 -; chaves em tenants/b/: 1]
+OK    S: o objeto '..%2F' existe apenas sob tenants/a/ (chave literal)
+OK    S: URL que A assina para objeto de B -> AccessDenied [403 AccessDenied]
+OK    S: URL de A adulterada para B -> SignatureDoesNotMatch [403 SignatureDoesNotMatch]
+OK    S: apos revogar A, A e recusado e B segue funcionando
+== Modelo T: servico de storage assume papel com politica de sessao por tenant
+OK    T: a credencial da plataforma e ampla (le A e B): por isso nunca sai do servico
+OK    T: AssumeRole com politica de sessao de A funciona
+OK    T: credencial temporaria de A le/grava o proprio prefixo
+OK    T: credencial temporaria de A le objeto de B -> AccessDenied [403 AccessDenied]
+OK    T: credencial temporaria de A lista prefixo de B -> AccessDenied [403 AccessDenied]
+OK    T: URL pre-assinada com credencial temporaria de A para B -> AccessDenied [403 AccessDenied]
+OK    T: URL pre-assinada com credencial temporaria de A para A funciona
+OK    T: politica de sessao nao amplia a politica do usuario (le B -> AccessDenied)
+OK    T: remover o usuario-pai invalida a credencial temporaria derivada [antes=200 depois=403 AccessDenied]
+== Versionamento, object lock e criptografia em repouso (MinIO)
+OK    lock (credencial s3:*, mede o mecanismo): PUT devolve versionId
+OK    lock (s3:*): apagar a versao retida (GOVERNANCE) sem bypass e recusado [400 InvalidRequest Object is WORM protected and cannot be overwritten]
+OK    versionamento (s3:*): DELETE simples cria delete marker (dado recuperavel) [204 -]
+OK    versionamento (s3:*): objeto some da leitura corrente (404) [404 NoSuchKey]
+OK    versionamento (s3:*): a versao antiga continua recuperavel por versionId
+-- rodada 1: lock/versionamento com a politica real do tenant (politicaBucketDoTenant)
+OK    lock (tenant): PUT funciona e devolve versionId
+OK    lock (tenant): DELETE da versao retida sem bypass e recusado [400 InvalidRequest]
+OK    lock (tenant): DELETE com cabecalho de bypass tambem e recusado (falta permissao) [403 AccessDenied]
+INFO  lock (tenant): GET da versao por versionId com a politica P (s3:GetObjectVersion nao concedida) [200 -]
+INFO  lock (tenant): DELETE simples (sem versionId) pelo tenant [204 - marker=true]
+INFO  lock (tenant): GET corrente apos o DELETE simples [404 NoSuchKey]
+INFO  versionamento (tenant): DELETE simples cria delete marker [204 - marker=true]
+INFO  versionamento (tenant): GET da versao antiga por versionId [200 -]
+OK    versionamento (tenant): ACHADO - s3:DeleteObject basta para apagar versao especifica no MinIO; versionamento sozinho NAO protege contra credencial comprometida [DELETE 204 -; GET depois 404 NoSuchVersion]
+OK    lock (tenant): o object lock (GOVERNANCE) e o que protege a versao: ela continua legivel apos as tentativas de apagar
+OK    SSE-S3 (credencial s3:*; mede criptografia, nao autorizacao): leitura via API devolve o texto original
+OK    SSE-S3 (s3:*): controle positivo - bucket sem criptografia guarda o texto em claro no disco
+OK    SSE-S3 (s3:*): bucket com SSE-S3 NAO guarda o texto em claro no disco
+== resultado: 83 OK, 0 FALHA
+== varredura de vazamento: nenhum segredo gerado aparece na saida
+segredos verificados: 21; vazamento: 0
+== limpeza: container, volume e segredos temporarios removidos (rc=0)
