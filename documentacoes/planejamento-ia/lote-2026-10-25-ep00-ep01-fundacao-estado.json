@@ -12,7 +12,7 @@
   },
   "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
   "publish": "manual",
-  "authorizedToExecute": false,
+  "authorizedToExecute": true,
   "tasks": [
     {
       "key": "FND-001",
@@ -20,19 +20,22 @@
       "profile": "padrao",
       "dependsOn": [],
       "wave": 1,
-      "status": "PRONTA_PARA_ORQUESTRAR",
+      "status": "INTEGRADA_APROVADA",
       "humanGates": [],
       "spec": "documentacoes/backlog/EP-01-fundacao-monorepo-ambientes-ci/tickets.md#ent-fnd-001",
       "branch": "tarefa/fnd-001",
       "worktree": "/home/vinicius/nucleos-worktrees/tarefa/fnd-001",
       "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
       "phases": {
-        "implementacao": "pendente",
-        "review": "pendente",
-        "auditoria": "pendente",
-        "qa": "pendente"
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok/NA",
+        "qa": "ok/COBERTO_NO_REVIEW/BLOCKED_HUMANO",
+        "integracao": "ok"
       },
-      "commits": []
+      "commits": [],
+      "headCommit": "60d5e5f",
+      "correctionRoundsUsed": 2
     },
     {
       "key": "FND-008",
@@ -40,19 +43,22 @@
       "profile": "simples",
       "dependsOn": [],
       "wave": 1,
-      "status": "PRONTA_PARA_ORQUESTRAR",
+      "status": "INTEGRADA_APROVADA",
       "humanGates": [],
       "spec": "documentacoes/backlog/EP-01-fundacao-monorepo-ambientes-ci/tickets.md#ent-fnd-008",
       "branch": "tarefa/fnd-008",
       "worktree": "/home/vinicius/nucleos-worktrees/tarefa/fnd-008",
       "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
       "phases": {
-        "implementacao": "pendente",
-        "review": "pendente",
-        "auditoria": "pendente",
-        "qa": "pendente"
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok/NA",
+        "qa": "ok/COBERTO_NO_REVIEW/BLOCKED_HUMANO",
+        "integracao": "ok"
       },
-      "commits": []
+      "commits": [],
+      "headCommit": "42c1f60",
+      "correctionRoundsUsed": 0
     },
     {
       "key": "LOC-001",
@@ -60,19 +66,22 @@
       "profile": "padrao",
       "dependsOn": [],
       "wave": 1,
-      "status": "PRONTA_PARA_ORQUESTRAR",
+      "status": "INTEGRADA_APROVADA",
       "humanGates": [],
       "spec": "documentacoes/planejamento-ia/lote-2026-10-25-ep00-ep01-fundacao-loc-001.md",
       "branch": "tarefa/loc-001",
       "worktree": "/home/vinicius/nucleos-worktrees/tarefa/loc-001",
       "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
       "phases": {
-        "implementacao": "pendente",
-        "review": "pendente",
-        "auditoria": "pendente",
-        "qa": "pendente"
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok/NA",
+        "qa": "ok/COBERTO_NO_REVIEW/BLOCKED_HUMANO",
+        "integracao": "ok"
       },
-      "commits": []
+      "commits": [],
+      "headCommit": "4623970",
+      "correctionRoundsUsed": 1
     },
     {
       "key": "DEC-001",
@@ -82,7 +91,7 @@
         "FND-008"
       ],
       "wave": 2,
-      "status": "PRONTA_PARA_ORQUESTRAR",
+      "status": "PRONTO_PARA_REVISAO_HUMANA",
       "humanGates": [
         "revisao humana"
       ],
@@ -91,12 +100,16 @@
       "worktree": "/home/vinicius/nucleos-worktrees/tarefa/dec-001",
       "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
       "phases": {
-        "implementacao": "pendente",
-        "review": "pendente",
-        "auditoria": "pendente",
-        "qa": "pendente"
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok/NA",
+        "qa": "ok/COBERTO_NO_REVIEW/BLOCKED_HUMANO",
+        "integracao": "ok"
       },
-      "commits": []
+      "commits": [],
+      "headCommit": "0f5bcbe",
+      "correctionRoundsUsed": 2,
+      "pendingHuman": "AC-2/AC-3 pendentes (responsaveis dos RISK e sua revisao)"
     },
     {
       "key": "DEC-002",
@@ -106,7 +119,7 @@
         "FND-008"
       ],
       "wave": 2,
-      "status": "PRONTA_PARA_ORQUESTRAR",
+      "status": "PRONTO_PARA_REVISAO_HUMANA",
       "humanGates": [
         "aceite ADR-016"
       ],
@@ -115,12 +128,16 @@
       "worktree": "/home/vinicius/nucleos-worktrees/tarefa/dec-002",
       "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
       "phases": {
-        "implementacao": "pendente",
-        "review": "pendente",
-        "auditoria": "pendente",
-        "qa": "pendente"
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok/NA",
+        "qa": "ok/COBERTO_NO_REVIEW/BLOCKED_HUMANO",
+        "integracao": "ok"
       },
-      "commits": []
+      "commits": [],
+      "headCommit": "b4501f6",
+      "correctionRoundsUsed": 1,
+      "pendingHuman": "aceite ADR-016"
     },
     {
       "key": "DEC-003",
@@ -130,7 +147,7 @@
         "FND-008"
       ],
       "wave": 2,
-      "status": "PRONTA_PARA_ORQUESTRAR",
+      "status": "PRONTO_PARA_REVISAO_HUMANA",
       "humanGates": [
         "aceite ADR-017"
       ],
@@ -139,12 +156,16 @@
       "worktree": "/home/vinicius/nucleos-worktrees/tarefa/dec-003",
       "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
       "phases": {
-        "implementacao": "pendente",
-        "review": "pendente",
-        "auditoria": "pendente",
-        "qa": "pendente"
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok/NA",
+        "qa": "ok/COBERTO_NO_REVIEW/BLOCKED_HUMANO",
+        "integracao": "ok"
       },
-      "commits": []
+      "commits": [],
+      "headCommit": "dc44814",
+      "correctionRoundsUsed": 3,
+      "pendingHuman": "aceite ADR-017"
     },
     {
       "key": "DEC-004",
@@ -154,7 +175,7 @@
         "FND-008"
       ],
       "wave": 2,
-      "status": "PRONTA_PARA_ORQUESTRAR",
+      "status": "PRONTO_PARA_REVISAO_HUMANA",
       "humanGates": [
         "aceite ADR-018"
       ],
@@ -163,12 +184,16 @@
       "worktree": "/home/vinicius/nucleos-worktrees/tarefa/dec-004",
       "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
       "phases": {
-        "implementacao": "pendente",
-        "review": "pendente",
-        "auditoria": "pendente",
-        "qa": "pendente"
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok/NA",
+        "qa": "ok/COBERTO_NO_REVIEW/BLOCKED_HUMANO",
+        "integracao": "ok"
       },
-      "commits": []
+      "commits": [],
+      "headCommit": "9a4ca63",
+      "correctionRoundsUsed": 3,
+      "pendingHuman": "aceite ADR-018"
     },
     {
       "key": "DEC-006",
@@ -178,7 +203,7 @@
         "FND-008"
       ],
       "wave": 2,
-      "status": "PRONTA_PARA_ORQUESTRAR",
+      "status": "PRONTO_PARA_REVISAO_HUMANA",
       "humanGates": [
         "aceite ADR-020"
       ],
@@ -187,12 +212,16 @@
       "worktree": "/home/vinicius/nucleos-worktrees/tarefa/dec-006",
       "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
       "phases": {
-        "implementacao": "pendente",
-        "review": "pendente",
-        "auditoria": "pendente",
-        "qa": "pendente"
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok/NA",
+        "qa": "ok/COBERTO_NO_REVIEW/BLOCKED_HUMANO",
+        "integracao": "ok"
       },
-      "commits": []
+      "commits": [],
+      "headCommit": "507ad2c",
+      "correctionRoundsUsed": 2,
+      "pendingHuman": "aceite ADR-020"
     },
     {
       "key": "DEC-011",
@@ -202,7 +231,7 @@
         "FND-008"
       ],
       "wave": 2,
-      "status": "PRONTA_PARA_ORQUESTRAR",
+      "status": "PRONTO_PARA_REVISAO_HUMANA",
       "humanGates": [
         "revisao legal"
       ],
@@ -211,12 +240,16 @@
       "worktree": "/home/vinicius/nucleos-worktrees/tarefa/dec-011",
       "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
       "phases": {
-        "implementacao": "pendente",
-        "review": "pendente",
-        "auditoria": "pendente",
-        "qa": "pendente"
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok/NA",
+        "qa": "ok/COBERTO_NO_REVIEW/BLOCKED_HUMANO",
+        "integracao": "ok"
       },
-      "commits": []
+      "commits": [],
+      "headCommit": "f8f6c30",
+      "correctionRoundsUsed": 1,
+      "pendingHuman": "revisao legal/DPO (AC-1)"
     },
     {
       "key": "DEC-012",
@@ -226,7 +259,7 @@
         "FND-008"
       ],
       "wave": 2,
-      "status": "PRONTA_PARA_ORQUESTRAR",
+      "status": "PRONTO_PARA_REVISAO_HUMANA",
       "humanGates": [
         "aceite ADR-026"
       ],
@@ -235,12 +268,16 @@
       "worktree": "/home/vinicius/nucleos-worktrees/tarefa/dec-012",
       "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
       "phases": {
-        "implementacao": "pendente",
-        "review": "pendente",
-        "auditoria": "pendente",
-        "qa": "pendente"
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok/NA",
+        "qa": "ok/COBERTO_NO_REVIEW/BLOCKED_HUMANO",
+        "integracao": "ok"
       },
-      "commits": []
+      "commits": [],
+      "headCommit": "4db6cf1",
+      "correctionRoundsUsed": 1,
+      "pendingHuman": "aceite ADR-026"
     },
     {
       "key": "FND-002",
@@ -250,19 +287,22 @@
         "FND-001"
       ],
       "wave": 2,
-      "status": "PRONTA_PARA_ORQUESTRAR",
+      "status": "INTEGRADA_APROVADA",
       "humanGates": [],
       "spec": "documentacoes/backlog/EP-01-fundacao-monorepo-ambientes-ci/tickets.md#ent-fnd-002",
       "branch": "tarefa/fnd-002",
       "worktree": "/home/vinicius/nucleos-worktrees/tarefa/fnd-002",
       "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
       "phases": {
-        "implementacao": "pendente",
-        "review": "pendente",
-        "auditoria": "pendente",
-        "qa": "pendente"
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok/NA",
+        "qa": "ok/COBERTO_NO_REVIEW/BLOCKED_HUMANO",
+        "integracao": "ok"
       },
-      "commits": []
+      "commits": [],
+      "headCommit": "9e94242",
+      "correctionRoundsUsed": 0
     },
     {
       "key": "FND-004",
@@ -272,19 +312,22 @@
         "FND-001"
       ],
       "wave": 2,
-      "status": "PRONTA_PARA_ORQUESTRAR",
+      "status": "INTEGRADA_APROVADA",
       "humanGates": [],
       "spec": "documentacoes/backlog/EP-01-fundacao-monorepo-ambientes-ci/tickets.md#ent-fnd-004",
       "branch": "tarefa/fnd-004",
       "worktree": "/home/vinicius/nucleos-worktrees/tarefa/fnd-004",
       "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
       "phases": {
-        "implementacao": "pendente",
-        "review": "pendente",
-        "auditoria": "pendente",
-        "qa": "pendente"
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok/NA",
+        "qa": "ok/COBERTO_NO_REVIEW/BLOCKED_HUMANO",
+        "integracao": "ok"
       },
-      "commits": []
+      "commits": [],
+      "headCommit": "e684176",
+      "correctionRoundsUsed": 2
     },
     {
       "key": "FND-009",
@@ -294,19 +337,22 @@
         "FND-001"
       ],
       "wave": 2,
-      "status": "PRONTA_PARA_ORQUESTRAR",
+      "status": "INTEGRADA_APROVADA",
       "humanGates": [],
       "spec": "documentacoes/backlog/EP-01-fundacao-monorepo-ambientes-ci/tickets.md#ent-fnd-009",
       "branch": "tarefa/fnd-009",
       "worktree": "/home/vinicius/nucleos-worktrees/tarefa/fnd-009",
       "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
       "phases": {
-        "implementacao": "pendente",
-        "review": "pendente",
-        "auditoria": "pendente",
-        "qa": "pendente"
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok/NA",
+        "qa": "ok/COBERTO_NO_REVIEW/BLOCKED_HUMANO",
+        "integracao": "ok"
       },
-      "commits": []
+      "commits": [],
+      "headCommit": "34abc2f",
+      "correctionRoundsUsed": 3
     },
     {
       "key": "FND-005",
@@ -317,7 +363,7 @@
         "FND-002"
       ],
       "wave": 3,
-      "status": "PRONTA_PARA_ORQUESTRAR",
+      "status": "NAO_INICIADA",
       "humanGates": [],
       "spec": "documentacoes/backlog/EP-01-fundacao-monorepo-ambientes-ci/tickets.md#ent-fnd-005",
       "branch": "tarefa/fnd-005",
@@ -339,7 +385,7 @@
         "FND-009"
       ],
       "wave": 3,
-      "status": "PRONTA_PARA_ORQUESTRAR",
+      "status": "NAO_INICIADA",
       "humanGates": [
         "aceite ADR-024"
       ],
@@ -364,7 +410,7 @@
         "DEC-004"
       ],
       "wave": 3,
-      "status": "PRONTA_AGUARDA_ACEITE_ADR",
+      "status": "NAO_INICIADA",
       "humanGates": [
         "ADR-017",
         "ADR-018"
@@ -389,7 +435,7 @@
         "DEC-006"
       ],
       "wave": 3,
-      "status": "PRONTA_AGUARDA_ACEITE_ADR",
+      "status": "NAO_INICIADA",
       "humanGates": [
         "ADR-020"
       ],
@@ -413,7 +459,7 @@
         "DEC-004"
       ],
       "wave": 3,
-      "status": "PRONTA_AGUARDA_ACEITE_ADR",
+      "status": "NAO_INICIADA",
       "humanGates": [
         "ADR-018"
       ],
@@ -439,7 +485,7 @@
         "DEC-004"
       ],
       "wave": 3,
-      "status": "PRONTA_AGUARDA_ACEITE_ADR",
+      "status": "NAO_INICIADA",
       "humanGates": [
         "ADR-017",
         "ADR-018"
@@ -465,7 +511,7 @@
         "DEC-006"
       ],
       "wave": 3,
-      "status": "PRONTA_AGUARDA_ACEITE_ADR",
+      "status": "NAO_INICIADA",
       "humanGates": [
         "ADR-020"
       ],
@@ -490,7 +536,7 @@
         "DEC-007"
       ],
       "wave": 4,
-      "status": "PRONTA_AGUARDA_ACEITE_ADR",
+      "status": "NAO_INICIADA",
       "humanGates": [
         "ADR-018",
         "ADR-021"
@@ -515,7 +561,7 @@
         "FND-006"
       ],
       "wave": 4,
-      "status": "PRONTA_AGUARDA_ACEITE_ADR",
+      "status": "NAO_INICIADA",
       "humanGates": [],
       "spec": "documentacoes/backlog/EP-01-fundacao-monorepo-ambientes-ci/tickets.md#ent-fnd-007",
       "branch": "tarefa/fnd-007",
@@ -551,5 +597,7 @@
       },
       "commits": []
     }
-  ]
+  ],
+  "lastUpdate": "2026-10-26 (America/Sao_Paulo)",
+  "reviewBranchHead": "see revisao-humana package"
 }
