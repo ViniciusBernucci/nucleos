@@ -85,7 +85,7 @@ Principio de plano: o `-diffs.md` e a `-saida-poc.txt` sao evidencias reais do c
 Editar apenas estes arquivos, sem tocar em `infrastructure/docker/poc-telemetria/`, `-diffs.md` ou `-saida-poc.txt`:
 1. `documentacoes/arquitetura/adr/0024-stack-de-telemetria-e-politica-de-reducao-retencao.md`: itens 001 (evidencia/trade-offs), 002 (trade-offs/consequencias), 003, 004, 006 conforme planos acima.
 2. `documentacoes/observabilidade/2026-10-26-dec-010-telemetria.md`: espelhar 001, 002, 003, 004 em Validacoes/Decisoes/Pendencias e registrar o novo commit de correcao.
-3. `lessons/03 - Isolamento de telemetria por tenant.md`: 001 (texto), 007 (versao Python, typo); atualizar "ultima atualizacao".
+3. `lessons/06 - Isolamento de telemetria por tenant.md`: 001 (texto), 007 (versao Python, typo); atualizar "ultima atualizacao".
 4. Reler tudo (CLAUDE.md), rodar `make lint`, conferir que links e o resumo permanecem coerentes; registrar o commit da correcao no registro sem alterar o patch do PoC.
 
 ## Riscos de regressao

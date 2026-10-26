@@ -90,4 +90,4 @@ Reabrir se: RAM da stack > 2 GiB ou > 10% da VPS em carga real; mais de ~50 tena
 - Registro: [2026-10-26-dec-010-telemetria.md](../../observabilidade/2026-10-26-dec-010-telemetria.md); saída real: [2026-10-26-dec-010-telemetria-saida-poc.txt](../../observabilidade/2026-10-26-dec-010-telemetria-saida-poc.txt).
 - PoC: `infrastructure/docker/poc-telemetria/` (`run-poc.sh`, `poc_telemetria.py`, `compose.yml`, `loki.yaml`, `tempo.yaml`, `prometheus.yml`, `nginx.conf.tpl`).
 - Base: [FND-009](../../observabilidade/2026-10-25-fnd-009-baseline-observabilidade.md), [ADR-015](0015-custos-por-tenant-e-por-agente-obrigatoriamente.md), [ADR-014](0014-nenhum-acesso-de-rede-entre-tenants-por.md), [ADR-010](0010-docker-compose-no-mvp-com-especificacao-declarativa.md).
-- Lesson: [03 - Isolamento de telemetria por tenant](../../../lessons/03%20-%20Isolamento%20de%20telemetria%20por%20tenant.md).
+- Lesson: [06 - Isolamento de telemetria por tenant](../../../lessons/06%20-%20Isolamento%20de%20telemetria%20por%20tenant.md).

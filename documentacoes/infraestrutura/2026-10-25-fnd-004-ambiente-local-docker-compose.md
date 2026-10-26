@@ -112,4 +112,4 @@ Nao aplicavel: a trilha `lessons/` e de C#/.NET e esta entrega e infraestrutura 
 
 ## Atualizacao no fechamento do lote (2026-10-26)
 
-A justificativa de "sem lesson" desta entrega ficou desatualizada: a trilha de `lessons/` agora e de TypeScript, Python, Docker, PostgreSQL e seguranca (LOC-001) e ja tem lessons publicadas. Esta entrega exercita conceitos relevantes (Docker Compose (healthchecks, perfis, redes, bind em 127.0.0.1). Lesson candidata: `Docker Compose para ambiente local` (bloco 4 da trilha).) e, pela regra do `CLAUDE.md`, a lesson **ainda deve ser criada**: pendencia real registrada, nao criada neste fechamento.
+Lesson criada na tarefa `tarefa/lessons-pendentes` ([registro](../engenharia/2026-10-26-lessons-pendentes.md)): [03 - Docker Compose para ambiente local](../../lessons/03%20-%20Docker%20Compose%20para%20ambiente%20local.md) (perfis, healthchecks, bind em `127.0.0.1`, segredos descartaveis, volumes e smoke; exemplo executado). A justificativa anterior de "sem lesson" (secao "Lessons" acima) esta superada; a pendencia de lesson foi encerrada. Indice: [lessons/README.md](../../lessons/README.md).

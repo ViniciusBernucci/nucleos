@@ -1,10 +1,10 @@
-# 02 - CI bloqueante e cadeia de suprimentos
+# 04 - CI bloqueante e cadeia de suprimentos
 
-Criada em 2026-10-26. Ultima atualizacao: 2026-10-26. Exemplos testados com Node 24.22.1 (TypeScript executado por remocao de tipos nativa), TypeScript 5.9.3 (tipos conferidos pelo `tsc` do repositorio) e Python 3.13 (somente comandos `uv`); YAML do GitHub Actions validado com `actionlint` 1.7.12.
+Criada em 2026-10-26. Ultima atualizacao: 2026-10-26 (renumerada de 02 para 04). Exemplos testados com Node 24.22.1 (TypeScript executado por remocao de tipos nativa), TypeScript 5.9.3 (tipos conferidos pelo `tsc` do repositorio) e Python 3.13 (somente comandos `uv`); YAML do GitHub Actions validado com `actionlint` 1.7.12.
 
 ## Objetivo, pre-requisitos e posicao
 
-Entender como um pipeline de CI deixa de ser "um aviso" e vira um **controle**: checks obrigatorios, permissoes minimas, acoes fixadas por hash e scanners que falham a build. Pre-requisitos: Git e `make`; nocoes de `pnpm`/`uv`. Posicao: bloco 8 (Testes e CI) e bloco 7 (seguranca) do [indice](README.md); vem depois das lessons de seguranca de sessao porque reaproveita a ideia "nao confie em quem apresenta, verifique".
+Entender como um pipeline de CI deixa de ser "um aviso" e vira um **controle**: checks obrigatorios, permissoes minimas, acoes fixadas por hash e scanners que falham a build. Pre-requisitos: Git e `make`; nocoes de `pnpm`/`uv`; [02 - Qualidade estatica em TypeScript e Python](02%20-%20Qualidade%20estatica%20em%20TypeScript%20e%20Python.md) (os alvos `make lint*` que o CI repete) e [03 - Docker Compose para ambiente local](03%20-%20Docker%20Compose%20para%20ambiente%20local.md). Posicao: bloco 8 (Testes e CI) e bloco 7 (seguranca) do [indice](README.md); vem depois das lessons de seguranca de sessao porque reaproveita a ideia "nao confie em quem apresenta, verifique".
 
 ## Modelo mental
 

@@ -1,6 +1,6 @@
-# 03 - Isolamento de telemetria por tenant
+# 06 - Isolamento de telemetria por tenant
 
-Criada em 2026-10-26. Ultima atualizacao: 2026-10-26 (rodada 1 de correcao).
+Criada em 2026-10-26. Ultima atualizacao: 2026-10-26 (renumerada de 03 para 06 e ligada as lessons 03 e 05).
 Versoes: Node 24.22.1, TypeScript 5.9.3, Python 3.13.17 declarado pelo repositorio; o exemplo exige Python 3.10+ e foi executado em 3.10.12.
 
 ## Objetivo, pre-requisitos e posicao na trilha
@@ -8,8 +8,9 @@ Versoes: Node 24.22.1, TypeScript 5.9.3, Python 3.13.17 declarado pelo repositor
 Entender como logs e traces de varios clientes (tenants) ficam no mesmo armazenamento sem que um
 cliente consulte o dado de outro. Bloco 7 (seguranca). Pre-requisitos: HTTP e headers, a lesson
 [01 - Sessao opaca e revogacao](01%20-%20Sessao%20opaca%20e%20revogacao.md) (identidade vem de uma
-credencial verificada) e nocoes de Docker/Compose. A redacao de campos em logs (FND-009) e conceito
-vizinho, ainda sem lesson publicada: nao e repetida aqui.
+credencial verificada), nocoes de Docker/Compose ([03 - Docker Compose para ambiente local](03%20-%20Docker%20Compose%20para%20ambiente%20local.md)) e a redacao de campos
+em logs, ensinada em [05 - Logs estruturados, correlation ID e redacao por allowlist](05%20-%20Logs%20estruturados%2C%20correlation%20ID%20e%20redacao%20por%20allowlist.md)
+(nao repetida aqui: o isolamento por tenant assume dado ja redigido na origem).
 
 ## Modelo mental
 
