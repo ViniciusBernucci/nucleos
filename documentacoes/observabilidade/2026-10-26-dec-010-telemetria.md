@@ -23,7 +23,7 @@ Fora do escopo: implementar OBS-001 (gateway de producao, auditoria duravel, das
 
 ### Resultados (saida real em `-saida-poc.txt`, `rc=0`)
 
-- 33/33 verificacoes OK, 0 FALHA. Isolamento de logs e traces entre 5 tenants, tentativas de forjar `X-Scope-OrgID`, 401 sem token, rotas administrativas fora do gateway, redacao ponta a ponta com sentinelas e controles negativo/positivo (detalhes no ADR).
+- 33/33 verificacoes OK, 0 FALHA. Isolamento de logs e traces entre 5 tenants, tentativas de forjar `X-Scope-OrgID`, 401 sem token, rotas administrativas fora do gateway, redacao ponta a ponta com sentinelas e controles negativo/positivo (detalhes no ADR). **Ressalvas de escopo (ver "Validacoes" e "Correcao rodada 1"):** o isolamento foi medido *via gateway* (bypass direto ao Loki com header forjado nao medido); a redacao foi exercitada so para chaves sensiveis por nome e chave fora da allowlist, nao para valor sensivel em campo permitido, dict aninhado, excecao, headers/query nem atributos de span.
 - RAM apos carga (~115 mil linhas, 250 spans): Loki 147 MiB, Grafana 257,4 MiB, Tempo 33,1 MiB, Prometheus 41 MiB, gateway 2,3 MiB (soma ~481 MiB; ocioso ~241 MiB). Disco: Loki 64.064 KiB, Tempo 236 KiB, Prometheus 168 KiB.
 - Criterios do ticket: **AC-1** ADR com allowlist e retencao escrito, mas **nao aceito** (so o usuario aceita) - parcial; **AC-2** medicao feita e abaixo do teto *proposto* de 2 GiB, porem o orcamento nao esta declarado nas fontes e a carga e pequena - parcial, depende de decisao humana; **AC-3** provado (A nao le B em logs nem traces).
 
@@ -92,7 +92,14 @@ Aplicados REVIEW-001, 002, 003, 004, 006 e 007, somente em Markdown (ADR-024, es
 - 006: ADR coerente (digest em producao/tags no PoC; porta do Grafana; Prometheus **[NAO VERIFICADO]** na decisao).
 - 007: lesson com Python 3.10+ (verificado em 3.10.12) e typo corrigido.
 - **Adiados (pendencias):** REVIEW-005 (contagem `accepted == 250` e mais traces amostrados no driver), REVIEW-008 (`|| true` na subida e limpeza de volumes no `run-poc.sh`), ajuste do `grep` de retencao e casos extras de redacao no driver; condicao: proxima alteracao do PoC ou OBS-001. Renumeracao da lesson 03 cabe ao coordenador na integracao.
-- Validacao: `make lint` (ver commit abaixo); exemplo da lesson reexecutado com `python3 -I`.
+- Validacao (executada na rodada 1, com as edicoes ja aplicadas na arvore, antes do commit `e8321f3`): `make lint` com `PATH` de usuario, **rc 0**; exemplo da lesson reexecutado com `python3 -I` (imprimiu `ok`); `git diff 02b16a6 690e1e0 -- infrastructure` identico ao patch do `-diffs.md`.
+
+## Correcao rodada 2 (revalidacao `documentacoes/reviews/2026-10-26-revalidacao-dec-010-r1.md`, `1e41f75`)
+
+Somente este registro foi alterado (PoC, ADR, lesson, `-diffs.md` e `-saida-poc.txt` intactos).
+- REV-001: o resumo de resultados (33/33) agora traz as ressalvas de escopo de isolamento e redacao.
+- REV-002: a validacao da rodada 1 informa comando e resultado reais (`make lint`, rc 0). Nesta rodada 2 **nao** se reexecutou `make lint` nem o PoC, pois so este Markdown mudou.
+- Commit da rodada 2: o que contem esta secao (SHA informado ao coordenador; um documento nao contem o proprio SHA). Commits anteriores: `690e1e0` (PoC), `889b7f8` (docs), `e8321f3` (rodada 1).
 
 ## Pendencias
 
