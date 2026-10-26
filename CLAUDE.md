@@ -183,7 +183,11 @@ estas regras e as secoes anteriores deste arquivo.
   ESLint type-aware, ruff, mypy, regras de arquitetura e gitleaks (FND-002); `make hooks` instala
   os hooks. Ambiente local em Docker: `make compose-up`, `make compose-smoke` e
   `make compose-down` (FND-004; `PERFIS=runtime` exige `make setup && make build`). O CI
-  (FND-005) ainda nao existe; entrega somente de documentacao registra NA com justificativa.
+  (FND-005, `.github/workflows/ci.yml`; GitHub Actions) bloqueia merge em `main` e chama os mesmos
+  alvos (`make lint-ts`, `lint-py`, `lint`, `test-ts`, `test-py`, `build`) mais varreduras de
+  seguranca; `make lint-workflows` e `make ci-regressao` validam o proprio CI localmente. A
+  branch protection e manual (ver `documentacoes/engenharia/2026-10-26-fnd-005-ci-bloqueante.md`).
+  Entrega somente de documentacao registra NA com justificativa.
 - **Dados:** nao ha banco nem servico de producao declarado. Nenhum teste ou script acessa
   banco ou servico real sem um ambiente isolado declarado nesta secao. Ambiente isolado de PoC
   declarado: containers descartaveis (Docker/Compose) publicados somente em `127.0.0.1`, sem
