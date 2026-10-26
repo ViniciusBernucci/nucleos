@@ -1,11 +1,23 @@
 import "reflect-metadata";
+import { ConfigError, loadApiConfig } from "@nucleos/config";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module.js";
 import { createApiObservability, observabilityMiddleware } from "./observability.js";
 
-const host = process.env["HOST"] ?? "127.0.0.1";
-const port = Number(process.env["PORT"] ?? 3001);
+// Falha rapida (FND-006): configuracao ausente/invalida impede a subida; a mensagem so lista
+// nomes de variaveis e motivos, nunca valores.
+let config;
+try {
+  config = loadApiConfig();
+} catch (e) {
+  if (e instanceof ConfigError) {
+    console.error(`api: ${e.message}`);
+    process.exit(1);
+  }
+  throw e;
+}
+
 const app = await NestFactory.create(AppModule);
-app.use(observabilityMiddleware(createApiObservability()));
-await app.listen(port, host);
-console.log(`api em http://${host}:${port}`);
+app.use(observabilityMiddleware(createApiObservability(config)));
+await app.listen(config.port, config.host);
+console.log(`api em http://${config.host}:${String(config.port)} (${config.appEnv})`);

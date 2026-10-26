@@ -1,0 +1,78 @@
+# Base comum de staging e producao (FND-006). NAO usar sozinha: combine com um overlay.
+#   docker compose -f compose.deploy.yml -f compose.staging.yml ...   (ou compose.prod.yml)
+# Regras (ADR-020, ISO-002): imagens por digest; nenhum segredo em env, command, imagem ou repositorio
+# (apenas caminhos *_FILE; o conteudo vem de arquivos 0400 em SECRETS_DIR, montados em /run/secrets);
+# portas somente em 127.0.0.1 (a borda publica e o proxy de FND-007); rede interna sem saida.
+# Interpolacao so de NOMES/CAMINHOS/digests; verificado por scripts/verificar-deploy.mjs (make lint).
+
+x-endurecido: &endurecido
+  restart: unless-stopped
+  init: true
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  stop_grace_period: 30s
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+
+services:
+  api:
+    <<: *endurecido
+    # Digest obrigatorio: <repositorio>@sha256:<64 hex>. A referencia verificada vem de scripts/deploy.sh.
+    image: ${API_IMAGE:?informe API_IMAGE=<repositorio>@sha256:<digest>}
+    user: "${API_UID:-10001}:${API_GID:-10001}"
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3001"
+      APP_VERSION: ${APP_VERSION:-0.0.0}
+      DATABASE_URL: postgres://nucleos@postgres:5432/nucleos
+      DATABASE_PASSWORD_FILE: /run/secrets/database_password
+    secrets: [database_password]
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m"]
+    ports: ["127.0.0.1:${API_HOST_PORT:-3001}:3001"]
+    networks: [interna, publicada]
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/readyz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+
+  postgres:
+    <<: *endurecido
+    image: pgvector/pgvector:0.8.7-pg18-trixie@sha256:9d9c930220cb9bf2f956d10a8f909cf9973d9672ca0278aef2c1e6facccad2e0
+    # O entrypoint oficial inicia como root, ajusta o dono do PGDATA e troca para o usuario postgres:
+    # allowlist minima de capacidades (nada alem disso), sem rede publicada.
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    environment:
+      POSTGRES_USER: nucleos
+      POSTGRES_DB: nucleos
+      POSTGRES_PASSWORD_FILE: /run/secrets/database_password
+    secrets: [database_password]
+    volumes: ["postgres-data:/var/lib/postgresql"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+      - /run/postgresql:rw,noexec,nosuid,size=4m
+    networks: [interna]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nucleos -d nucleos"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+secrets:
+  # Somente o CAMINHO do arquivo; o conteudo nunca entra no Compose. Dono = UID do servico, modo 0400.
+  database_password:
+    file: ${SECRETS_DIR:?informe SECRETS_DIR (diretorio 0700 com os arquivos de segredo)}/database_password
+
+networks:
+  interna:
+    internal: true
+  publicada: {}
+
+volumes:
+  postgres-data: {}

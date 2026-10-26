@@ -1,0 +1,19 @@
+# Overlay de PRODUCAO (FND-006). Mesmas regras da base; limites maiores.
+# Uso: docker compose -f compose.deploy.yml -f compose.prod.yml up -d   (ver scripts/deploy.sh)
+name: nucleos-prod
+
+services:
+  api:
+    environment: {APP_ENV: production}
+    labels: {"nucleos.ambiente": "production"}
+    cpus: 1.0
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 256
+    ulimits: {nofile: {soft: 8192, hard: 8192}}
+  postgres:
+    labels: {"nucleos.ambiente": "production"}
+    cpus: 1.0
+    mem_limit: 1g
+    memswap_limit: 1g
+    pids_limit: 300

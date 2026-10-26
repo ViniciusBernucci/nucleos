@@ -13,6 +13,7 @@
     "@nestjs/common": "12.2.0",
     "@nestjs/core": "12.2.0",
     "@nestjs/platform-express": "12.2.0",
+    "@nucleos/config": "workspace:*",
     "@nucleos/contracts": "workspace:*",
     "@nucleos/observability": "workspace:*",
     "reflect-metadata": "0.2.2",

@@ -10,7 +10,7 @@ export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 export TURBO_TELEMETRY_DISABLED=1
 export DO_NOT_TRACK=1
 
-.PHONY: setup lint lint-ts lint-py test test-ts test-py build ci-regressao up down health check-env compose-up compose-down compose-reset compose-smoke lint-regressao lint-workflows format hooks
+.PHONY: setup lint lint-ts lint-py test test-ts test-py build ci-regressao up down health check-env compose-up compose-down compose-reset compose-smoke lint-regressao lint-workflows lint-deploy test-ambientes format hooks
 
 setup:
 	@node -e "const v=require('fs').readFileSync('.nvmrc','utf8').trim().split('.')[0]; if(process.versions.node.split('.')[0]!==v){console.error('Node '+v+'.x requerido (.nvmrc); atual '+process.version);process.exit(1)}"
@@ -22,6 +22,7 @@ setup:
 lint: lint-ts lint-py
 	./scripts/check-secrets.sh
 	$(MAKE) lint-regressao
+	$(MAKE) lint-deploy
 
 lint-ts: check-env
 	$(PNPM) run lint
@@ -38,6 +39,10 @@ lint-py:
 # Casos que DEVEM falhar (regressao dos proprios linters); ver tools/qualidade/regressao/.
 lint-regressao:
 	node tools/qualidade/regressao.mjs
+
+# Overlays de staging/producao (FND-006): sem segredo literal, digest, hardening, portas em 127.0.0.1.
+lint-deploy:
+	node infrastructure/docker/scripts/verificar-deploy.mjs
 
 # Sintaxe (actionlint) e politica (SHA, permissions, sem pull_request_target) dos workflows.
 lint-workflows:
@@ -93,3 +98,8 @@ compose-reset:
 
 compose-smoke:
 	./infrastructure/docker/scripts/smoke.sh $(if $(findstring runtime,$(PERFIS)),--runtime) $(if $(findstring observability,$(PERFIS)),--observability)
+
+# Ensaio efemero de config/deploy/rollback e ausencia de segredo em inspect/env/logs (FND-006).
+# Requer Docker e `make build`; containers descartaveis em 127.0.0.1, destruidos ao final.
+test-ambientes: build
+	node --test infrastructure/docker/tests/ambientes.test.mjs

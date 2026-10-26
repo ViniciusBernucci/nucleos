@@ -1,0 +1,13 @@
+# SOMENTE ensaio local descartavel (tests/ambientes.test.mjs): nao existe imagem de producao da API
+# ainda (Dockerfiles: ISO-007/RUN-002), entao o ensaio executa o dist real montado somente-leitura.
+# Nunca usar fora do ensaio; deploy.sh so aceita EXTRA_COMPOSE para isso.
+name: nucleos-ensaio-fnd006
+
+services:
+  api:
+    user: "${ENSAIO_UID:?}:${ENSAIO_GID:?}"
+    working_dir: /workspace
+    volumes: ["../../:/workspace:ro"]
+    command: ["node", "apps/api/dist/main.js"]
+    environment:
+      HOME: /tmp
