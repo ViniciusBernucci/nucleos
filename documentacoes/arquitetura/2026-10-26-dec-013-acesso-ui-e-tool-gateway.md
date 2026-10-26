@@ -51,7 +51,7 @@ Ambiente: Docker 29.8.1; imagem `postgres:16-alpine` (PostgreSQL 16.15); sem por
 
 | Comando | Resultado |
 | --- | --- |
-| `PATH=$HOME/.local/bin:$PATH ./run.sh \| tee evidencia/saida.txt` (em `documentacoes/arquitetura/poc/dec-013`) | `== resumo: PASS=40 FAIL=0`, exit 0 |
+| `PATH=$HOME/.local/bin:$PATH ./run.sh \| tee evidencia/saida.txt` (em `documentacoes/arquitetura/poc/dec-013`) | `== resumo: PASS=40 FAIL=0`, exit 0 (entrega original; vigente 56, seção 10.1) |
 | mesmo script, 1ª execução (antes de corrigir o harness) | `PASS=39 FAIL=1`: o loopback da imagem usa `trust`, então "senha errada" não era negada; corrigido conectando pelo IP do container e adicionado controle que prova `password authentication failed` |
 | SQL do exemplo da lesson 09 extraído e executado em PostgreSQL 16 efêmero | `count 0`; `permission denied for table messages` e `permission denied for schema content`, como documentado |
 | Conferência aritmética do orçamento de RAM (tabela do ADR) | recalculada à mão: 10,81 / 11,13 / 11,75 GiB; tetos 15 / 14 / 11 / 17 tenants |
