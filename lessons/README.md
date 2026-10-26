@@ -1,6 +1,6 @@
 # Trilha de lessons do Nucleos
 
-Criada em 2026-10-25. Ultima atualizacao: 2026-10-25.
+Criada em 2026-10-25. Ultima atualizacao: 2026-10-26.
 
 `lessons/` e uma trilha progressiva e didatica da stack do projeto, nao um changelog.
 A stack segue o [ADR de arquitetura do MVP](../documentacoes/transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md):
@@ -43,3 +43,4 @@ numerado quando uma entrega o exercitar):
 
 - [00 - Migracoes SQL forward-only no PostgreSQL](00%20-%20Migracoes%20SQL%20forward-only%20no%20PostgreSQL.md) (bloco 5; entrega DEC-003).
 - [01 - Sessao opaca e revogacao](01%20-%20Sessao%20opaca%20e%20revogacao.md) (bloco 7, seguranca; entrega DEC-002, ADR-016 Proposto).
+- [02 - CI bloqueante e cadeia de suprimentos](02%20-%20CI%20bloqueante%20e%20cadeia%20de%20suprimentos.md) (blocos 7 e 8, seguranca e CI; entrega FND-005).
