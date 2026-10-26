@@ -51,3 +51,4 @@ A numeracao segue dependencia de aprendizagem: qualidade estatica (02) e Compose
 - [05 - Logs estruturados, correlation ID e redacao por allowlist](05%20-%20Logs%20estruturados%2C%20correlation%20ID%20e%20redacao%20por%20allowlist.md) (bloco 7, seguranca e observabilidade; entrega FND-009). Pre-requisitos: HTTP, lesson 01.
 - [06 - Isolamento de telemetria por tenant](06%20-%20Isolamento%20de%20telemetria%20por%20tenant.md) (bloco 7, seguranca; entrega DEC-010, ADR-024 Proposto). Pre-requisitos: lessons 01, 03 e 05.
 - [07 - Papeis e privilegios minimos no PostgreSQL](07%20-%20Papeis%20e%20privilegios%20minimos%20no%20PostgreSQL.md) (blocos 5 e 7, PostgreSQL e seguranca; entrega DEC-013, ADR-025 Proposto).
+- [08 - Autorizacao de object storage e URLs assinadas](08%20-%20Autorizacao%20de%20object%20storage%20e%20URLs%20assinadas.md) (bloco 7, seguranca; entrega DEC-009, ADR-023 Proposto; numeracao provisoria, o coordenador reconcilia).
