@@ -363,19 +363,23 @@
         "FND-002"
       ],
       "wave": 3,
-      "status": "NAO_INICIADA",
+      "status": "PRONTO_PARA_REVISAO_HUMANA",
       "humanGates": [],
       "spec": "documentacoes/backlog/EP-01-fundacao-monorepo-ambientes-ci/tickets.md#ent-fnd-005",
       "branch": "tarefa/fnd-005",
       "worktree": "/home/vinicius/nucleos-worktrees/tarefa/fnd-005",
       "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
       "phases": {
-        "implementacao": "pendente",
-        "review": "pendente",
-        "auditoria": "pendente",
-        "qa": "pendente"
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok",
+        "qa": "ok/APPROVED_WITH_NOTES",
+        "integracao": "ok"
       },
-      "commits": []
+      "commits": [],
+      "headCommit": "334454d",
+      "correctionRoundsUsed": 3,
+      "pendingHuman": "multer; CODEOWNERS; GitHub; branch protection"
     },
     {
       "key": "DEC-010",
@@ -385,7 +389,7 @@
         "FND-009"
       ],
       "wave": 3,
-      "status": "NAO_INICIADA",
+      "status": "PRONTO_PARA_REVISAO_HUMANA",
       "humanGates": [
         "aceite ADR-024"
       ],
@@ -394,12 +398,16 @@
       "worktree": "/home/vinicius/nucleos-worktrees/tarefa/dec-010",
       "reviewBranch": "revisao/2026-10-25-ep00-ep01-fundacao",
       "phases": {
-        "implementacao": "pendente",
-        "review": "pendente",
-        "auditoria": "pendente",
-        "qa": "pendente"
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok",
+        "qa": "ok/APPROVED_COM_RESSALVAS",
+        "integracao": "ok"
       },
-      "commits": []
+      "commits": [],
+      "headCommit": "8d240c7",
+      "correctionRoundsUsed": 2,
+      "pendingHuman": "aceite ADR-024"
     },
     {
       "key": "DEC-007",
@@ -598,6 +606,6 @@
       "commits": []
     }
   ],
-  "lastUpdate": "2026-10-26 (America/Sao_Paulo)",
+  "lastUpdate": "2026-10-26 (America/Sao_Paulo) passagem A concluida",
   "reviewBranchHead": "see revisao-humana package"
 }
