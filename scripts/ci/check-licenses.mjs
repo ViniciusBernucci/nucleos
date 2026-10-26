@@ -26,7 +26,16 @@ export function avaliar(pacotes) {
   return { proibidos, desconhecidos };
 }
 
+function exigirFerramentas() {
+  for (const f of ["pnpm", "uv"]) {
+    if (spawnSync("sh", ["-c", `command -v ${f}`], { encoding: "utf8" }).status !== 0) {
+      throw new Error(`ferramenta ausente no PATH: ${f} (rode make setup e exporte .run/bin)`);
+    }
+  }
+}
+
 function coletar() {
+  exigirFerramentas();
   const pacotes = {};
   const ts = spawnSync("pnpm", ["licenses", "list", "--json"], {
     encoding: "utf8",
@@ -55,7 +64,13 @@ print(json.dumps(out))`;
 
 if (process.argv[1] === new URL(import.meta.url).pathname) {
   const i = process.argv.indexOf("--json");
-  const pacotes = i > 0 ? JSON.parse(readFileSync(process.argv[i + 1], "utf8")) : coletar();
+  let pacotes;
+  try {
+    pacotes = i > 0 ? JSON.parse(readFileSync(process.argv[i + 1], "utf8")) : coletar();
+  } catch (e) {
+    console.error(`ERRO: ${e.message}`);
+    process.exit(1);
+  }
   const { proibidos, desconhecidos } = avaliar(pacotes);
   if (desconhecidos.length > 0) {
     console.log(

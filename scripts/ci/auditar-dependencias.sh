@@ -6,6 +6,12 @@
 set -uo pipefail
 raiz="${1:-$(cd "$(dirname "$0")/../.." && pwd)}"
 cd "$raiz"
+for f in pnpm uv uvx osv-scanner; do
+  command -v "$f" >/dev/null 2>&1 || {
+    echo "ERRO: ferramenta ausente no PATH: $f (rode make setup, exporte .run/bin e instale osv-scanner)" >&2
+    exit 1
+  }
+done
 status=0
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT

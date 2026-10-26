@@ -2,7 +2,8 @@
 // Regressao dos gates do CI (ENT-FND-005): cada caso DEVE falhar. Se algum gate deixar de pegar
 // sua violacao, sai com codigo 1. Fixtures em tools/qualidade/regressao-ci/.
 import { spawnSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { verificar } from "../../scripts/ci/verificar-workflows.mjs";
@@ -36,6 +37,9 @@ const esperado = {
   "sem-timeout": "timeout-minutes",
   "injecao-de-script": "injecao de script",
   "curl-pipe-sh": "curl | sh",
+  "injecao-inputs": "injecao de script",
+  "injecao-steps-outputs": "injecao de script",
+  "segredo-indexado": "segredo alem do GITHUB_TOKEN",
 };
 for (const arq of readdirSync(join(reg, "workflows"))) {
   const chave = arq.replace(/\.yml$/, "");
@@ -66,6 +70,76 @@ deveFalhar(
     join(reg, "dependencias", "licencas-proibidas.json"),
   ]),
   "licencas proibidas",
+);
+
+// 2b) Ferramenta ausente no PATH (REVIEW-001): o gate deve falhar com mensagem explicita, nao mascarar.
+const semPath = { ...process.env, PATH: "/usr/bin:/bin" };
+deveFalhar(
+  "auditar-dependencias sem pnpm no PATH",
+  spawnSync("/bin/bash", ["scripts/ci/auditar-dependencias.sh"], {
+    cwd: raiz,
+    encoding: "utf8",
+    env: semPath,
+  }),
+  "ferramenta ausente no PATH: pnpm",
+);
+deveFalhar(
+  "check-licenses sem pnpm no PATH",
+  spawnSync(process.execPath, ["scripts/ci/check-licenses.mjs"], {
+    cwd: raiz,
+    encoding: "utf8",
+    env: semPath,
+  }),
+  "ferramenta ausente no PATH: pnpm",
+);
+
+// 2c) contracts-drift: arquivo gerado NOVO (nao rastreado) em packages/ deve falhar; sem mudanca, passa.
+const tmp = mkdtempSync(join(tmpdir(), "nucleos-drift-"));
+try {
+  const sh = (args) => spawnSync("git", args, { cwd: tmp, encoding: "utf8" });
+  const preparar = (gerador) => {
+    rmSync(tmp, { recursive: true, force: true });
+    mkdirSync(join(tmp, "packages"), { recursive: true });
+    writeFileSync(join(tmp, "packages", "base.txt"), "x\n");
+    writeFileSync(join(tmp, "Makefile"), `contracts-check:\n\t${gerador}\n`);
+    sh(["init", "-q"]);
+    sh(["add", "-A"]);
+    sh(["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base"]);
+  };
+  const drift = () =>
+    spawnSync("bash", [join(raiz, "scripts", "ci", "contracts-drift.sh")], {
+      cwd: tmp,
+      encoding: "utf8",
+      env: { ...process.env, CONTRACTS_DRIFT_RAIZ: tmp },
+    });
+  preparar("echo novo > packages/gerado-novo.txt");
+  deveFalhar("contracts-drift detecta arquivo novo", drift(), "drift");
+  preparar("echo y > packages/base.txt");
+  deveFalhar("contracts-drift detecta arquivo modificado", drift(), "drift");
+  preparar("true");
+  deveSer("contracts-drift passa sem alteracao", drift().status === 0);
+} finally {
+  rmSync(tmp, { recursive: true, force: true });
+}
+
+// 2d) build-images: nomes de artefato validos e unicos (sem Docker).
+const nomes = [
+  "Dockerfile",
+  "apps/api/Dockerfile",
+  "apps/api/Dockerfile.worker",
+  "apps/api/api.Dockerfile",
+  "services/Tool-Gateway/Dockerfile",
+].map((c) =>
+  spawnSync("scripts/ci/build-images.sh", ["--nome", c], {
+    cwd: raiz,
+    encoding: "utf8",
+  }).stdout.trim(),
+);
+deveSer(
+  "build-images gera nomes unicos e validos para tag docker",
+  new Set(nomes).size === nomes.length &&
+    nomes.every((n) => /^[a-z0-9][a-z0-9-]*$/.test(n)) &&
+    nomes[0].startsWith("raiz-"),
 );
 
 // 3) Dockerfile fora do padrao.

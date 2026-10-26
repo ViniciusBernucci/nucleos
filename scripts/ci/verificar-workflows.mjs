@@ -34,11 +34,15 @@ export function verificar(texto, nome, { exigirJobs = false, acao = false } = {}
     if (uses && !uses[1].startsWith("./") && !/@[0-9a-f]{40}$/.test(uses[1])) {
       err(n, `acao nao fixada por SHA de 40 hex: ${uses[1]}`);
     }
-    if (/secrets\.(?!GITHUB_TOKEN\b)/.test(linha)) err(n, "uso de segredo alem do GITHUB_TOKEN");
+    if (/secrets(\.(?!GITHUB_TOKEN\b)|\[)/.test(linha))
+      err(n, "uso de segredo alem do GITHUB_TOKEN");
     if (/^\s+\w[\w-]*:\s*write\b/.test(linha) || /permissions:\s*write-all/.test(linha)) {
       err(n, "permissao de escrita nao permitida");
     }
-    if (/\$\{\{\s*github\.(event\.|head_ref)/.test(linha) && !/^\s*(if|with):/.test(linha)) {
+    if (
+      /\$\{\{\s*(github\.(event\.|head_ref)|inputs\.|steps\.[\w-]+\.outputs\.)/.test(linha) &&
+      !/^\s*(if|with):/.test(linha)
+    ) {
       err(n, "expressao controlada por usuario fora de if/with (injecao de script)");
     }
     if (/\b(curl|wget)\b[^|]*\|\s*(ba)?sh\b/.test(linha)) err(n, "curl | sh e proibido");

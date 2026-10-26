@@ -8,6 +8,8 @@ runs:
         node-version-file: .nvmrc
     - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2 (consulta 2026-10-26)
       with:
+        # uv fixado: 0.13.5 (latest em astral-sh/uv, publicado em 2026-10-22; consulta 2026-10-26; mesma versao dos testes locais)
+        version: "0.13.5"
         enable-cache: true
         cache-dependency-glob: uv.lock
     - name: Cache do store do pnpm
@@ -19,3 +21,6 @@ runs:
     - name: make setup (frozen lockfiles)
       shell: bash
       run: make setup
+    - name: pnpm (shim do corepack) no PATH dos passos seguintes
+      shell: bash
+      run: echo "$GITHUB_WORKSPACE/.run/bin" >> "$GITHUB_PATH"
