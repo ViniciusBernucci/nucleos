@@ -1051,3 +1051,347 @@ index 0000000..f66cbbb
 +    steps:
 +      - run: echo oi
 ````
+
+---
+
+## Rodada de correcao 1 (2026-10-26) — commit `808184be53f3a546e045eb443e4eba96d3b8f45c`
+
+Diff real do commit da rodada 1 (`git show 808184be53f3a546e045eb443e4eba96d3b8f45c`), sem `documentacoes/`/`lessons/`. A evidencia da entrega original acima permanece valida para o commit `d0e4b5f`.
+
+````diff
+diff --git a/.github/actions/preparar/action.yml b/.github/actions/preparar/action.yml
+index b67e1a9..d687a72 100644
+--- a/.github/actions/preparar/action.yml
++++ b/.github/actions/preparar/action.yml
+@@ -8,6 +8,8 @@ runs:
+         node-version-file: .nvmrc
+     - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2 (consulta 2026-10-26)
+       with:
++        # uv fixado: 0.13.5 (latest em astral-sh/uv, publicado em 2026-10-22; consulta 2026-10-26; mesma versao dos testes locais)
++        version: "0.13.5"
+         enable-cache: true
+         cache-dependency-glob: uv.lock
+     - name: Cache do store do pnpm
+@@ -19,3 +21,6 @@ runs:
+     - name: make setup (frozen lockfiles)
+       shell: bash
+       run: make setup
++    - name: pnpm (shim do corepack) no PATH dos passos seguintes
++      shell: bash
++      run: echo "$GITHUB_WORKSPACE/.run/bin" >> "$GITHUB_PATH"
+diff --git a/scripts/ci/auditar-dependencias.sh b/scripts/ci/auditar-dependencias.sh
+index bc3fee4..c11c8f0 100755
+--- a/scripts/ci/auditar-dependencias.sh
++++ b/scripts/ci/auditar-dependencias.sh
+@@ -6,6 +6,12 @@
+ set -uo pipefail
+ raiz="${1:-$(cd "$(dirname "$0")/../.." && pwd)}"
+ cd "$raiz"
++for f in pnpm uv uvx osv-scanner; do
++  command -v "$f" >/dev/null 2>&1 || {
++    echo "ERRO: ferramenta ausente no PATH: $f (rode make setup, exporte .run/bin e instale osv-scanner)" >&2
++    exit 1
++  }
++done
+ status=0
+ tmp="$(mktemp -d)"
+ trap 'rm -rf "$tmp"' EXIT
+diff --git a/scripts/ci/build-images.sh b/scripts/ci/build-images.sh
+index 833a08a..fdd92e6 100755
+--- a/scripts/ci/build-images.sh
++++ b/scripts/ci/build-images.sh
+@@ -1,8 +1,31 @@
+ #!/usr/bin/env bash
+-# Job build-images (ENT-FND-005): para cada Dockerfile versionado, docker build (hadolint roda no job security) ->
+-# trivy image (HIGH/CRITICAL bloqueiam) -> SBOM CycloneDX + SARIF em .run/ci-artefatos/.
++# Job build-images (ENT-FND-005): para cada Dockerfile versionado, docker build (hadolint roda no job
++# security) -> trivy image (HIGH/CRITICAL bloqueiam) -> SBOM CycloneDX + SARIF em .run/ci-artefatos/.
+ # Sem Dockerfile no repositorio (estado atual) emite aviso e passa.
++# Uso: scripts/ci/build-images.sh | scripts/ci/build-images.sh --nome <caminho/do/Dockerfile>
+ set -euo pipefail
++
++# Nome unico e valido para tag/arquivo: caminho em minusculas + sufixo do Dockerfile + hash do caminho.
++nome_artefato() {
++  local df="$1" dir base sufixo="" slug hash
++  dir="$(dirname "$df")"
++  base="$(basename "$df")"
++  base="${base,,}"
++  case "$base" in
++    dockerfile.*) sufixo="-${base#dockerfile.}" ;;
++    *.dockerfile) sufixo="-${base%.dockerfile}" ;;
++  esac
++  slug="$(echo "${dir,,}" | tr -c 'a-z0-9\n' '-' | sed 's/^-*//; s/-*$//')"
++  [ "$dir" = "." ] && slug="raiz"
++  hash="$(printf '%s' "$df" | sha1sum | cut -c1-6)"
++  echo "${slug:-raiz}$(echo "$sufixo" | tr -c 'a-z0-9\n-' '-')-$hash"
++}
++
++if [ "${1:-}" = "--nome" ]; then
++  nome_artefato "$2"
++  exit 0
++fi
++
+ cd "$(dirname "$0")/../.."
+ saida=".run/ci-artefatos"
+ mkdir -p "$saida"
+@@ -13,8 +36,8 @@ if [ "${#dockerfiles[@]}" -eq 0 ]; then
+ fi
+ status=0
+ for df in "${dockerfiles[@]}"; do
+-  nome="$(echo "${df%/*}" | tr '/.' '--' | tr -c 'a-z0-9-\n' '-')"
+-  tag="nucleos-ci/${nome:-raiz}:${GITHUB_SHA:-local}"
++  nome="$(nome_artefato "$df")"
++  tag="nucleos-ci/$nome:${GITHUB_SHA:-local}"
+   docker build -f "$df" -t "$tag" "$(dirname "$df")"
+   trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+     --format sarif --output "$saida/$nome.sarif" "$tag" || status=1
+diff --git a/scripts/ci/check-licenses.mjs b/scripts/ci/check-licenses.mjs
+index f1d8eda..7121abe 100644
+--- a/scripts/ci/check-licenses.mjs
++++ b/scripts/ci/check-licenses.mjs
+@@ -26,7 +26,16 @@ export function avaliar(pacotes) {
+   return { proibidos, desconhecidos };
+ }
+ 
++function exigirFerramentas() {
++  for (const f of ["pnpm", "uv"]) {
++    if (spawnSync("sh", ["-c", `command -v ${f}`], { encoding: "utf8" }).status !== 0) {
++      throw new Error(`ferramenta ausente no PATH: ${f} (rode make setup e exporte .run/bin)`);
++    }
++  }
++}
++
+ function coletar() {
++  exigirFerramentas();
+   const pacotes = {};
+   const ts = spawnSync("pnpm", ["licenses", "list", "--json"], {
+     encoding: "utf8",
+@@ -55,7 +64,13 @@ print(json.dumps(out))`;
+ 
+ if (process.argv[1] === new URL(import.meta.url).pathname) {
+   const i = process.argv.indexOf("--json");
+-  const pacotes = i > 0 ? JSON.parse(readFileSync(process.argv[i + 1], "utf8")) : coletar();
++  let pacotes;
++  try {
++    pacotes = i > 0 ? JSON.parse(readFileSync(process.argv[i + 1], "utf8")) : coletar();
++  } catch (e) {
++    console.error(`ERRO: ${e.message}`);
++    process.exit(1);
++  }
+   const { proibidos, desconhecidos } = avaliar(pacotes);
+   if (desconhecidos.length > 0) {
+     console.log(
+diff --git a/scripts/ci/contracts-drift.sh b/scripts/ci/contracts-drift.sh
+index 67d158a..8229432 100755
+--- a/scripts/ci/contracts-drift.sh
++++ b/scripts/ci/contracts-drift.sh
+@@ -4,13 +4,16 @@
+ # Enquanto o alvo nao existir, o job emite aviso explicito (nao silencia) e passa; quando FND-003
+ # for integrada o job passa a bloquear sem mudar o workflow.
+ set -euo pipefail
+-cd "$(dirname "$0")/../.."
++# CONTRACTS_DRIFT_RAIZ permite testar o script em um repositorio descartavel (regressao-ci).
++cd "${CONTRACTS_DRIFT_RAIZ:-$(dirname "$0")/../..}"
+ if make -n contracts-check >/dev/null 2>&1; then
+   make contracts-check
+-  git diff --exit-code -- packages/ || {
++  # porcelain cobre modificados E arquivos novos nao rastreados (git diff nao veria estes).
++  if [ -n "$(git status --porcelain -- packages/)" ]; then
++    git status --porcelain -- packages/ >&2
+     echo "ERRO: artefatos gerados de packages/contracts divergem do versionado (drift)" >&2
+     exit 1
+-  }
++  fi
+ else
+   echo "::warning title=contracts-drift::alvo 'make contracts-check' ausente (ENT-FND-003 pendente); gate inativo"
+ fi
+diff --git a/scripts/ci/verificar-workflows.mjs b/scripts/ci/verificar-workflows.mjs
+index 71120c5..e29e99e 100644
+--- a/scripts/ci/verificar-workflows.mjs
++++ b/scripts/ci/verificar-workflows.mjs
+@@ -34,11 +34,15 @@ export function verificar(texto, nome, { exigirJobs = false, acao = false } = {}
+     if (uses && !uses[1].startsWith("./") && !/@[0-9a-f]{40}$/.test(uses[1])) {
+       err(n, `acao nao fixada por SHA de 40 hex: ${uses[1]}`);
+     }
+-    if (/secrets\.(?!GITHUB_TOKEN\b)/.test(linha)) err(n, "uso de segredo alem do GITHUB_TOKEN");
++    if (/secrets(\.(?!GITHUB_TOKEN\b)|\[)/.test(linha))
++      err(n, "uso de segredo alem do GITHUB_TOKEN");
+     if (/^\s+\w[\w-]*:\s*write\b/.test(linha) || /permissions:\s*write-all/.test(linha)) {
+       err(n, "permissao de escrita nao permitida");
+     }
+-    if (/\$\{\{\s*github\.(event\.|head_ref)/.test(linha) && !/^\s*(if|with):/.test(linha)) {
++    if (
++      /\$\{\{\s*(github\.(event\.|head_ref)|inputs\.|steps\.[\w-]+\.outputs\.)/.test(linha) &&
++      !/^\s*(if|with):/.test(linha)
++    ) {
+       err(n, "expressao controlada por usuario fora de if/with (injecao de script)");
+     }
+     if (/\b(curl|wget)\b[^|]*\|\s*(ba)?sh\b/.test(linha)) err(n, "curl | sh e proibido");
+diff --git a/tools/qualidade/regressao-ci.mjs b/tools/qualidade/regressao-ci.mjs
+index f28cd38..2eda44a 100644
+--- a/tools/qualidade/regressao-ci.mjs
++++ b/tools/qualidade/regressao-ci.mjs
+@@ -2,7 +2,8 @@
+ // Regressao dos gates do CI (ENT-FND-005): cada caso DEVE falhar. Se algum gate deixar de pegar
+ // sua violacao, sai com codigo 1. Fixtures em tools/qualidade/regressao-ci/.
+ import { spawnSync } from "node:child_process";
+-import { readFileSync, readdirSync } from "node:fs";
++import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
++import { tmpdir } from "node:os";
+ import { dirname, join } from "node:path";
+ import { fileURLToPath } from "node:url";
+ import { verificar } from "../../scripts/ci/verificar-workflows.mjs";
+@@ -36,6 +37,9 @@ const esperado = {
+   "sem-timeout": "timeout-minutes",
+   "injecao-de-script": "injecao de script",
+   "curl-pipe-sh": "curl | sh",
++  "injecao-inputs": "injecao de script",
++  "injecao-steps-outputs": "injecao de script",
++  "segredo-indexado": "segredo alem do GITHUB_TOKEN",
+ };
+ for (const arq of readdirSync(join(reg, "workflows"))) {
+   const chave = arq.replace(/\.yml$/, "");
+@@ -68,6 +72,76 @@ deveFalhar(
+   "licencas proibidas",
+ );
+ 
++// 2b) Ferramenta ausente no PATH (REVIEW-001): o gate deve falhar com mensagem explicita, nao mascarar.
++const semPath = { ...process.env, PATH: "/usr/bin:/bin" };
++deveFalhar(
++  "auditar-dependencias sem pnpm no PATH",
++  spawnSync("/bin/bash", ["scripts/ci/auditar-dependencias.sh"], {
++    cwd: raiz,
++    encoding: "utf8",
++    env: semPath,
++  }),
++  "ferramenta ausente no PATH: pnpm",
++);
++deveFalhar(
++  "check-licenses sem pnpm no PATH",
++  spawnSync(process.execPath, ["scripts/ci/check-licenses.mjs"], {
++    cwd: raiz,
++    encoding: "utf8",
++    env: semPath,
++  }),
++  "ferramenta ausente no PATH: pnpm",
++);
++
++// 2c) contracts-drift: arquivo gerado NOVO (nao rastreado) em packages/ deve falhar; sem mudanca, passa.
++const tmp = mkdtempSync(join(tmpdir(), "nucleos-drift-"));
++try {
++  const sh = (args) => spawnSync("git", args, { cwd: tmp, encoding: "utf8" });
++  const preparar = (gerador) => {
++    rmSync(tmp, { recursive: true, force: true });
++    mkdirSync(join(tmp, "packages"), { recursive: true });
++    writeFileSync(join(tmp, "packages", "base.txt"), "x\n");
++    writeFileSync(join(tmp, "Makefile"), `contracts-check:\n\t${gerador}\n`);
++    sh(["init", "-q"]);
++    sh(["add", "-A"]);
++    sh(["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base"]);
++  };
++  const drift = () =>
++    spawnSync("bash", [join(raiz, "scripts", "ci", "contracts-drift.sh")], {
++      cwd: tmp,
++      encoding: "utf8",
++      env: { ...process.env, CONTRACTS_DRIFT_RAIZ: tmp },
++    });
++  preparar("echo novo > packages/gerado-novo.txt");
++  deveFalhar("contracts-drift detecta arquivo novo", drift(), "drift");
++  preparar("echo y > packages/base.txt");
++  deveFalhar("contracts-drift detecta arquivo modificado", drift(), "drift");
++  preparar("true");
++  deveSer("contracts-drift passa sem alteracao", drift().status === 0);
++} finally {
++  rmSync(tmp, { recursive: true, force: true });
++}
++
++// 2d) build-images: nomes de artefato validos e unicos (sem Docker).
++const nomes = [
++  "Dockerfile",
++  "apps/api/Dockerfile",
++  "apps/api/Dockerfile.worker",
++  "apps/api/api.Dockerfile",
++  "services/Tool-Gateway/Dockerfile",
++].map((c) =>
++  spawnSync("scripts/ci/build-images.sh", ["--nome", c], {
++    cwd: raiz,
++    encoding: "utf8",
++  }).stdout.trim(),
++);
++deveSer(
++  "build-images gera nomes unicos e validos para tag docker",
++  new Set(nomes).size === nomes.length &&
++    nomes.every((n) => /^[a-z0-9][a-z0-9-]*$/.test(n)) &&
++    nomes[0].startsWith("raiz-"),
++);
++
+ // 3) Dockerfile fora do padrao.
+ deveFalhar(
+   "hadolint Dockerfile ruim",
+diff --git a/tools/qualidade/regressao-ci/workflows/injecao-inputs.yml b/tools/qualidade/regressao-ci/workflows/injecao-inputs.yml
+new file mode 100644
+index 0000000..76c6fc3
+--- /dev/null
++++ b/tools/qualidade/regressao-ci/workflows/injecao-inputs.yml
+@@ -0,0 +1,16 @@
++name: ruim
++on:
++  workflow_dispatch:
++    inputs:
++      alvo:
++        type: string
++permissions:
++  contents: read
++jobs:
++  a:
++    runs-on: ubuntu-24.04
++    timeout-minutes: 5
++    steps:
++      - id: s
++        run: echo ok
++      - run: echo "${{ inputs.alvo }}"
+diff --git a/tools/qualidade/regressao-ci/workflows/injecao-steps-outputs.yml b/tools/qualidade/regressao-ci/workflows/injecao-steps-outputs.yml
+new file mode 100644
+index 0000000..28eb4c8
+--- /dev/null
++++ b/tools/qualidade/regressao-ci/workflows/injecao-steps-outputs.yml
+@@ -0,0 +1,16 @@
++name: ruim
++on:
++  workflow_dispatch:
++    inputs:
++      alvo:
++        type: string
++permissions:
++  contents: read
++jobs:
++  a:
++    runs-on: ubuntu-24.04
++    timeout-minutes: 5
++    steps:
++      - id: s
++        run: echo ok
++      - run: echo "${{ steps.s.outputs.valor }}"
+diff --git a/tools/qualidade/regressao-ci/workflows/segredo-indexado.yml b/tools/qualidade/regressao-ci/workflows/segredo-indexado.yml
+new file mode 100644
+index 0000000..b9d98e2
+--- /dev/null
++++ b/tools/qualidade/regressao-ci/workflows/segredo-indexado.yml
+@@ -0,0 +1,16 @@
++name: ruim
++on:
++  workflow_dispatch:
++    inputs:
++      alvo:
++        type: string
++permissions:
++  contents: read
++jobs:
++  a:
++    runs-on: ubuntu-24.04
++    timeout-minutes: 5
++    steps:
++      - id: s
++        run: echo ok
++      - run: echo "${{ secrets['DEPLOY_TOKEN'] }}"
+````

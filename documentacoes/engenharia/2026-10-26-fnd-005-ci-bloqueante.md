@@ -150,3 +150,34 @@ Arquivos `documentacoes/`/`lessons/` desta entrega: este documento, o de diffs, 
 - Relatorio de cobertura (ticket): `node --test` sem script de cobertura e Python sem `pytest-cov` (dependencia nova — decisao humana); hoje so o JUnit do pytest e publicado.
 - Manutencao das fixacoes (SHAs/versoes/digests; sugere-se Dependabot para `github-actions` — nao adicionado).
 - `exclude-newer` do uv (pendencia herdada de FND-002) nao tratado.
+
+---
+
+## Rodada de correcao 1 (2026-10-26)
+
+Origem: review `d0d3f6f` e auditoria `13cfc1b` (`documentacoes/reviews/2026-10-26-auditoria-fnd-005.md`). Aplicados somente os itens decididos APLICAR; ADIAR/REJEITAR nao foram tocados
+(`apps/api`, `package.json`, lockfiles e `osv-scanner.toml` intactos: `multer` segue como decisao humana). Commit: `808184be53f3a546e045eb443e4eba96d3b8f45c` (diff na secao final de [diffs](2026-10-26-fnd-005-ci-bloqueante-diffs.md)).
+
+| Item | Correcao | Prova |
+| --- | --- | --- |
+| REVIEW-001 (alto) | `preparar/action.yml` exporta `$GITHUB_WORKSPACE/.run/bin` ao `GITHUB_PATH`; `auditar-dependencias.sh` e `check-licenses.mjs` falham com "ferramenta ausente no PATH: <nome>" (pnpm, uv, uvx, osv-scanner) em vez de mascarar | 2 casos novos em `make ci-regressao` (PATH `/usr/bin:/bin`, sem rede); com PATH normal os scripts voltam a executar (`multer` continua barrando) |
+| REVIEW-002 | `contracts-drift.sh` usa `git status --porcelain -- packages/` (cobre arquivos novos); `CONTRACTS_DRIFT_RAIZ` permite testar em repo descartavel | 3 casos novos: arquivo novo e modificado falham com "drift"; sem alteracao passa |
+| REVIEW-004 | `setup-uv` com `version: "0.13.5"` (fonte: API de releases de `astral-sh/uv`, latest = tag `0.13.5`, publicada em 2026-10-22; consulta 2026-10-26; mesma versao usada nos testes locais) | `make lint-workflows`; a existencia da tag foi confirmada na API, o uso em runner nao foi exercitado |
+| REVIEW-005 | politica cobre `inputs.*`, `steps.<id>.outputs.*` e `secrets[...]` | fixtures novas `injecao-inputs`, `injecao-steps-outputs`, `segredo-indexado` falham; `ci.yml` real segue conforme |
+| REVIEW-006 | `build-images.sh`: nome do artefato = caminho em minusculas + sufixo do Dockerfile + hash de 6 hex do caminho (raiz vira `raiz-<hash>`); modo `--nome <caminho>` | caso novo: 5 caminhos (raiz, subpasta, mesma pasta com sufixo, maiuscula) geram nomes unicos e validos |
+
+### Orientacao sobre required checks (REVIEW-002; complementa o item 3 das instrucoes manuais)
+
+Enquanto `make contracts-check` (FND-003) e o primeiro Dockerfile nao existirem, `contracts-drift` e `build-images` passam com aviso sem proteger nada:
+**nao os marque como obrigatorios por enquanto** (ou marque sabendo que sao verdes sem cobertura). Obrigatorios agora: `lint-ts`, `lint-py`, `make-lint`, `test-ts`, `test-py`, `build`, `security`.
+Marcar os dois restantes quando FND-003 e o primeiro Dockerfile forem integrados.
+
+### Validacoes da rodada 1 (reais)
+
+- `make lint-workflows`: OK. `make ci-regressao`: todos os casos falham como esperado (inclui os 11 novos), tambem com `CI_REGRESSAO_OFFLINE=1`.
+- `make lint`: passou. `make test`: passou (18 testes Python; TS sem falhas).
+- Reproducao do REVIEW-001: com PATH sem `.run/bin`, `auditar-dependencias.sh`/`check-licenses.mjs` agora saem com a mensagem explicita (testado); no CI o PATH vem da action `preparar` (nao exercitado em runner).
+
+### Itens ADIAR/REJEITAR mantidos (sem alteracao)
+
+REVIEW-003 (cobertura/SBOM), hashes do pip-audit, permissions por job e `persist-credentials` na politica, contexto de build, REVIEW-007 (a, b adiados; c rejeitado). Pendencias anteriores continuam validas.
