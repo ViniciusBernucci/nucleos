@@ -1,7 +1,7 @@
 # imagem: postgres:16-alpine ; postgres (PostgreSQL) 16.15
 == controle positivo/negativo do harness
 PASS  app lê runtime.messages
-PASS  senha errada é negada (harness detecta negação) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  password authentication fa]
+PASS  senha errada é negada (harness detecta negação) [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  password authentication fa]
 == app (runtime): escopo operacional
 PASS  app INSERT em runtime.executions
 PASS  app UPDATE em runtime.executions
@@ -27,23 +27,41 @@ PASS  tools CREATE TABLE no schema content [negado: ERROR:  permission denied fo
 PASS  migrator SET ROLE owner + CREATE no schema runtime
 PASS  migrator sem SET ROLE não cria em runtime [negado: ERROR:  permission denied for schema runtime]
 == SEC-02 / SEC-03: fronteira entre bancos
-PASS  ta_app conecta ao banco tb (SEC-02) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
-PASS  ta_app conecta ao nucleos_control (SEC-03) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
-PASS  ta_app conecta ao banco postgres [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
-PASS  ta_app conecta ao template1 [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
-PASS  ta_tools conecta ao banco tb (SEC-02) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
-PASS  ta_tools conecta ao nucleos_control (SEC-03) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
-PASS  ta_tools conecta ao banco postgres [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
-PASS  ta_tools conecta ao template1 [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
-PASS  ta_migrator conecta ao banco tb (SEC-02) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
-PASS  ta_migrator conecta ao nucleos_control (SEC-03) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
-PASS  ta_migrator conecta ao banco postgres [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
-PASS  ta_migrator conecta ao template1 [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
-PASS  tb_app conecta ao banco ta [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
-PASS  nucleos_cp conecta ao banco ta (CP sem papel de leitura no tenant: rejeita opção 1-B) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_app conecta ao banco tb (SEC-02) [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_app conecta ao nucleos_control (SEC-03) [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_app conecta ao banco postgres [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_app conecta ao template1 [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_tools conecta ao banco tb (SEC-02) [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_tools conecta ao nucleos_control (SEC-03) [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_tools conecta ao banco postgres [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_tools conecta ao template1 [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_migrator conecta ao banco tb (SEC-02) [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_migrator conecta ao nucleos_control (SEC-03) [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_migrator conecta ao banco postgres [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_migrator conecta ao template1 [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
+PASS  tb_app conecta ao banco ta [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
+PASS  nucleos_cp conecta ao banco ta (CP sem papel de leitura no tenant: rejeita opção 1-B) [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
 PASS  CP conecta ao seu banco de controle
+== controles de configuração (REVIEW-006): limites, timeout, PUBLIC, privilégios padrão
+PASS  app: statement_timeout = 30s [= 30s]
+PASS  tools: statement_timeout = 30s [= 30s]
+PASS  PUBLIC sem USAGE no schema public (REVOKE ALL ON SCHEMA public aplicado; o padrão do PG 16 é USAGE) [= f]
+PASS  migrator: 3ª conexão simultânea excede CONNECTION LIMIT 2 [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  too many connections for r]
+PASS  app não executa função nova do owner sem GRANT [negado: ERROR:  permission denied for function f_probe]
+== provisioner sem superuser (REVIEW-002): bootstrap vs operação
+PASS  bootstrap (superuser): datacl de postgres/template1 sem CONNECT para PUBLIC
+PASS  provisioner não é superuser [= false]
+PASS  prov cria owner e app de tc
+PASS  prov: CREATE DATABASE ... OWNER sem SET no owner falha [negado: ERROR:  must be able to SET ROLE "tc_owner"]
+PASS  prov concede SET TRUE no owner a si mesmo (ADMIN do criador)
+PASS  prov cria database de tc com OWNER e revoga PUBLIC
+PASS  prov (como owner) revoga PUBLIC e concede CONNECT ao app
+PASS  tc_app conecta ao seu database
+PASS  tc_app não conecta a ta [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
+PASS  prov não conecta ao database de outro tenant (ta) sem membership [negado: connection to server at "172.17.0.5", port 5432 failed: FATAL:  permission denied for data]
+PASS  prov sem superuser não consegue revogar CONNECT de PUBLIC em template1 (precisa do bootstrap) [negado: ERROR:  permission denied for database template1]
 == atributos dos papéis (nenhum privilegiado)
 PASS  nenhum papel de tenant tem superuser/createdb/createrole/replication/bypassrls/inherit
 INFO  membros (efetivo): ta_migrator->ta_owner,tb_migrator->tb_owner
 PASS  única associação: migrator->owner do próprio tenant (SET, sem INHERIT)
-== resumo: PASS=40 FAIL=0
+== resumo: PASS=56 FAIL=0

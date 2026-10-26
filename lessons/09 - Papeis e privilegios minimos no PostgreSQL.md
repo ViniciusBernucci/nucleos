@@ -1,6 +1,6 @@
 # 09 - Papeis e privilegios minimos no PostgreSQL
 
-Criada em 2026-10-26. Ultima atualizacao: 2026-10-26. Numeracao provisoria (a partir de 09); o coordenador pode renumerar na integracao.
+Criada em 2026-10-26. Ultima atualizacao: 2026-10-26 (rodada de correcao 1). Numeracao provisoria (a partir de 09); o coordenador pode renumerar na integracao.
 Versoes dos exemplos: PostgreSQL 16.15 (container `postgres:16-alpine`). Node, TypeScript e Python nao sao usados nesta lesson.
 
 ## Objetivo, pre-requisitos e posicao na trilha
@@ -49,7 +49,7 @@ Os dois `ERROR` sao o resultado esperado; o `psql` sem `ON_ERROR_STOP` continua 
 
 ## Do minimo ao padrao do projeto
 
-1. Separar o dono (`NOLOGIN`) de quem usa. 2. Separar DDL de uso: o `migrator` assume o dono com `GRANT dono TO migrator WITH INHERIT FALSE, SET TRUE`. 3. Um papel por funcao (`app`, `tools`) em esquemas diferentes, em vez de uma credencial unica. 4. Auditoria append-only: `GRANT INSERT` sem `SELECT/UPDATE/DELETE` ao escritor. 5. Revogar `CONNECT` de `PUBLIC` em `postgres` e `template1`. 6. Provar por testes de negacao (o PoC tem 40 verificacoes).
+1. Separar o dono (`NOLOGIN`) de quem usa. 2. Separar DDL de uso: o `migrator` assume o dono com `GRANT dono TO migrator WITH INHERIT FALSE, SET TRUE`. 3. Um papel por funcao (`app`, `tools`) em esquemas diferentes, em vez de uma credencial unica. 4. Auditoria append-only: `GRANT INSERT` sem `SELECT/UPDATE/DELETE` ao escritor. 5. Revogar `CONNECT` de `PUBLIC` em `postgres` e `template1` (so superuser consegue; um papel `CREATEDB CREATEROLE` nao). 6. Provar por testes de negacao (o PoC tem 56 verificacoes).
 
 ## Erros comuns e quando nao se aplica
 
@@ -62,7 +62,7 @@ Os dois `ERROR` sao o resultado esperado; o `psql` sem `ON_ERROR_STOP` continua 
 
 ## Verificacao e exercicios
 
-- Rode `documentacoes/arquitetura/poc/dec-013/run.sh` e confirme `PASS=40 FAIL=0`.
+- Rode `documentacoes/arquitetura/poc/dec-013/run.sh` e confirme `PASS=56 FAIL=0`.
 - Exercicio 1: crie `demo_tools` com `SELECT` em `content.chunks` e prove que ele nao le `runtime.messages`.
 - Exercicio 2: faca `demo_tools` inserir mas nao atualizar uma tabela de auditoria.
 - Pergunta: o que muda se a membership do `migrator` no dono for `INHERIT TRUE`?

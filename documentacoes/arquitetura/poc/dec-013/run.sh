@@ -89,7 +89,13 @@ provision ta && provision tb || { echo "provisionamento falhou"; exit 2; }
 
 # expect_ok / expect_deny: $1 descricao ; $2 papel ; $3 db ; $4 SQL
 expect_ok()   { if out=$(as "$2" "$3" -c "$4" 2>&1); then echo "PASS  $1"; PASS=$((PASS+1)); else echo "FAIL  $1 -> $out"; FAIL=$((FAIL+1)); fi; }
-expect_deny() { if out=$(as "$2" "$3" -c "$4" 2>&1); then echo "FAIL  $1 (era para negar)"; FAIL=$((FAIL+1)); else echo "PASS  $1 [negado: $(echo "$out" | head -1 | sed 's/^psql: error: //' | cut -c1-90)]"; PASS=$((PASS+1)); fi; }
+# expect_deny: o SQL deve falhar COM a mensagem esperada ($5, regex; padrao: permission denied|password authentication failed)
+expect_deny() { local re="${5:-permission denied|password authentication failed}"
+  if out=$(as "$2" "$3" -c "$4" 2>&1); then echo "FAIL  $1 (era para negar)"; FAIL=$((FAIL+1))
+  elif grep -Eqi "$re" <<<"$out"; then echo "PASS  $1 [negado: $(echo "$out" | head -1 | sed 's/^psql: error: //' | cut -c1-90)]"; PASS=$((PASS+1))
+  else echo "FAIL  $1 (falhou por motivo inesperado: $(echo "$out" | head -1 | cut -c1-120))"; FAIL=$((FAIL+1)); fi; }
+# expect_eq: o SQL (-t -A) deve devolver exatamente $5
+expect_eq() { if out=$(as "$2" "$3" -c "$4" 2>&1) && [ "$out" = "$5" ]; then echo "PASS  $1 [= $5]"; PASS=$((PASS+1)); else echo "FAIL  $1 (obtido: $(echo "$out" | head -1 | cut -c1-100); esperado: $5)"; FAIL=$((FAIL+1)); fi; }
 
 echo "== controle positivo/negativo do harness"
 expect_ok   "app lê runtime.messages"                      ta_app ta "SELECT count(*) FROM runtime.messages"
@@ -134,6 +140,38 @@ done
 expect_deny "tb_app conecta ao banco ta"                  tb_app ta "SELECT 1"
 expect_deny "nucleos_cp conecta ao banco ta (CP sem papel de leitura no tenant: rejeita opção 1-B)" nucleos_cp ta "SELECT 1"
 expect_ok   "CP conecta ao seu banco de controle"         nucleos_cp nucleos_control "SELECT 1"
+
+echo "== controles de configuração (REVIEW-006): limites, timeout, PUBLIC, privilégios padrão"
+expect_eq   "app: statement_timeout = 30s"                ta_app   ta "SHOW statement_timeout" "30s"
+expect_eq   "tools: statement_timeout = 30s"              ta_tools ta "SHOW statement_timeout" "30s"
+expect_eq   "PUBLIC sem USAGE no schema public (REVOKE ALL ON SCHEMA public aplicado; o padrão do PG 16 é USAGE)" ta_app ta "SELECT has_schema_privilege('public','public','USAGE')" "f"
+# CONNECTION LIMIT 2 do migrator: duas sessões ocupadas, a terceira deve falhar
+( as ta_migrator ta -c "SELECT pg_sleep(8)" >/dev/null 2>&1 ) & ( as ta_migrator ta -c "SELECT pg_sleep(8)" >/dev/null 2>&1 ) &
+for i in $(seq 1 20); do n=$(adm -d postgres -t -A -c "SELECT count(*) FROM pg_stat_activity WHERE usename='ta_migrator' AND state='active'"); [ "$n" = "2" ] && break; sleep 0.5; done
+expect_deny "migrator: 3ª conexão simultânea excede CONNECTION LIMIT 2" ta_migrator ta "SELECT 1" "too many connections for role"
+wait
+# ALTER DEFAULT PRIVILEGES: função nova do owner não é executável por app sem GRANT (sem o ADP, PUBLIC teria EXECUTE)
+as ta_migrator ta -c "SET ROLE ta_owner; CREATE FUNCTION runtime.f_probe() RETURNS int LANGUAGE sql AS 'SELECT 1'" >/dev/null 2>&1
+expect_deny "app não executa função nova do owner sem GRANT" ta_app ta "SELECT runtime.f_probe()" "permission denied for function"
+
+echo "== provisioner sem superuser (REVIEW-002): bootstrap vs operação"
+BOOT=$(adm -d postgres -t -A -c "SELECT count(*) FROM pg_database d, LATERAL aclexplode(d.datacl) a WHERE d.datname IN ('postgres','template1') AND a.grantee=0 AND a.privilege_type='CONNECT'")
+if [ "$BOOT" = "0" ]; then echo "PASS  bootstrap (superuser): datacl de postgres/template1 sem CONNECT para PUBLIC"; PASS=$((PASS+1)); else echo "FAIL  datacl de postgres/template1 ainda concede CONNECT a PUBLIC ($BOOT)"; FAIL=$((FAIL+1)); fi
+PW[prov]=$(rnd)
+adm -d postgres -c "CREATE ROLE prov LOGIN PASSWORD '${PW[prov]}' NOSUPERUSER CREATEDB CREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS"
+adm -d postgres -c "GRANT CONNECT ON DATABASE postgres TO prov"   # bootstrap: banco de manutencao do provisioner (a revogacao de PUBLIC o deixou sem acesso)
+expect_eq   "provisioner não é superuser"                 prov postgres "SELECT rolsuper::text FROM pg_roles WHERE rolname=current_user" "false"
+# operação do provisioner: cria papéis/database do tenant tc; precisa de SET no owner (CREATE DATABASE ... OWNER)
+expect_ok   "prov cria owner e app de tc"                 prov postgres "CREATE ROLE tc_owner NOLOGIN NOINHERIT; CREATE ROLE tc_app LOGIN PASSWORD '${PW[prov]}x' NOSUPERUSER NOINHERIT"
+expect_deny "prov: CREATE DATABASE ... OWNER sem SET no owner falha" prov postgres "CREATE DATABASE tc OWNER tc_owner" "must be able to SET ROLE"
+expect_ok   "prov concede SET TRUE no owner a si mesmo (ADMIN do criador)" prov postgres "GRANT tc_owner TO prov WITH SET TRUE, INHERIT FALSE"
+expect_ok   "prov cria database de tc com OWNER e revoga PUBLIC" prov postgres "CREATE DATABASE tc OWNER tc_owner"
+expect_ok   "prov (como owner) revoga PUBLIC e concede CONNECT ao app" prov postgres "SET ROLE tc_owner; REVOKE ALL ON DATABASE tc FROM PUBLIC; GRANT CONNECT ON DATABASE tc TO tc_app"
+PW[tc_app]="${PW[prov]}x"
+expect_ok   "tc_app conecta ao seu database"              tc_app tc "SELECT 1"
+expect_deny "tc_app não conecta a ta"                     tc_app ta "SELECT 1"
+expect_deny "prov não conecta ao database de outro tenant (ta) sem membership" prov ta "SELECT 1"
+expect_deny "prov sem superuser não consegue revogar CONNECT de PUBLIC em template1 (precisa do bootstrap)" prov postgres "REVOKE CONNECT ON DATABASE template1 FROM PUBLIC" "permission denied for database template1|must be owner"
 
 echo "== atributos dos papéis (nenhum privilegiado)"
 BAD=$(adm -d postgres -t -A -c "SELECT count(*) FROM pg_roles WHERE rolname ~ '^t[ab]_' AND (rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls OR rolinherit)")
