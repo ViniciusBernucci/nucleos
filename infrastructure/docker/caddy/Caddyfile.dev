@@ -1,0 +1,32 @@
+# Proxy de desenvolvimento (FND-004). So HTTP, so loopback no host.
+# Hosts *.localhost resolvem para 127.0.0.1 nos navegadores; com curl use --resolve ou -H "Host: ...".
+{
+	auto_https off
+	admin 127.0.0.1:2019
+}
+
+:8080 {
+	handle /healthz {
+		respond "ok" 200
+	}
+	handle {
+		respond "proxy de desenvolvimento Nucleos: use app.localhost, mail.localhost ou minio.localhost" 404
+	}
+}
+
+http://app.localhost:8080 {
+	handle_path /api/* {
+		reverse_proxy api:3001
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}
+
+http://mail.localhost:8080 {
+	reverse_proxy mailpit:8025
+}
+
+http://minio.localhost:8080 {
+	reverse_proxy minio:9001
+}

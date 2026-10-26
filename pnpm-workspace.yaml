@@ -1,3 +1,13 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# Politica de supply chain (FND-002, REVIEW-002). Semantica verificada no pnpm 12.15.0:
+# - scripts de instalacao de dependencias sao NEGADOS por padrao e uma dependencia nao
+#   aprovada faz o install falhar (ERR_PNPM_IGNORED_BUILDS); allowBuilds e a allowlist
+#   explicita (nome: true|false). Vazia = nenhum pacote executa script no install.
+# - minimumReleaseAge e em MINUTOS: versoes publicadas ha menos tempo que isso nao sao
+#   resolvidas (ERR_PNPM_NO_MATURE_MATCHING_VERSION), exceto em minimumReleaseAgeExclude.
+allowBuilds:
+  lefthook: false
+minimumReleaseAge: 1440

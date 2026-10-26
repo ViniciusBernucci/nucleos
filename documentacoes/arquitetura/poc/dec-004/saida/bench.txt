@@ -1,0 +1,9 @@
+
+> poc-dec-004-identidade-de-servico@0.0.0 bench
+> node bench.mjs
+
+node v24.22.1 | AMD EPYC Processor (with IBPB) | 4 vCPU | N=20000
+validate (tool-gateway, reutilizavel)          p50=221.1us p95=400.3us p99=1640.6us media=281.3us
+chamadas de rede durante a medicao: 0
+validate (dispatcher, uso unico + cache jti)   p50=401.1us p95=1206.9us p99=6536.1us media=637.0us
+emissao no CP (assinar token + verificar assertion) p50=1006.3us p95=4071.6us p99=13132.5us media=1586.0us
