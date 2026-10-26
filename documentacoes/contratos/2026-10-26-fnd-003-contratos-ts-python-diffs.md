@@ -2,7 +2,7 @@
 
 Resumo: [documento principal](2026-10-26-fnd-003-contratos-ts-python.md). Commit da tarefa: `635cff0`. Base `d00e8df`.
 
-Omitidos do patch textual por serem gerados, lock files ou dados (listados com estatistica): `pnpm-lock.yaml`, `uv.lock`, `packages/*/src/generated`, `packages/contracts-py/src/nucleos_contracts/{models,schemas}`, `packages/contracts/{exemplos,baseline,schemas}` (schemas e exemplos sao conteudo-fonte versionado em git; consulte `git show 635cff0`).
+Omitidos deste patch: `pnpm-lock.yaml`, `uv.lock`, `packages/*/src/generated`, `packages/contracts-py/src/nucleos_contracts/{models,schemas}` (gerados/copias/locks, listados na estatistica) e `packages/contracts/baseline` (copia identica de `schemas/`). Os patches de `schemas/` e `exemplos/` (fonte e testes) estao em [2026-10-26-fnd-003-contratos-ts-python-diffs-schemas.md](2026-10-26-fnd-003-contratos-ts-python-diffs-schemas.md).
 
 ## Estatistica completa
 ```
@@ -1940,4 +1940,222 @@ index 2eda44a..85c6de1 100644
    preparar("true");
    deveSer("contracts-drift passa sem alteracao", drift().status === 0);
  } finally {
+```
+
+## Rodada de correcao 1 - commit `b5297d6` (patch de codigo/testes; schemas/exemplos em [diffs-schemas](2026-10-26-fnd-003-contratos-ts-python-diffs-schemas.md))
+
+```diff
+diff --git a/packages/contracts-py/tests/test_contratos.py b/packages/contracts-py/tests/test_contratos.py
+index 7dbee99..29a6820 100644
+--- a/packages/contracts-py/tests/test_contratos.py
++++ b/packages/contracts-py/tests/test_contratos.py
+@@ -4,6 +4,8 @@ from __future__ import annotations
+ 
+ import importlib
+ import json
++import re
++import subprocess
+ from pathlib import Path
+ from typing import Any
+ 
+@@ -16,6 +18,7 @@ from nucleos_contracts import (
+     schema_names,
+     validate,
+ )
++from nucleos_contracts.validation import _ecma_to_python
+ from pydantic import BaseModel, ValidationError
+ 
+ PACOTE = Path(__file__).resolve().parents[2] / "contracts"
+@@ -176,3 +179,32 @@ def test_copia_dos_schemas_no_pacote_python_e_identica_a_fonte() -> None:
+         assert (copia / f"{nome}.schema.json").read_bytes() == (
+             PACOTE / "schemas" / f"{nome}.schema.json"
+         ).read_bytes()
++
++
++CODEPOINTS = [*range(0xD800), *range(0xE000, 0x10000), 0x10000, 0x1F600, 0x10FFFF]
++
++
++def test_varredura_de_codepoints_todos_os_patterns_iguais_ao_ecma() -> None:
++    """Todo `pattern` casa os MESMOS codepoints em ECMA-262 (node/ajv) e no motor Python."""
++    script = PACOTE / "scripts" / "varrer-patterns.mjs"
++    saida = subprocess.run(  # noqa: S603 - script do repositorio, sem entrada externa
++        ["node", str(script)],  # noqa: S607
++        capture_output=True,
++        text=True,
++        check=True,
++        cwd=PACOTE,
++    ).stdout
++    ecma: dict[str, list[list[int]]] = json.loads(saida)
++    assert len(ecma) >= 40  # protege contra varredura vazia
++    for chave, faixas in ecma.items():
++        padrao, prefixo = json.loads(chave)
++        esperado = {c for ini, fim in faixas for c in range(ini, fim + 1)}
++        regex = re.compile(_ecma_to_python(padrao))
++        obtido = {
++            c
++            for c in list(range(0xD800))
++            + list(range(0xE000, 0x10000))
++            + [0x10000, 0x1F600, 0x10FFFF]
++            if regex.search(prefixo + chr(c))
++        }
++        assert obtido == esperado, (padrao, prefixo, sorted(obtido ^ esperado)[:10])
+diff --git a/packages/contracts/scripts/compat.mjs b/packages/contracts/scripts/compat.mjs
+index 0e2c4dc..58d3eff 100644
+--- a/packages/contracts/scripts/compat.mjs
++++ b/packages/contracts/scripts/compat.mjs
+@@ -131,7 +131,12 @@ export function incompatibilidades(antigo, novo) {
+         erros.push(`${caminho}: palavra-chave nova nao analisada (${k})`);
+   };
+   visitar(antigo, novo, "#");
+-  return erros;
++  // $defs e superficie publica (ex.: handshake tem raiz so com $defs): cada definicao e comparada.
++  for (const k of Object.keys(antigo.$defs ?? {})) {
++    if (novo.$defs?.[k] === undefined) erros.push(`#/$defs/${k}: definicao removida`);
++    else visitar(antigo.$defs[k], novo.$defs[k], `#/$defs/${k}`);
++  }
++  return [...new Set(erros)];
+ }
+ 
+ const versao = (s) => {
+diff --git a/packages/contracts/scripts/compat.test.mjs b/packages/contracts/scripts/compat.test.mjs
+index 86dbaf4..fa4e795 100644
+--- a/packages/contracts/scripts/compat.test.mjs
++++ b/packages/contracts/scripts/compat.test.mjs
+@@ -1,5 +1,5 @@
+ import assert from "node:assert/strict";
+-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
++import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+ import { tmpdir } from "node:os";
+ import { join } from "node:path";
+ import { test } from "node:test";
+@@ -120,3 +120,71 @@ test("schemas reais estao compativeis com o baseline", () => {
+   const pacote = join(import.meta.dirname, "..");
+   assert.deepEqual(verificarDiretorios(join(pacote, "baseline"), join(pacote, "schemas")), []);
+ });
++
++// REVIEW-001: schemas cuja raiz so tem $defs (ex.: handshake) tambem sao comparados.
++const soDefs = () => ({
++  "x-schema-version": "1.0",
++  $defs: {
++    msg: {
++      type: "object",
++      additionalProperties: false,
++      required: ["a"],
++      properties: { a: { type: "string" }, n: { type: "integer", maximum: 600 } },
++    },
++  },
++});
++const mudarDefs = (f, versao = "1.1") => {
++  const s = soDefs();
++  f(s.$defs.msg);
++  s["x-schema-version"] = versao;
++  return s;
++};
++
++test("$defs-only: adicao de campo opcional passa com minor", () => {
++  const novo = mudarDefs((d) => (d.properties.b = { type: "string" }));
++  assert.deepEqual(verificarPar("c", soDefs(), novo), []);
++});
++
++const quebrasDefs = {
++  "campo removido": (d) => delete d.properties.n,
++  "campo obrigatorio novo": (d) => {
++    d.properties.b = { type: "string" };
++    d.required.push("b");
++  },
++  "maximum mais estrito": (d) => (d.properties.n.maximum = 60),
++};
++for (const [nome, f] of Object.entries(quebrasDefs)) {
++  test(`$defs-only: ${nome} e detectado`, () => {
++    assert.match(verificarPar("c", soDefs(), mudarDefs(f)).join("\n"), /INCOMPATIVEL/);
++  });
++}
++
++test("$defs-only: definicao removida e detectada", () => {
++  const novo = soDefs();
++  delete novo.$defs.msg;
++  novo["x-schema-version"] = "1.1";
++  assert.match(verificarPar("c", soDefs(), novo).join("\n"), /definicao removida/);
++});
++
++test("handshake real mutado (3 mutacoes do review) falha mesmo com minor", () => {
++  const real = JSON.parse(
++    readFileSync(join(import.meta.dirname, "..", "schemas", "handshake.schema.json"), "utf8"),
++  );
++  const mutar = (f) => {
++    const s = structuredClone(real);
++    f(s.$defs);
++    s["x-schema-version"] = "1.1";
++    return s;
++  };
++  const mutacoes = {
++    "remover campo de token_request": (d) => delete d.token_request.properties.scope,
++    "campo obrigatorio novo em token_request": (d) => {
++      d.token_request.properties.extra = { type: "string" };
++      d.token_request.required.push("extra");
++    },
++    "expires_in.maximum 600 -> 60": (d) => (d.token_response.properties.expires_in.maximum = 60),
++  };
++  for (const [nome, f] of Object.entries(mutacoes)) {
++    assert.match(verificarPar("handshake", real, mutar(f)).join("\n"), /INCOMPATIVEL/, nome);
++  }
++});
+diff --git a/packages/contracts/scripts/varrer-patterns.mjs b/packages/contracts/scripts/varrer-patterns.mjs
+new file mode 100644
+index 0000000..717c912
+--- /dev/null
++++ b/packages/contracts/scripts/varrer-patterns.mjs
+@@ -0,0 +1,52 @@
++#!/usr/bin/env node
++// Varre todos os `pattern` dos schemas com a semantica ECMA-262 (RegExp com flag u, como o ajv) e
++// imprime, em JSON, os codepoints que casam por (pattern, prefixo). O teste Python compara o resultado
++// com o seu motor (packages/contracts-py/tests/test_contratos.py): qualquer diferenca de paridade falha.
++import { readFileSync, readdirSync } from "node:fs";
++import { dirname, join } from "node:path";
++import { fileURLToPath } from "node:url";
++
++const SCHEMAS = join(dirname(fileURLToPath(import.meta.url)), "..", "schemas");
++export const PREFIXOS = ["", "a", "x:", "/"];
++export const CODEPOINTS = [
++  ...Array.from({ length: 0x10000 }, (_, i) => i).filter((c) => c < 0xd800 || c > 0xdfff),
++  0x10000,
++  0x1f600,
++  0x10ffff,
++];
++
++export function coletarPatterns() {
++  const achados = new Set();
++  const visitar = (no) => {
++    if (Array.isArray(no)) no.forEach(visitar);
++    else if (no !== null && typeof no === "object") {
++      if (typeof no.pattern === "string") achados.add(no.pattern);
++      Object.values(no).forEach(visitar);
++    }
++  };
++  for (const f of readdirSync(SCHEMAS).sort())
++    visitar(JSON.parse(readFileSync(join(SCHEMAS, f), "utf8")));
++  return [...achados].sort();
++}
++
++function faixas(lista) {
++  const out = [];
++  for (const c of lista) {
++    const ultimo = out[out.length - 1];
++    if (ultimo && ultimo[1] === c - 1) ultimo[1] = c;
++    else out.push([c, c]);
++  }
++  return out;
++}
++
++if (process.argv[1] === fileURLToPath(import.meta.url)) {
++  const resultado = {};
++  for (const p of coletarPatterns()) {
++    const re = new RegExp(p, "u");
++    for (const pre of PREFIXOS) {
++      const casam = CODEPOINTS.filter((c) => re.test(pre + String.fromCodePoint(c)));
++      resultado[JSON.stringify([p, pre])] = faixas(casam);
++    }
++  }
++  process.stdout.write(JSON.stringify(resultado));
++}
 ```

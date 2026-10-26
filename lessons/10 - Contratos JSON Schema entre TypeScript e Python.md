@@ -41,7 +41,7 @@ const validate = new Ajv2020({ strict: true }).compile({
 console.log(validate({ tenant_id: "acme\n" })); // false
 ```
 
-A mesma entrada `"acme\n"` e aceita em Python e rejeitada em ECMA-262: `$` do Python casa antes da quebra de linha final. O pacote corrige isso em `nucleos_contracts.validation` (busca como ECMA, `$` -> `\Z`). Outra divergencia fechada: `format: date-time` e definido por nos (RFC 3339 estrito) nas duas linguagens, com a mesma tabela de casos (`exemplos/date-time.json`).
+A mesma entrada `"acme\n"` e aceita em Python e rejeitada em ECMA-262: `$` do Python casa antes da quebra de linha final. O pacote corrige isso em `nucleos_contracts.validation` (busca como ECMA, `$` -> `\Z`). `\s` tambem difere entre os motores (`U+0085`, `U+001C`, `U+FEFF`); por isso os patterns usam classes ASCII explicitas e um teste varre todos os codepoints BMP de todo `pattern` comparando `node` e Python. Outra divergencia fechada: `format: date-time` e definido por nos (RFC 3339 estrito) nas duas linguagens, com a mesma tabela de casos (`exemplos/date-time.json`).
 
 Padrao do projeto: `make contracts-gen` gera tipos TS, modelos Pydantic (`datamodel-code-generator`) e o cliente do SDK; `validate(nome, dado)` (TS) e `validate(nome, dado)` (Python) aplicam o schema; regras entre campos que o schema nao expressa (ex.: `sub == "runtime:" + tenant_id`, TTL <= 600 s) ficam em `runtimeTokenSemanticErrors` / `runtime_token_semantic_errors`. Entrega: [documentacao FND-003](../documentacoes/contratos/2026-10-26-fnd-003-contratos-ts-python.md).
 
@@ -54,4 +54,4 @@ Padrao do projeto: `make contracts-gen` gera tipos TS, modelos Pydantic (`datamo
 
 ## Verificacao e exercicios
 
-`make test` (188 testes TS + 315 em Python no total do repo) e `make contracts-check`. Exercicios: (1) adicione o exemplo invalido `"tenant_id": "ACME"` a um schema e veja os dois lados rejeitarem; (2) por que `additionalProperties: false` e um controle de seguranca e nao so estilo? (3) qual a consequencia de aceitar `2026-12-31T23:59:60Z` num lado e rejeitar no outro?
+`make test`  e `make contracts-check`. Exercicios: (1) adicione o exemplo invalido `"tenant_id": "ACME"` a um schema e veja os dois lados rejeitarem; (2) por que `additionalProperties: false` e um controle de seguranca e nao so estilo? (3) qual a consequencia de aceitar `2026-12-31T23:59:60Z` num lado e rejeitar no outro?

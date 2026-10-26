@@ -27,6 +27,8 @@ Fluxo: edite o schema, suba `x-schema-version` (e `schema_version` const), rode 
 
 - Subir so o patch/minor numa mudanca incompativel: o check exige major.
 - Esquecer de commitar os gerados: o CI falha com a lista de arquivos.
+- Contratos cuja raiz so tem `$defs` (como o `handshake`) tambem sao comparados: cada definicao e percorrida; remover uma definicao e incompativel.
+- O baseline vive na mesma arvore: quem altera schema **e** `baseline/` no mesmo commit burla o gate (a revisao humana do diff de `baseline/` e o controle; ancora no merge-base fica para quando houver CODEOWNERS/protecao de branch ativos). Contrato novo sem baseline nao e checado.
 - O baseline so cobre compatibilidade de **leitura** (documento antigo aceito pelo novo); coexistencia de duas versoes em producao e decisao do ticket do contrato.
 
 ## Verificacao e exercicios
