@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+const SECRET_QUERY = new Set(["password", "sslpassword", "passfile", "pass", "passwd", "pwd", "token", "apikey", "api_key", "secret", "credential", "credentials"]);
+
+/** Parametro de query que carrega (ou aponta para) credencial: recusado em DATABASE_URL e similares. */
+function isSecretQueryParam(name: string): boolean {
+  return SECRET_QUERY.has(name.toLowerCase());
+}
+
 /** Porta TCP valida (1-65535), a partir de texto de variavel de ambiente. */
 export const portSchema = z
   .string()
@@ -42,12 +49,27 @@ export function serviceUrl(protocols: readonly string[]): z.ZodType<string, stri
   return z
     .string()
     .max(2048)
-    .refine((v) => URL.canParse(v), "url invalida")
-    .refine((v) => {
+    .superRefine((v, ctx) => {
+      // Uma unica passada com retorno antecipado: refinamentos encadeados continuariam rodando
+      // com URL invalida e `new URL` lancaria uma excecao que nao e ZodError.
+      if (!URL.canParse(v)) {
+        ctx.addIssue({ code: "custom", message: "url invalida" });
+        return;
+      }
       const u = new URL(v);
-      return protocols.includes(u.protocol.replace(/:$/, ""));
-    }, "protocolo nao permitido")
-    .refine((v) => new URL(v).password === "", "senha embutida na url e proibida (use *_FILE)");
+      if (!protocols.includes(u.protocol.replace(/:$/, ""))) {
+        ctx.addIssue({ code: "custom", message: "protocolo nao permitido" });
+        return;
+      }
+      if (u.password !== "") {
+        ctx.addIssue({ code: "custom", message: "senha embutida na url e proibida (use *_FILE)" });
+        return;
+      }
+      if ([...u.searchParams.keys()].some(isSecretQueryParam)) {
+        ctx.addIssue({ code: "custom", message: "credencial na query da url e proibida (use *_FILE)" });
+        return;
+      }
+    });
 }
 
 /** Caminho absoluto de arquivo (sem NUL nem `..`), para variaveis `*_FILE`. */

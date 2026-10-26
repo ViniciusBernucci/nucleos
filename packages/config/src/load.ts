@@ -23,16 +23,51 @@ export class ConfigError extends Error {
   }
 }
 
+const SECRET_TOKENS = new Set([
+  "PASS",
+  "PASSWORD",
+  "PASSWD",
+  "PWD",
+  "SECRET",
+  "TOKEN",
+  "KEY",
+  "APIKEY",
+  "CREDENTIAL",
+  "CREDENTIALS",
+  "DSN",
+]);
+const SECRET_SUFFIXES = [
+  "PASSWORD",
+  "PASSWD",
+  "SECRET",
+  "TOKEN",
+  "APIKEY",
+  "PRIVATEKEY",
+  "CREDENTIAL",
+  "CREDENTIALS",
+];
+
 /**
- * Nomes que indicam segredo passado diretamente por ambiente (proibido pelo ADR-020 item 1).
- * Variaveis terminadas em `_FILE` (caminho) sao o formato permitido.
+ * Nome de variavel que indica segredo literal (ADR-020 item 1): algum token separado por `_`
+ * (PASS, SECRET, TOKEN, KEY, DSN, ...) ou sufixo colado (DBPASSWORD). Nomes terminados em
+ * `_FILE`/`_PATH` (caminho) sao o formato permitido. Mesma regra de config-py e deploy-lib.mjs.
  */
-const SECRET_NAME = /(PASSWORD|PASSWD|SECRET|TOKEN|API_?KEY|PRIVATE_?KEY|CREDENTIAL)S?$/i;
+/** Variaveis POSIX/shell que nao carregam segredo e colidem com os tokens. */
+const NOT_SECRET = new Set(["PWD", "OLDPWD"]);
+
+export function isSecretName(name: string): boolean {
+  const up = name.toUpperCase().replace(/[.-]/g, "_");
+  if (NOT_SECRET.has(up)) return false;
+  if (/_(FILE|PATH)$/.test(up)) return false;
+  if (up.split("_").some((t) => SECRET_TOKENS.has(t))) return true;
+  const compact = up.replaceAll("_", "");
+  return SECRET_SUFFIXES.some((suf) => compact.endsWith(suf));
+}
 
 /** Devolve as variaveis do ambiente cujo NOME parece carregar um segredo literal. */
 export function forbiddenSecretEnv(env: Readonly<Record<string, string | undefined>>): string[] {
   return Object.entries(env)
-    .filter(([k, v]) => v !== undefined && v !== "" && SECRET_NAME.test(k))
+    .filter(([k, v]) => v !== undefined && v !== "" && isSecretName(k))
     .map(([k]) => k)
     .sort();
 }

@@ -1,9 +1,18 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { test } from "node:test";
-import { ConfigError, Secret, forbiddenSecretEnv, loadApiConfig, readSecretFile } from "./index.js";
+import { mock, test } from "node:test";
+import {
+  ConfigError,
+  MAX_SECRET_BYTES,
+  Secret,
+  SecretFileError,
+  forbiddenSecretEnv,
+  isSecretName,
+  loadApiConfig,
+  readSecretFile,
+} from "./index.js";
 
 const SENTINEL = "SENTINELA_valor_que_nunca_deve_vazar_9f3a";
 
@@ -137,4 +146,70 @@ test("Secret nunca se serializa", () => {
     for (const out of [String(s), JSON.stringify({ s })]) assert.ok(!out.includes(SENTINEL));
     assert.equal(s.reveal(), SENTINEL);
   });
+});
+
+// ---------------------------------------------------------------- REVIEW-003/004/006/007/009
+test("dono diferente do processo e recusado (mutante: checagem de dono removida)", () => {
+  withDir((dir) => {
+    const p = secretFile(dir);
+    const real = process.getuid?.() ?? 0;
+    const m = mock.method(process as { getuid: () => number }, "getuid", () => real + 1);
+    try {
+      assert.throws(() => readSecretFile(p), (e: unknown) => e instanceof SecretFileError && e.reason === "dono-diferente");
+    } finally {
+      m.mock.restore();
+    }
+  });
+});
+
+test("limite exato de tamanho aceito; um byte a mais recusado", () => {
+  withDir((dir) => {
+    const at = join(dir, "no-limite");
+    writeFileSync(at, "a".repeat(MAX_SECRET_BYTES), { mode: 0o400 });
+    assert.equal(readSecretFile(at).reveal().length, MAX_SECRET_BYTES);
+    const over = join(dir, "acima");
+    writeFileSync(over, "a".repeat(MAX_SECRET_BYTES + 1), { mode: 0o400 });
+    assert.throws(() => readSecretFile(over), (e: unknown) => e instanceof SecretFileError && e.reason === "grande-demais");
+  });
+});
+
+test("arquivo com bytes UTF-8 invalidos e ilegivel (paridade com Python)", () => {
+  withDir((dir) => {
+    const p = join(dir, "bin");
+    writeFileSync(p, Buffer.from([0x61, 0xff, 0xfe, 0x62]), { mode: 0o400 });
+    assert.throws(() => readSecretFile(p), (e: unknown) => e instanceof SecretFileError && e.reason === "ilegivel");
+  });
+});
+
+test("nomes de segredo por token e sufixo; *_FILE e *_PATH permitidos", () => {
+  for (const n of ["API_TOKEN", "X_SECRET", "DB_PASS", "SECRET_KEY", "AWS_SECRET_ACCESS_KEY", "DBPASSWORD", "A_DSN"]) {
+    assert.ok(isSecretName(n), n);
+  }
+  for (const n of ["DATABASE_PASSWORD_FILE", "SSH_KEY_PATH", "OTEL_SERVICE_NAME", "KEYBOARD", "PORT", "PASSTHROUGH"]) {
+    assert.ok(!isSecretName(n), n);
+  }
+});
+
+test("tabela de paridade compartilhada com config-py", () => {
+  const url = new URL("../paridade-casos.json", import.meta.url);
+  const { casos } = JSON.parse(readFileSync(url, "utf8")) as {
+    casos: { caso: string; env: Record<string, string>; aceita: boolean }[];
+  };
+  assert.ok(casos.length > 40);
+  for (const c of casos) {
+    let aceitou = true;
+    try {
+      loadApiConfig(c.env);
+    } catch (e) {
+      assert.ok(e instanceof ConfigError, c.caso);
+      aceitou = false;
+      assert.ok(!e.message.includes("SENT"), `${c.caso}: vazou`);
+    }
+    assert.equal(aceitou, c.aceita, c.caso);
+  }
+});
+
+test("PWD e OLDPWD do shell nao sao tratados como segredo", () => {
+  assert.ok(!isSecretName("PWD") && !isSecretName("OLDPWD") && isSecretName("X_PWD"));
+  assert.deepEqual(forbiddenSecretEnv({ PWD: "/home/x", OLDPWD: "/", DB_PWD: "x" }), ["DB_PWD"]);
 });

@@ -1,4 +1,4 @@
-import { constants, lstatSync, readFileSync } from "node:fs";
+import { closeSync, constants, fstatSync, openSync, readSync } from "node:fs";
 
 /** Tamanho maximo aceito para um arquivo de segredo (evita ler arquivo arbitrario grande). */
 export const MAX_SECRET_BYTES = 16 * 1024;
@@ -49,34 +49,62 @@ export type SecretFileReason =
   | "grande-demais"
   | "ilegivel";
 
-/**
- * Le um segredo de arquivo com checagens (ADR-020, item 1): arquivo regular (sem link simbolico),
- * sem nenhuma permissao para grupo/outros (mascara 0o077), do mesmo dono do processo, nao vazio
- * e com tamanho limitado. Remove um unico `\n` final (formato comum de arquivos criados por shell).
- */
-export function readSecretFile(path: string): Secret {
-  let st;
+function openNoFollow(path: string): number {
   try {
-    st = lstatSync(path);
-  } catch {
-    throw new SecretFileError("ausente");
-  }
-  if (st.isSymbolicLink()) throw new SecretFileError("link-simbolico");
-  if (!st.isFile()) throw new SecretFileError("nao-e-arquivo-regular");
-  if ((st.mode & 0o077) !== 0) throw new SecretFileError("permissoes-abertas");
-  if (typeof process.getuid === "function" && st.uid !== process.getuid()) {
-    throw new SecretFileError("dono-diferente");
-  }
-  if (st.size === 0) throw new SecretFileError("vazio");
-  if (st.size > MAX_SECRET_BYTES) throw new SecretFileError("grande-demais");
-  let raw: string;
-  try {
-    // O_NOFOLLOW fecha a janela entre lstat e leitura (troca por link simbolico).
-    raw = readFileSync(path, { encoding: "utf8", flag: constants.O_RDONLY | constants.O_NOFOLLOW });
-  } catch {
+    // O_NOFOLLOW: link simbolico no ultimo componente => ELOOP. O_NONBLOCK: nao trava em FIFO.
+    // (o Node ja abre com close-on-exec)
+    return openSync(
+      path,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    if (code === "ELOOP") throw new SecretFileError("link-simbolico");
+    if (code === "ENOENT" || code === "ENOTDIR") throw new SecretFileError("ausente");
     throw new SecretFileError("ilegivel");
   }
-  const value = raw.endsWith("\n") ? raw.slice(0, -1) : raw;
-  if (value.length === 0) throw new SecretFileError("vazio");
-  return new Secret(value);
+}
+
+/**
+ * Le um segredo de arquivo (ADR-020, item 1). Abre primeiro (`O_NOFOLLOW`) e confere tudo por
+ * `fstat` no descritor aberto, sem janela entre checagem e leitura: arquivo regular, sem
+ * permissoes para grupo/outros (mascara 0o077), do mesmo dono do processo, nao vazio, no maximo
+ * `MAX_SECRET_BYTES` (a leitura e limitada a esse tamanho + 1), UTF-8 valido. Remove um `\n` final.
+ */
+export function readSecretFile(path: string): Secret {
+  const fd = openNoFollow(path);
+  try {
+    const st = fstatSync(fd);
+    if (!st.isFile()) throw new SecretFileError("nao-e-arquivo-regular");
+    if ((st.mode & 0o077) !== 0) throw new SecretFileError("permissoes-abertas");
+    if (typeof process.getuid === "function" && st.uid !== process.getuid()) {
+      throw new SecretFileError("dono-diferente");
+    }
+    if (st.size === 0) throw new SecretFileError("vazio");
+    if (st.size > MAX_SECRET_BYTES) throw new SecretFileError("grande-demais");
+    const buf = Buffer.alloc(MAX_SECRET_BYTES + 1);
+    let total = 0;
+    try {
+      for (;;) {
+        const n = readSync(fd, buf, total, buf.length - total, null);
+        if (n === 0) break;
+        total += n;
+        if (total > MAX_SECRET_BYTES) throw new SecretFileError("grande-demais");
+      }
+    } catch (e) {
+      if (e instanceof SecretFileError) throw e;
+      throw new SecretFileError("ilegivel");
+    }
+    let raw: string;
+    try {
+      raw = new TextDecoder("utf-8", { fatal: true }).decode(buf.subarray(0, total));
+    } catch {
+      throw new SecretFileError("ilegivel");
+    }
+    const value = raw.endsWith("\n") ? raw.slice(0, -1) : raw;
+    if (value.length === 0) throw new SecretFileError("vazio");
+    return new Secret(value);
+  } finally {
+    closeSync(fd);
+  }
 }

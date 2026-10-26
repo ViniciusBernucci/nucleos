@@ -1,4 +1,5 @@
-export { ConfigError, type ConfigIssue, forbiddenSecretEnv, loadSecret, parseConfig } from "./load.js";
+export { ConfigError, type ConfigIssue, forbiddenSecretEnv,
+  isSecretName, loadSecret, parseConfig } from "./load.js";
 export { APP_ENVS, type ApiConfig, type AppEnv, loadApiConfig } from "./api.js";
 export {
   absolutePathSchema,

@@ -3,14 +3,14 @@
 // (127.0.0.1, containers descartaveis, destruidos ao final). Executar: make test-ambientes
 // Pre-requisitos: Docker, `make build` (apps/api/dist) e as imagens do compose (digest) locais ou puxaveis.
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, before, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { envListToObject, secretFindingsInEnv, secretFindingsInText, verifyRendered } from "../scripts/deploy-lib.mjs";
+import { envListToObject, isSecretName, secretFindingsInEnv, secretFindingsInText, verifyRendered } from "../scripts/deploy-lib.mjs";
 
 const docker = join(dirname(fileURLToPath(import.meta.url)), "..");
 const root = join(docker, "..", "..");
@@ -34,7 +34,11 @@ describe("verificador de overlays", () => {
       },
     },
   };
-  const bad = (patch) => verifyRendered({ services: { api: { ...ok.services.api, ...patch } } }, "t");
+  const interna = { interna: { internal: true } };
+  const bad = (patch, extra = {}) =>
+    verifyRendered({ networks: interna, services: { api: { ...ok.services.api, ...patch } }, ...extra }, "t");
+  const pg = (patch) =>
+    verifyRendered({ networks: interna, services: { postgres: { ...ok.services.api, networks: { interna: null }, ...patch } } }, "t");
   test("configuracao correta passa", () => assert.deepEqual(bad({}), []));
   test("cada regra e violada separadamente", () => {
     assert.match(bad({ image: "r/a:latest" }).join(), /sem digest/);
@@ -47,6 +51,33 @@ describe("verificador de overlays", () => {
     assert.match(bad({ cap_drop: [] }).join(), /cap_drop/);
     assert.match(bad({ mem_limit: undefined }).join(), /limites/);
     assert.match(bad({ restart: "always" }).join(), /unless-stopped/);
+  });
+  test("regras de hardening adicionais (REVIEW-005), uma por regra", () => {
+    assert.match(bad({ cap_add: ["SYS_ADMIN"] }).join(), /cap_add SYS_ADMIN fora da allowlist/);
+    assert.deepEqual(pg({ cap_add: ["CHOWN", "SETUID"] }), []);
+    assert.match(pg({ cap_add: ["CHOWN", "SYS_ADMIN"] }).join(), /SYS_ADMIN/);
+    assert.match(bad({}, { networks: { interna: { internal: false } } }).join(), /internal: true/);
+    assert.match(bad({}, { networks: {} }).join(), /internal: true/);
+    assert.match(pg({ networks: { interna: null, publicada: null } }).join(), /somente na rede interna/);
+    assert.match(bad({ tmpfs: ["/tmp:rw,size=1m"] }).join(), /noexec e nosuid/);
+    assert.match(bad({ tmpfs: ["/tmp:rw,noexec,size=1m"] }).join(), /noexec e nosuid/);
+    assert.deepEqual(bad({ tmpfs: ["/tmp:rw,noexec,nosuid,size=1m"] }), []);
+    assert.match(bad({ security_opt: ["no-new-privileges:true", "seccomp=unconfined"] }).join(), /unconfined/);
+    assert.match(bad({ security_opt: ["no-new-privileges:true", "apparmor=unconfined"] }).join(), /unconfined/);
+    for (const source of ["/etc", "/var/run", "/home/x", "/var/run/docker.sock"]) {
+      assert.match(bad({ volumes: [{ type: "bind", source }] }).join(), /mount bind proibido/);
+    }
+    assert.deepEqual(bad({ volumes: [{ type: "volume", source: "postgres-data" }] }), []);
+  });
+  test("nomes de segredo por token no ambiente e no texto (REVIEW-004)", () => {
+    for (const n of ["DB_PASS", "SECRET_KEY", "JWT_SECRET_KEY", "AWS_SECRET_ACCESS_KEY", "ACCESS_KEY", "API_TOKEN", "DBPASSWORD"]) {
+      assert.ok(isSecretName(n), n);
+      assert.match(bad({ environment: { [n]: "hunter2" } }).join(), /nome de segredo/, n);
+    }
+    for (const n of ["DATABASE_PASSWORD_FILE", "SSH_KEY_PATH", "KEYBOARD", "PASSTHROUGH"]) assert.ok(!isSecretName(n), n);
+    assert.equal(secretFindingsInText("      DB_PASS: hunter2\n").length, 1);
+    assert.equal(secretFindingsInText("      JWT_SECRET_KEY: abc\n").length, 1);
+    assert.equal(secretFindingsInText("      DB_PASS: ${DB_PASS:?}\n").length, 0);
   });
   test("texto de compose com segredo literal e detectado; *_FILE e ${} nao", () => {
     assert.equal(secretFindingsInText("POSTGRES_PASSWORD: abc12345678\n").length, 1);
@@ -89,7 +120,7 @@ describe("staging efemero em 127.0.0.1 (AC-2, AC-3)", { skip: !dockerOk() }, () 
   const env = {
     ...process.env, SECRETS_DIR: secrets, STATE_DIR: state, API_HOST_PORT: PORT, READY_TIMEOUT: "90",
     EXTRA_COMPOSE: join(docker, "tests", "ensaio.override.yml"), ENSAIO_UID: String(process.getuid()), ENSAIO_GID: String(process.getgid()),
-    API_UID: String(process.getuid()),
+    API_UID: String(process.getuid()), FND006_ENSAIO: "1",
   };
   const deploy = (...a) => sh(join(docker, "scripts", "deploy.sh"), ["staging", ...a], { env });
   const compose = (...a) => sh("docker", ["compose", "-p", PROJECT, "-f", join(docker, "compose.deploy.yml"), "-f", join(docker, "compose.staging.yml"),
@@ -168,23 +199,81 @@ describe("staging efemero em 127.0.0.1 (AC-2, AC-3)", { skip: !dockerOk() }, () 
     } finally { sh("docker", ["rm", "-f", id]); }
   });
 
-  test("deploy do digest B e rollback manual para A", () => {
+  const imagem = () => out("docker", ["inspect", "-f", "{{.Config.Image}}", cid("api")]).trim();
+  const estado = () => deploy("status").stdout;
+  const pronto = () => sh("curl", ["-fsS", `http://127.0.0.1:${PORT}/readyz`]).status === 0;
+  const DESCONHECIDA = `registry.invalid/nucleos/nao-existe@sha256:${"0".repeat(64)}`;
+
+  test("deploy B, redeploy de B (idempotente) e rollback volta a A (REVIEW-001)", () => {
     assert.equal(deploy("deploy", NODE22).status, 0);
-    assert.match(deploy("status").stdout, new RegExp(`atual:\\s+${NODE22.replace(/[.]/g, "\\.")}`));
-    const imgB = out("docker", ["inspect", "-f", "{{.Config.Image}}", cid("api")]).trim();
-    assert.equal(imgB, NODE22);
+    assert.equal(imagem(), NODE22);
+    assert.equal(deploy("deploy", NODE22).status, 0); // retentativa de pipeline
+    assert.match(estado(), new RegExp(`anterior: ${NODE24.replace(/[.]/g, "\\.")}`));
     const r = deploy("rollback");
     assert.equal(r.status, 0, r.stdout + r.stderr);
-    assert.equal(out("docker", ["inspect", "-f", "{{.Config.Image}}", cid("api")]).trim(), NODE24);
-    assert.equal(sh("curl", ["-fsS", `http://127.0.0.1:${PORT}/readyz`]).status, 0);
+    assert.equal(imagem(), NODE24);
+    assert.ok(pronto());
+    assert.match(estado(), new RegExp(`atual:\\s+${NODE24.replace(/[.]/g, "\\.")}`));
   });
 
-  test("deploy defeituoso reverte automaticamente para a versao anterior", () => {
+  test("deploy defeituoso (readyz nunca responde) reverte e preserva o estado", () => {
+    const antes = estado();
     const r = sh(join(docker, "scripts", "deploy.sh"), ["staging", "deploy", PY], { env: { ...env, READY_TIMEOUT: "8" } });
     assert.equal(r.status, 1);
-    assert.match(r.stderr, /rollback/);
-    assert.equal(out("docker", ["inspect", "-f", "{{.Config.Image}}", cid("api")]).trim(), NODE24);
-    assert.equal(sh("curl", ["-fsS", `http://127.0.0.1:${PORT}/readyz`]).status, 0);
+    assert.match(r.stderr, /rollback concluido/);
+    assert.equal(imagem(), NODE24);
+    assert.ok(pronto());
+    assert.equal(estado(), antes);
+  });
+
+  test("falha em `compose up` (imagem inexistente) aciona rollback e preserva atual/anterior (REVIEW-010)", () => {
+    const antes = estado();
+    const r = deploy("deploy", DESCONHECIDA);
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /rollback concluido/);
+    assert.equal(imagem(), NODE24);
+    assert.ok(pronto());
+    assert.equal(estado(), antes);
+  });
+
+  test("segunda execucao concorrente e recusada (flock)", async () => {
+    const primeiro = spawn(join(docker, "scripts", "deploy.sh"), ["staging", "deploy", NODE22], { env, stdio: "ignore" });
+    const fim = new Promise((res) => primeiro.on("close", res));
+    await new Promise((res) => setTimeout(res, 1500));
+    const r = deploy("deploy", NODE24);
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /em andamento/);
+    assert.equal(await fim, 0);
+    assert.equal(deploy("rollback").status, 0); // volta a A para os demais testes
+    assert.equal(imagem(), NODE24);
+  });
+});
+
+// ------------------------------------------- EXTRA_COMPOSE nunca em producao (REVIEW-002), sem Docker
+describe("EXTRA_COMPOSE e restrito ao ensaio", () => {
+  const stubDir = mkdtempSync(join(tmpdir(), "fnd006-stub-"));
+  const marker = join(stubDir, "docker-chamado");
+  writeFileSync(join(stubDir, "docker"), `#!/bin/sh\ntouch '${marker}'\nexit 1\n`, { mode: 0o755 });
+  after(() => rmSync(stubDir, { recursive: true, force: true }));
+  const run = (envName, extra) => {
+    rmSync(marker, { force: true });
+    const r = sh(join(docker, "scripts", "deploy.sh"), [envName, "deploy", `r/a@sha256:${"a".repeat(64)}`], {
+      env: { PATH: `${stubDir}:/usr/bin:/bin`, SECRETS_DIR: stubDir, EXTRA_COMPOSE: "/tmp/x.yml", ...extra },
+    });
+    assert.ok(!existsSync(marker), "docker nao deve ser chamado");
+    return r;
+  };
+  test("prod recusa EXTRA_COMPOSE, mesmo com FND006_ENSAIO=1", () => {
+    for (const extra of [{}, { FND006_ENSAIO: "1" }]) {
+      const r = run("prod", extra);
+      assert.equal(r.status, 2);
+      assert.match(r.stderr, /proibido em prod/);
+    }
+  });
+  test("staging exige FND006_ENSAIO=1", () => {
+    const r = run("staging", {});
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /FND006_ENSAIO=1/);
   });
 });
 

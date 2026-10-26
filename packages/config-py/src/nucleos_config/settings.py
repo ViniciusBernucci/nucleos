@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from typing import Annotated, Literal
+from urllib.parse import parse_qsl
 
 from pydantic import AfterValidator, AnyUrl, BaseModel, Field, ValidationError, field_validator
 from pydantic_settings import (
@@ -15,9 +16,27 @@ from pydantic_settings import (
 
 from .secret import Secret, SecretFileError, read_secret_file
 
-_SECRET_NAME = re.compile(
-    r"(PASSWORD|PASSWD|SECRET|TOKEN|API_?KEY|PRIVATE_?KEY|CREDENTIAL)S?$", re.I
+_SECRET_TOKENS = frozenset(
+    {"PASS", "PASSWORD", "PASSWD", "PWD", "SECRET", "TOKEN", "KEY", "APIKEY", "CREDENTIAL"}
+    | {"CREDENTIALS", "DSN"}
 )
+_SECRET_SUFFIXES = (
+    "PASSWORD",
+    "PASSWD",
+    "SECRET",
+    "TOKEN",
+    "APIKEY",
+    "PRIVATEKEY",
+    "CREDENTIAL",
+    "CREDENTIALS",
+)
+_SECRET_QUERY = frozenset(
+    {"password", "sslpassword", "passfile", "pass", "passwd", "pwd", "token", "apikey"}
+    | {"api_key", "secret", "credential", "credentials"}
+)
+# Variaveis POSIX/shell que nao carregam segredo e colidem com os tokens.
+_NOT_SECRET = frozenset({"PWD", "OLDPWD"})
+_DB_SCHEMES = ("postgres", "postgresql")
 _UNITS_MS = {"ms": 1, "s": 1000, "m": 60_000, "h": 3_600_000}
 _STRICT = ("staging", "production")
 
@@ -36,14 +55,36 @@ class ConfigError(Exception):
         super().__init__(f"configuracao invalida ({len(issues)}): {detail}")
 
 
+def is_secret_name(name: str) -> bool:
+    """Nome que indica segredo literal: token (PASS, SECRET, TOKEN, KEY, DSN...) ou sufixo colado.
+
+    Nomes terminados em `_FILE`/`_PATH` (caminho) sao o formato permitido. Mesma regra de
+    packages/config (TypeScript) e deploy-lib.mjs.
+    """
+    up = re.sub(r"[.-]", "_", name.upper())
+    if up in _NOT_SECRET:
+        return False
+    if up.endswith(("_FILE", "_PATH")):
+        return False
+    if any(t in _SECRET_TOKENS for t in up.split("_")):
+        return True
+    return up.replace("_", "").endswith(_SECRET_SUFFIXES)
+
+
 def forbidden_secret_env(env: Mapping[str, str]) -> list[str]:
     """Nomes de variaveis que parecem carregar segredo literal (so `*_FILE` e permitido)."""
-    return sorted(k for k, v in env.items() if v != "" and _SECRET_NAME.search(k))
+    return sorted(k for k, v in env.items() if v != "" and is_secret_name(k))
 
 
 def _no_password(url: AnyUrl) -> AnyUrl:
+    if url.scheme not in _DB_SCHEMES:
+        raise ValueError("protocolo nao permitido")
     if url.password:
         raise ValueError("senha embutida na url e proibida (use *_FILE)")
+    if any(
+        k.lower() in _SECRET_QUERY for k, _ in parse_qsl(url.query or "", keep_blank_values=True)
+    ):
+        raise ValueError("credencial na query da url e proibida (use *_FILE)")
     return url
 
 
@@ -83,6 +124,14 @@ class ServiceSettings(BaseSettings):
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         # Somente o mapa explicito: nao le os.environ, .env nem /run/secrets por acidente.
         return (init_settings,)
+
+    @field_validator("PORT", mode="before")
+    @classmethod
+    def _port_text(cls, v: object) -> object:
+        # Texto do ambiente so no formato canonico (paridade com o TS: ^\\d{1,5}$); o padrao e int.
+        if isinstance(v, str) and not re.fullmatch(r"\d{1,5}", v):
+            raise ValueError("porta invalida")
+        return v
 
     @field_validator("REQUEST_TIMEOUT", mode="before")
     @classmethod
