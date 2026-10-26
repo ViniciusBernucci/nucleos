@@ -1,6 +1,6 @@
 # ADR-016 — Autenticação de usuários: sessão opaca própria vs. IdP
 
-- **Status:** Proposto (aguarda decisão humana; nenhum agente pode aceitá-lo)
+- **Status:** Aceito em 2026-10-26, por decisão do usuário (mensagem \"ADR's aceitos\"). Os pontos em aberto listados neste ADR continuam como parâmetros a confirmar; o aceite não os fecha por inferência.
 - **Data:** 2026-10-25
 - **Decisores:** usuário (aceite pendente)
 - **Origem:** [ENT-DEC-002](../../backlog/EP-00-decisoes-pocs-e-threat-model/tickets.md#ent-dec-002); [ADR consolidado, seção 5.1](../../transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md)

@@ -1,6 +1,6 @@
 # ADR-017 — Acesso a dados e migrations (control, tenant, Python)
 
-- **Status:** Proposto (somente decisão humana o torna Aceito; o critério AC-1 do ticket exige essa aceitação)
+- **Status:** Aceito em 2026-10-26, por decisão do usuário (mensagem \"ADR's aceitos\"). Os pontos em aberto listados neste ADR continuam como parâmetros a confirmar; o aceite não os fecha por inferência.
 - **Data:** 2026-10-25
 - **Decisores:** a definir pelo usuário (proposta do executor DEC-003, Claude Sonnet 5.5)
 - **Origem:** [ENT-DEC-003](../../backlog/EP-00-decisoes-pocs-e-threat-model/tickets.md#ent-dec-003); ADR-003 (database por tenant) e ADR-008 (PostgreSQL + pgvector); seção 6 do [ADR consolidado](../../transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md)

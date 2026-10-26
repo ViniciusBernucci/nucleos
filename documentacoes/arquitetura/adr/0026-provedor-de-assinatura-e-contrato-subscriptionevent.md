@@ -1,6 +1,6 @@
 # ADR-026 — Provedor de assinatura e contrato `SubscriptionEvent`
 
-- **Status:** Proposto (somente decisão humana o torna Aceito)
+- **Status:** Aceito em 2026-10-26, por decisão do usuário (mensagem \"ADR's aceitos\"). Os pontos em aberto listados neste ADR continuam como parâmetros a confirmar; o aceite não os fecha por inferência.
 - **Data:** 2026-10-25
 - **Decisores:** Vinícius (dono do produto; Q-06 segue aberta)
 - **Origem:** [ENT-DEC-012](../../backlog/EP-00-decisoes-pocs-e-threat-model/tickets.md#ent-dec-012); ADR consolidado, [seção 11](../../transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md) passo 1 (pagamento por webhook autenticado, idempotente e persistido) e Entrega 4 (evento de assinatura simulado com idempotência; suspensão/reativação sem perda de dados)

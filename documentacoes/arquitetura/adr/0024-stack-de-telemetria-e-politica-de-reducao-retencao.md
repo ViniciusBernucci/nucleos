@@ -1,6 +1,6 @@
 # ADR-024 — Stack de telemetria e política de redação/retenção
 
-- **Status:** Proposto (somente o usuário pode torná-lo Aceito)
+- **Status:** Aceito em 2026-10-26, por decisão do usuário (mensagem \"ADR's aceitos\"). Os pontos em aberto listados neste ADR continuam como parâmetros a confirmar; o aceite não os fecha por inferência.
 - **Data:** 2026-10-26
 - **Decisores:** usuário (pendente)
 - **Origem:** [ENT-DEC-010](../../backlog/EP-00-decisoes-pocs-e-threat-model/tickets.md#ent-dec-010); [registro da entrega](../../observabilidade/2026-10-26-dec-010-telemetria.md); [ADR consolidado, seções 8.2, 10 e 16.5](../../transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md); [threat model, F14](../../seguranca/2026-10-25-threat-model-stride-por-fronteira.md) (T-F14-S/T/R/I/E, RISK-005)

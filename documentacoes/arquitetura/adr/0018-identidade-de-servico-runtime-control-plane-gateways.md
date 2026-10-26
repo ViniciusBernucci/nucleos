@@ -1,6 +1,6 @@
 # ADR-018 — Identidade de serviço runtime ↔ Control Plane ↔ gateways
 
-- **Status:** Proposto (somente decisão humana o torna Aceito)
+- **Status:** Aceito em 2026-10-26, por decisão do usuário (mensagem \"ADR's aceitos\"). Os pontos em aberto listados neste ADR continuam como parâmetros a confirmar; o aceite não os fecha por inferência.
 - **Data:** 2026-10-25
 - **Decisores:** a definir pelo usuário (responsável pelo produto/segurança)
 - **Origem:** [ENT-DEC-004](../../backlog/EP-00-decisoes-pocs-e-threat-model/tickets.md#ent-dec-004); [ADR consolidado, seção 5.1, seção 9, SEC-07 e SEC-15](../../transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md); [ADR-012](0012-deny-by-default-e-autorizacao-externa-ao.md), [ADR-014](0014-nenhum-acesso-de-rede-entre-tenants-por.md)

@@ -1,6 +1,6 @@
 # ADR-020 — Gestão de segredos do MVP
 
-- **Status:** Proposto (somente o usuário pode torná-lo Aceito)
+- **Status:** Aceito em 2026-10-26, por decisão do usuário (mensagem \"ADR's aceitos\"). Os pontos em aberto listados neste ADR continuam como parâmetros a confirmar; o aceite não os fecha por inferência.
 - **Data:** 2026-10-25
 - **Decisores:** usuário (pendente)
 - **Origem:** [ENT-DEC-006](../../backlog/EP-00-decisoes-pocs-e-threat-model/tickets.md#ent-dec-006); [ADR consolidado, seção 10](../../transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md)
