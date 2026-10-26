@@ -1,6 +1,6 @@
 # ADR-023 — Provedor e modelo de autorização do object storage
 
-- **Status:** Proposto (aceite depende do usuário; nenhuma decisão abaixo está aceita)
+- **Status:** Aceito em 2026-10-26, por decisão do usuário (mensagem \"o que depende de mim está aceito tudo\"). Os pontos em aberto listados neste ADR (H-x e pendências) continuam como parâmetros a confirmar; o aceite não os fecha por inferência.
 - **Data:** 2026-10-26
 - **Decisores:** usuário (pendente)
 - **Origem:** [ENT-DEC-009](../../backlog/EP-00-decisoes-pocs-e-threat-model/tickets.md#ent-dec-009); [ADR consolidado, seção 10 "Storage"](../../transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md); SEC-08 e T-F9-S/T/I do [threat model](../../seguranca/2026-10-25-threat-model-stride-por-fronteira.md); registro da entrega: [2026-10-26-dec-009-object-storage.md](../../dados/2026-10-26-dec-009-object-storage.md)

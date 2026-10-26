@@ -1,6 +1,6 @@
 # ADR-021 — Orquestração durável de tarefas (fonte de verdade e entrega)
 
-- **Status:** Proposto (spike DEC-007; só decisão humana o torna Aceito)
+- **Status:** Aceito em 2026-10-26, por decisão do usuário (mensagem \"o que depende de mim está aceito tudo\"). Os pontos em aberto listados neste ADR (H-x e pendências) continuam como parâmetros a confirmar; o aceite não os fecha por inferência.
 - **Data:** 2026-10-26
 - **Decisores:** a definir pelo usuário (proposta do executor DEC-007, Claude Sonnet 5.5)
 - **Origem:** [ENT-DEC-007](../../backlog/EP-00-decisoes-pocs-e-threat-model/tickets.md#ent-dec-007); [ADR-009](0009-execucoes-de-ia-assincronas-e-duraveis.md) (execuções assíncronas e duráveis), [ADR-008](0008-postgresql-pgvector-redis-para-cache-auxiliares-armazenamento.md) (Redis só como auxiliar), [ADR-017](0017-acesso-a-dados-e-migrations-multi-database.md), [ADR-018](0018-identidade-de-servico-runtime-control-plane-gateways.md)

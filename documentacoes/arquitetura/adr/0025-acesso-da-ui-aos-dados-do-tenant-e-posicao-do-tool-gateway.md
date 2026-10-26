@@ -1,6 +1,6 @@
 # ADR-025 — Acesso da UI aos dados do tenant e posição do Tool Gateway
 
-- **Status:** Proposto (2026-10-26). O aceite é do usuário e fecha a questão Q-08 do [README do backlog](../../backlog/README.md). Nenhum item deste ADR está aceito por inferência.
+- **Status:** Aceito em 2026-10-26, por decisão do usuário (mensagem \"o que depende de mim está aceito tudo\"). Os pontos em aberto listados neste ADR (H-x e pendências) continuam como parâmetros a confirmar; o aceite não os fecha por inferência.
 - **Data:** 2026-10-26
 - **Decisores:** a definir pelo usuário (proposta do executor DEC-013, Claude Sonnet 5.5)
 - **Origem:** [ENT-DEC-013](../../backlog/EP-00-decisoes-pocs-e-threat-model/tickets.md#ent-dec-013); [ADR consolidado](../../transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md) seções 4, 4.2, 6.1 (item 9), 8.2 e 14; [ADR-016](0016-autenticacao-de-usuarios-sessao-opaca-propria-vs-idp.md), [ADR-017](0017-acesso-a-dados-e-migrations-multi-database.md), [ADR-018](0018-identidade-de-servico-runtime-control-plane-gateways.md), [ADR-020](0020-gestao-de-segredos-do-mvp.md); [threat model](../../seguranca/2026-10-25-threat-model-stride-por-fronteira.md) (T-F6-*, T-F8-*, T-F11-*, RISK-013)
