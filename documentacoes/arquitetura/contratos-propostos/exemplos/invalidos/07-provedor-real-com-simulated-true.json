@@ -1,0 +1,1 @@
+{"schema_version":"1.0","received_at":"2026-10-25T12:00:05Z","occurred_at":"2026-10-25T12:00:00Z","provider":"stripe","simulated":true,"provider_event_id":"e7","event_type":"subscription.created","subscription":{"provider_subscription_id":"s1"}}
