@@ -174,10 +174,20 @@ Marcar os dois restantes quando FND-003 e o primeiro Dockerfile forem integrados
 
 ### Validacoes da rodada 1 (reais)
 
-- `make lint-workflows`: OK. `make ci-regressao`: todos os casos falham como esperado (inclui os 11 novos), tambem com `CI_REGRESSAO_OFFLINE=1`.
+- `make lint-workflows`: OK. `make ci-regressao`: todos os casos falham como esperado (inclui os 9 novos; ver rodada 2), tambem com `CI_REGRESSAO_OFFLINE=1`.
 - `make lint`: passou. `make test`: passou (18 testes Python; TS sem falhas).
 - Reproducao do REVIEW-001: com PATH sem `.run/bin`, `auditar-dependencias.sh`/`check-licenses.mjs` agora saem com a mensagem explicita (testado); no CI o PATH vem da action `preparar` (nao exercitado em runner).
 
 ### Itens ADIAR/REJEITAR mantidos (sem alteracao)
 
 REVIEW-003 (cobertura/SBOM), hashes do pip-audit, permissions por job e `persist-credentials` na politica, contexto de build, REVIEW-007 (a, b adiados; c rejeitado). Pendencias anteriores continuam validas.
+
+---
+
+## Rodada de correcao 2 (2026-10-26)
+
+Origem: revalidacao `documentacoes/reviews/2026-10-26-revalidacao-fnd-005-r1.md` (`9b7c3c3`). Somente o registro foi corrigido; nenhum codigo alterado.
+
+- **REV-001:** a rodada 1 declarou "11 novos" casos de `ci-regressao`; o numero correto e **9**: 3 fixtures de politica (`injecao-inputs`, `injecao-steps-outputs`, `segredo-indexado`), 2 de PATH ausente
+  (`auditar-dependencias`, `check-licenses`), 3 de drift (arquivo novo, arquivo modificado, sem alteracao) e 1 de nomes de imagem. A ocorrencia unica do numero (secao "Validacoes da rodada 1") foi corrigida; nao ha outras.
+- **Nota (limitacao):** a guarda de PATH para `uv`, `uvx` e `osv-scanner` em `auditar-dependencias.sh` (e `uv` em `check-licenses.mjs`) nao tem teste proprio; os casos de regressao exercitam apenas a ausencia de `pnpm`, a primeira verificada.
