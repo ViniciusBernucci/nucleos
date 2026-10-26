@@ -11,7 +11,7 @@ Opção líder proposta: autenticação própria (argon2id + TOTP + sessão opac
 ## Mudanças por arquivo
 - `documentacoes/arquitetura/adr/0016-autenticacao-de-usuarios-sessao-opaca-propria-vs-idp.md` (novo) e linha em `adr/README.md`.
 - `documentacoes/arquitetura/poc/dec-002/`: `server.mjs` (servidor), `poc.mjs` (roteiro medido), `schema.sql`, `run.sh` (Postgres descartável, executa e destrói), `medir-ram-idp.sh`, `kratos.yml`, `kratos-identity.schema.json`, `package.json` + `package-lock.json`, `saida-poc.txt`, `saida-ram-idp.txt`. Fora do workspace pnpm (`apps/*`, `packages/*`); nada em `packages/`.
-- `lessons/00 - Sessao opaca e revogacao.md` (nova) e índice em `lessons/README.md`.
+- `lessons/01 - Sessao opaca e revogacao.md` (nova) e índice em `lessons/README.md`.
 - Dependências do PoC (lock npm, registradas): `pg@8.23.1`, `@node-rs/argon2@2.2.2` (consultadas no registro npm em 2026-10-25). TOTP e cifra usam `node:crypto`, sem dependência extra.
 
 ## Decisões técnicas
@@ -41,7 +41,7 @@ Origem: [auditoria](../reviews/2026-10-25-auditoria-dec-002.md) da review DEC-00
 - Validação: `./run.sh` com Node 24.22.1 e Docker, `POC_PG_PORT=55491` (a porta padrão 55432 estava ocupada por outro container do host, não tocado): `RESULTADO 13/13 PASS`; `saida-poc.txt` regenerada; container `poc-dec002-pg` destruído (`docker ps -a --filter name=poc-dec002` vazio). `medir-ram-idp.sh` não reexecutado (sem mudança). ADR segue Proposto. Diff em [diffs](2026-10-25-dec-002-autenticacao-adr-016-diffs.md#correção-rodada-1-commit-2-da-tarefa).
 
 ## Lessons
-[00 - Sessão opaca e revogação](../../lessons/00%20-%20Sessao%20opaca%20e%20revogacao.md); índice [lessons/README.md](../../lessons/README.md).
+[00 - Sessão opaca e revogação](../../lessons/01%20-%20Sessao%20opaca%20e%20revogacao.md); índice [lessons/README.md](../../lessons/README.md).
 
 ## Pendências
 Decisão humana: aceite do ADR-016, pesos dos critérios, WebAuthn no MVP. Células "[inferência]" não medidas para as opções 2–5 (exceto RAM de Keycloak/Kratos).

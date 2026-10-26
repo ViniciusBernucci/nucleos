@@ -103,4 +103,4 @@ Aceite do ADR; pesos dos critérios; escolha de WebAuthn no MVP ou não; confirm
 
 ## Referências
 
-[PoC](../poc/dec-002/run.sh) · [entrega](../../identidade/2026-10-25-dec-002-autenticacao-adr-016.md) · [lesson](../../../lessons/00%20-%20Sessao%20opaca%20e%20revogacao.md)
+[PoC](../poc/dec-002/run.sh) · [entrega](../../identidade/2026-10-25-dec-002-autenticacao-adr-016.md) · [lesson](../../../lessons/01%20-%20Sessao%20opaca%20e%20revogacao.md)

@@ -22,3 +22,7 @@ Os ADR-001..015 foram importados do [documento consolidado de 2026-10-25](../../
 | ADR-014 | [Nenhum acesso de rede entre tenants por padrão](0014-nenhum-acesso-de-rede-entre-tenants-por.md) |
 | ADR-015 | [Custos por tenant e por agente obrigatoriamente rastreados](0015-custos-por-tenant-e-por-agente-obrigatoriamente.md) |
 | ADR-016 | [Autenticação de usuários: sessão opaca própria vs. IdP](0016-autenticacao-de-usuarios-sessao-opaca-propria-vs-idp.md) (**Proposto**) |
+| ADR-017 | [Acesso a dados e migrations (control, tenant, Python)](0017-acesso-a-dados-e-migrations-multi-database.md) — **Proposto** |
+| ADR-018 | [Identidade de serviço: runtime, Control Plane e gateways](0018-identidade-de-servico-runtime-control-plane-gateways.md) (**Proposto**) |
+| ADR-020 | [Gestão de segredos do MVP](0020-gestao-de-segredos-do-mvp.md) (**Proposto**) |
+| ADR-026 | [Provedor de assinatura e contrato SubscriptionEvent](0026-provedor-de-assinatura-e-contrato-subscriptionevent.md) (**Proposto**) |

@@ -1,0 +1,10 @@
+{
+  "name": "dec-003-poc-migrations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "PoC descartavel DEC-003: runner de migrations multi-database. Nao e codigo de producao.",
+  "engines": { "node": ">=24.22.1" },
+  "dependencies": { "pg": "8.23.1" },
+  "scripts": { "poc": "node poc.mjs" }
+}

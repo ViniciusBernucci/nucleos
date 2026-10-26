@@ -1,4 +1,4 @@
-# 00 - Sessao opaca e revogacao
+# 01 - Sessao opaca e revogacao
 
 Criada em 2026-10-25. Ultima atualizacao: 2026-10-25. Exemplos testados com Node 24.22.1 (TypeScript executado por remocao de tipos nativa); sem Python.
 

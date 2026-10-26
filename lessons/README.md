@@ -41,4 +41,5 @@ uma entrega o exercitar):
 
 ## Indice de lessons
 
-- [00 - Sessao opaca e revogacao](00%20-%20Sessao%20opaca%20e%20revogacao.md) (seguranca; ADR-016 Proposto).
+- [00 - Migracoes SQL forward-only no PostgreSQL](00%20-%20Migracoes%20SQL%20forward-only%20no%20PostgreSQL.md) (bloco 5; entrega DEC-003).
+- [01 - Sessao opaca e revogacao](01%20-%20Sessao%20opaca%20e%20revogacao.md) (bloco 7, seguranca; entrega DEC-002, ADR-016 Proposto).
