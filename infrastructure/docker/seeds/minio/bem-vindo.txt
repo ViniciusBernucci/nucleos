@@ -1,0 +1,1 @@
+Arquivo ficticio de seed (FND-004). Conteudo deterministico, sem dados reais.
