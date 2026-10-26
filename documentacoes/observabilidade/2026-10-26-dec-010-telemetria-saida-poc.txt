@@ -1,0 +1,88 @@
+# Saida real de infrastructure/docker/poc-telemetria/run-poc.sh em 2026-10-26T13:05:27+01:00 (host de desenvolvimento, Docker 29.8.1)
+== versoes (imagens fixadas)
+image: nginx:1.28-alpine
+image: grafana/loki:3.7.9
+image: grafana/tempo:2.10.10
+image: prom/prometheus:v3.15.1
+image: grafana/grafana:13.2.4
+== subindo (portas somente em 127.0.0.1)
+ Container poc-telemetria-gateway-1 Starting 
+ Container poc-telemetria-gateway-1 Started 
+ Container poc-telemetria-prometheus-1 Waiting 
+ Container poc-telemetria-grafana-1 Waiting 
+ Container poc-telemetria-gateway-1 Waiting 
+ Container poc-telemetria-loki-1 Waiting 
+ Container poc-telemetria-tempo-1 Waiting 
+ Container poc-telemetria-tempo-1 Healthy 
+ Container poc-telemetria-grafana-1 Healthy 
+ Container poc-telemetria-gateway-1 Healthy 
+ Container poc-telemetria-prometheus-1 Healthy 
+ Container poc-telemetria-loki-1 Healthy 
+poc-telemetria-gateway-1 Up 21 seconds 80/tcp, 127.0.0.1:13100->8080/tcp
+poc-telemetria-loki-1 Up 22 seconds 3100/tcp
+poc-telemetria-tempo-1 Up 23 seconds 
+poc-telemetria-prometheus-1 Up 23 seconds 9090/tcp
+poc-telemetria-grafana-1 Up 22 seconds 127.0.0.1:13000->3000/tcp
+== portas publicadas (todas devem ser 127.0.0.1)
+127.0.0.1:13100->8080/tcp
+127.0.0.1:13000->3000/tcp
+== docker stats (ocioso, antes da carga)
+poc-telemetria-gateway-1 mem=2.191MiB / 7.751GiB cpu=0.00%
+poc-telemetria-grafana-1 mem=149.2MiB / 7.751GiB cpu=109.38%
+poc-telemetria-loki-1 mem=32.5MiB / 7.751GiB cpu=2.91%
+poc-telemetria-prometheus-1 mem=37.43MiB / 7.751GiB cpu=2.13%
+poc-telemetria-tempo-1 mem=19.61MiB / 7.751GiB cpu=1.76%
+== carga e verificacoes (driver Python usando nucleos_observability real)
+[OK] ingestao tenant-a: 3000 linhas aceitas (HTTP 204 em todos os lotes)
+[OK] ingestao em massa tenant-a: 20000 linhas (HTTP 204 em todos os lotes)
+[OK] ingestao tenant-b: 3000 linhas aceitas (HTTP 204 em todos os lotes)
+[OK] ingestao em massa tenant-b: 20000 linhas (HTTP 204 em todos os lotes)
+[OK] ingestao tenant-c: 3000 linhas aceitas (HTTP 204 em todos os lotes)
+[OK] ingestao em massa tenant-c: 20000 linhas (HTTP 204 em todos os lotes)
+[OK] ingestao tenant-d: 3000 linhas aceitas (HTTP 204 em todos os lotes)
+[OK] ingestao em massa tenant-d: 20000 linhas (HTTP 204 em todos os lotes)
+[OK] ingestao tenant-e: 3000 linhas aceitas (HTTP 204 em todos os lotes)
+[OK] ingestao em massa tenant-e: 20000 linhas (HTTP 204 em todos os lotes)
+[OK] redacao: 0 linhas com sentinela de campo proibido em poc-service+poc-bulk (5 tenants, 115 mil linhas)
+[OK] redacao: linhas existem e a chave fora da allowlist foi descartada (_dropped)
+[OK] redacao: campo permitido (tokens_in) chegou ao Loki
+[OK] controle negativo: o mesmo filtro encontra o sentinela de uma linha que burlou a redacao
+[OK] admin (consulta federada auditada) enxerga os 5 tenants
+[OK] isolamento logs tenant-a: so enxerga linhas proprias (3002 linhas)
+[OK] isolamento logs tenant-b: so enxerga linhas proprias (3002 linhas)
+[OK] isolamento logs tenant-c: so enxerga linhas proprias (3002 linhas)
+[OK] isolamento logs tenant-d: so enxerga linhas proprias (3002 linhas)
+[OK] isolamento logs tenant-e: so enxerga linhas proprias (3002 linhas)
+[OK] isolamento logs: A filtrando por 'tenant-b' obtem 0 linhas
+[OK] isolamento logs: A forjando X-Scope-OrgID=tenant-b continua vendo so tenant-a
+[OK] isolamento logs: A forjando 'tenant-a|tenant-b' continua vendo so tenant-a
+[OK] sem token -> 401
+[OK] token desconhecido -> 401
+[OK] rota administrativa do Loki (/loki/config) nao exposta pelo gateway
+[OK] API de delecao do Loki nao exposta pelo gateway
+[OK] isolamento logs: A consultando tudo (inclui bulk) nao retorna linha com tenant_id alheio
+[OK] ingestao de traces: 5 tenants x 50 spans aceitos
+[OK] isolamento traces: A le o proprio trace (HTTP 200)
+[OK] controle positivo: B le o proprio trace, logo o trace de B existe (HTTP 200)
+[OK] isolamento traces: A pedindo o trace de B nao obtem o dado (HTTP 404)
+[OK] isolamento traces: A forjando X-Scope-OrgID tambem nao obtem (HTTP 404)
+RESUMO: 33/33 verificacoes OK; falhas=0
+== docker stats (apos carga de 5 tenants)
+poc-telemetria-gateway-1 mem=2.34MiB / 7.751GiB cpu=0.00%
+poc-telemetria-grafana-1 mem=257.4MiB / 7.751GiB cpu=12.02%
+poc-telemetria-loki-1 mem=147MiB / 7.751GiB cpu=9.03%
+poc-telemetria-prometheus-1 mem=41MiB / 7.751GiB cpu=7.46%
+poc-telemetria-tempo-1 mem=33.1MiB / 7.751GiB cpu=1.02%
+== disco (KiB) por volume (leitura somente-leitura por container auxiliar efemero)
+64064	 loki-data
+236	 tempo-data
+168	 prom-data
+== auditoria do gateway (consultas admin, sem tokens nem corpo de consulta)
+      2 ts=2026-10-26T12:06:24+00:00 role=admin tenant=tenant-a|tenant-b|tenant-c|tenant-d|tenant-e method=GET path=/loki/api/v1/query_range status=200
+      1 ts=2026-10-26T12:06:23+00:00 role=admin tenant=tenant-a|tenant-b|tenant-c|tenant-d|tenant-e method=GET path=/loki/api/v1/query_range status=200
+== config de retencao aceita pelo Loki (verify-config) e valores efetivos
+  retention_enabled: true
+  retention_period: 2w
+  retention_period: 0s
+== limpeza: containers/volumes/rede removidos e segredos temporarios apagados (rc=0)
+# rc=0

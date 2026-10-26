@@ -1,0 +1,67 @@
+# PoC descartavel DEC-010 (ADR-024). Somente 127.0.0.1, sem dados reais; destruido por run-poc.sh.
+name: poc-telemetria
+
+x-limits: &limits
+  restart: "no"
+
+services:
+  gateway:
+    <<: *limits
+    image: nginx:1.28-alpine
+    volumes:
+      - ${POC_TMP}/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "127.0.0.1:${POC_GATEWAY_PORT:-13100}:8080"
+    depends_on: [loki, tempo]
+    networks: [telemetria]
+
+  loki:
+    <<: *limits
+    image: grafana/loki:3.7.9
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    volumes:
+      - ./loki.yaml:/etc/loki/loki.yaml:ro
+      - loki-data:/loki
+    networks: [telemetria]
+
+  tempo:
+    <<: *limits
+    image: grafana/tempo:2.10.10
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    networks: [telemetria]
+
+  prometheus:
+    <<: *limits
+    image: prom/prometheus:v3.15.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prom-data:/prometheus
+    networks: [telemetria]
+
+  grafana:
+    <<: *limits
+    image: grafana/grafana:13.2.4
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/poc/grafana-admin
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ${POC_TMP}/grafana-admin:/run/poc/grafana-admin:ro
+    ports:
+      - "127.0.0.1:${POC_GRAFANA_PORT:-13000}:3000"
+    networks: [telemetria]
+
+volumes:
+  loki-data:
+  tempo-data:
+  prom-data:
+
+networks:
+  telemetria:
+    driver: bridge
