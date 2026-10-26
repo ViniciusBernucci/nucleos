@@ -60,7 +60,7 @@ fixacao deve ser revalidada pelo revisor.
 - `tools/qualidade/regressao-ci.mjs` e `tools/qualidade/regressao-ci/` (fixtures que DEVEM falhar: 8 workflows ruins, `package-lock.json` com lodash 4.17.15,
   `requirements.txt` com requests 2.19.0, `Dockerfile` ruim, licencas proibidas).
 - `CLAUDE.md`, `AGENTS.md`, `.agents/rules/project-instructions.md` (CRLF preservado): o bloco de Validacao agora diz que o CI existe.
-- Documentacao/lessons: este documento, o de diffs, `lessons/02 - CI bloqueante e cadeia de suprimentos.md`, `lessons/README.md`, `documentacoes/engenharia/README.md`.
+- Documentacao/lessons: este documento, o de diffs, `lessons/04 - CI bloqueante e cadeia de suprimentos.md`, `lessons/README.md`, `documentacoes/engenharia/README.md`.
 - Sem migracoes, sem dependencias novas no `package.json`/`pyproject.toml`/lockfiles.
 
 ## Decisoes tecnicas
@@ -134,11 +134,11 @@ em runner limpo); `trivy image`/SBOM/`docker build` (sem Dockerfile); hadolint e
 
 Commit local em `tarefa/fnd-005` (sem push/amend): `d0e4b5f1b15eba425d49709196e102523d1e2138` — `ci(infra): pipeline de CI bloqueante com scanners e regressao dos gates (FND-005)`.
 O commit de documentacao/lessons (arquivos de `documentacoes/` e `lessons/`) e posterior e nao entra no patch textual. Diff completo: [diffs](2026-10-26-fnd-005-ci-bloqueante-diffs.md).
-Arquivos `documentacoes/`/`lessons/` desta entrega: este documento, o de diffs, `documentacoes/engenharia/README.md`, `lessons/02 - ...md`, `lessons/README.md`.
+Arquivos `documentacoes/`/`lessons/` desta entrega: este documento, o de diffs, `documentacoes/engenharia/README.md`, `lessons/04 - ...md` (antes `02`), `lessons/README.md`.
 
 ## Lessons
 
-- [02 - CI bloqueante e cadeia de suprimentos](../../lessons/02%20-%20CI%20bloqueante%20e%20cadeia%20de%20suprimentos.md) (nova); indice [lessons/README.md](../../lessons/README.md) atualizado.
+- [04 - CI bloqueante e cadeia de suprimentos](../../lessons/04%20-%20CI%20bloqueante%20e%20cadeia%20de%20suprimentos.md) (nova); indice [lessons/README.md](../../lessons/README.md) atualizado.
 - Exemplo TypeScript da lesson executado (`node politica.ts`) e conferido com `tsc --strict --noEmit`.
 
 ## Pendencias

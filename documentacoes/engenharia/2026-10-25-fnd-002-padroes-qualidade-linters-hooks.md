@@ -83,4 +83,4 @@ nao exercita C#/.NET. `lessons/README.md` nao alterado.
 
 ## Atualizacao no fechamento do lote (2026-10-26)
 
-A justificativa de "sem lesson" desta entrega ficou desatualizada: a trilha de `lessons/` agora e de TypeScript, Python, Docker, PostgreSQL e seguranca (LOC-001) e ja tem lessons publicadas. Esta entrega exercita conceitos relevantes (ESLint type-aware, ruff, mypy strict e regras de arquitetura de imports (TypeScript/Python). Lesson candidata: `Qualidade estatica em TypeScript e Python`.) e, pela regra do `CLAUDE.md`, a lesson **ainda deve ser criada**: pendencia real registrada, nao criada neste fechamento.
+Lesson criada na tarefa `tarefa/lessons-pendentes` ([registro](2026-10-26-lessons-pendentes.md)): [02 - Qualidade estatica em TypeScript e Python](../../lessons/02%20-%20Qualidade%20estatica%20em%20TypeScript%20e%20Python.md) (ESLint type-aware, ruff, mypy, dependency-cruiser, import-linter, gitleaks e lefthook; exemplos executados). A justificativa anterior de "sem lesson" (secao "Lessons" acima) esta superada; a pendencia de lesson foi encerrada. Indice: [lessons/README.md](../../lessons/README.md).

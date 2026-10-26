@@ -30,7 +30,7 @@ Fora do escopo: implementar OBS-001 (gateway de producao, auditoria duravel, das
 ## Mudancas por arquivo
 
 - Novos (commit `690e1e0`): `infrastructure/docker/poc-telemetria/{compose.yml,loki.yaml,tempo.yaml,prometheus.yml,nginx.conf.tpl,poc_telemetria.py,run-poc.sh}`. Sem migracao, sem alteracao de `Makefile`, sem dependencia nova (o driver usa stdlib mais o pacote de workspace ja existente; imagens fixadas por tag).
-- Documentacao/lessons (commit seguinte, fora do patch): `documentacoes/arquitetura/adr/0024-stack-de-telemetria-e-politica-de-reducao-retencao.md`, `documentacoes/arquitetura/adr/README.md`, este registro, `-diffs.md`, `-saida-poc.txt`, `lessons/03 - Isolamento de telemetria por tenant.md`, `lessons/README.md`.
+- Documentacao/lessons (commit seguinte, fora do patch): `documentacoes/arquitetura/adr/0024-stack-de-telemetria-e-politica-de-reducao-retencao.md`, `documentacoes/arquitetura/adr/README.md`, este registro, `-diffs.md`, `-saida-poc.txt`, `lessons/06 - Isolamento de telemetria por tenant.md`, `lessons/README.md`.
 
 ## Decisoes tecnicas
 
@@ -76,7 +76,7 @@ Ver a secao homonima do ADR (docs do Loki e Tempo; versoes pela API do Docker Hu
 
 ## Lessons
 
-[03 - Isolamento de telemetria por tenant](../../lessons/03%20-%20Isolamento%20de%20telemetria%20por%20tenant.md) (nova; seguranca/isolamento por gateway) e [indice](../../lessons/README.md). A lesson de redacao/logging de FND-009 continua pendente e **nao foi duplicada** aqui; so e referenciada. A numeracao `03` evita o `02` usado por FND-005 em outra branch; o coordenador deve reconciliar numeracao/indice na integracao. Docker/Compose: o PoC exercita Compose, mas ja ha lesson planejada no bloco 4 (FND-004 pendente); sem lesson duplicada.
+[06 - Isolamento de telemetria por tenant](../../lessons/06%20-%20Isolamento%20de%20telemetria%20por%20tenant.md) (nova; seguranca/isolamento por gateway) e [indice](../../lessons/README.md). **Atualizacao (2026-10-26, `tarefa/lessons-pendentes`):** a lesson foi renumerada de `03` para `06` (link acima ja atualizado) e a trilha passou a ter [05 - Logs estruturados, correlation ID e redacao por allowlist](../../lessons/05%20-%20Logs%20estruturados%2C%20correlation%20ID%20e%20redacao%20por%20allowlist.md) (FND-009) e [03 - Docker Compose para ambiente local](../../lessons/03%20-%20Docker%20Compose%20para%20ambiente%20local.md) (FND-004), referenciadas sem duplicacao. O texto original ("continua pendente", numeracao `03`) descrevia o estado de 2026-10-26 antes dessa tarefa.
 
 ## Commits e diffs
 
@@ -85,13 +85,13 @@ Ver a secao homonima do ADR (docs do Loki e Tempo; versoes pela API do Docker Hu
 
 ## Correcao rodada 1 (review `939eaac`, auditoria `68e8e91` em `documentacoes/reviews/`)
 
-Aplicados REVIEW-001, 002, 003, 004, 006 e 007, somente em Markdown (ADR-024, este registro, lesson 03); PoC, `-diffs.md` e `-saida-poc.txt` inalterados.
+Aplicados REVIEW-001, 002, 003, 004, 006 e 007, somente em Markdown (ADR-024, este registro, lesson 06 (numerada 03 na epoca)); PoC, `-diffs.md` e `-saida-poc.txt` inalterados.
 - 001: ADR, lesson e registro dizem que o bypass direto ao Loki nao foi medido; so o gateway sobrescrever o header foi medido.
 - 002: ADR registra que o PoC nao restringe escrita (classe `audit` e `tenant_id` do corpo controlados pelo tenant) e exige no gateway de producao: `class` por credencial, `tenant_id` validado, push negado ao admin, `audit` nao gravavel pelo tenant, controle negativo direto.
 - 003/004: frases de cobertura de redacao e de retencao limitadas ao que a saida mostra.
 - 006: ADR coerente (digest em producao/tags no PoC; porta do Grafana; Prometheus **[NAO VERIFICADO]** na decisao).
 - 007: lesson com Python 3.10+ (verificado em 3.10.12) e typo corrigido.
-- **Adiados (pendencias):** REVIEW-005 (contagem `accepted == 250` e mais traces amostrados no driver), REVIEW-008 (`|| true` na subida e limpeza de volumes no `run-poc.sh`), ajuste do `grep` de retencao e casos extras de redacao no driver; condicao: proxima alteracao do PoC ou OBS-001. Renumeracao da lesson 03 cabe ao coordenador na integracao.
+- **Adiados (pendencias):** REVIEW-005 (contagem `accepted == 250` e mais traces amostrados no driver), REVIEW-008 (`|| true` na subida e limpeza de volumes no `run-poc.sh`), ajuste do `grep` de retencao e casos extras de redacao no driver; condicao: proxima alteracao do PoC ou OBS-001. Renumeracao da lesson 06 (numerada 03 na epoca) cabe ao coordenador na integracao.
 - Validacao (executada na rodada 1, com as edicoes ja aplicadas na arvore, antes do commit `e8321f3`): `make lint` com `PATH` de usuario, **rc 0**; exemplo da lesson reexecutado com `python3 -I` (imprimiu `ok`); `git diff 02b16a6 690e1e0 -- infrastructure` identico ao patch do `-diffs.md`.
 
 ## Correcao rodada 2 (revalidacao `documentacoes/reviews/2026-10-26-revalidacao-dec-010-r1.md`, `1e41f75`)
