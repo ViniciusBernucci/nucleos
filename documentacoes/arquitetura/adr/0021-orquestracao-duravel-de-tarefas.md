@@ -60,13 +60,15 @@ Proposta (a confirmar):
 
 ## Resultados dos cenários por opção
 
-Saída completa: [`../poc/dec-007/evidencia/saida-poc.txt`](../poc/dec-007/evidencia/saida-poc.txt). PASS = nenhum efeito perdido nem duplicado (efeito idempotente) e critério do cenário atendido. Medido em 2026-10-26, uma máquina de desenvolvimento (4 vCPU), um único run; tempos variam por execução.
+Saída completa: [`../poc/dec-007/evidencia/saida-poc.txt`](../poc/dec-007/evidencia/saida-poc.txt). PASS = nenhum efeito perdido, reentregas absorvidas pelo consumidor idempotente e critério do cenário atendido. **Limite do AC-2:** a tabela `effects` tem chave primária por `task_id`, então "nenhum efeito duplicado" **não é medido de forma independente** (a contagem de efeitos nunca excede o número de tarefas, qualquer que seja a entrega). A PoC prova ausência de perda (efeitos = tarefas) e a absorção das reentregas (execuções > 1 com 1 efeito); a duplicação de efeito sem idempotência de consumidor não foi medida. Medido em 2026-10-26, uma máquina de desenvolvimento (4 vCPU), um único run; tempos variam por execução.
 
 | Cenário | A PostgreSQL lease | B BullMQ (fila por tenant, AOF everysec) | C Temporal (dev server) |
 | --- | --- | --- | --- |
 | S1 kill -9 do worker no meio da tarefa | PASS, efeito 1, 2 execuções, recuperação 8,1 s | PASS, 8,0 s | PASS, 9,5 s |
 | S2 reinício do backend | PASS (graceful e kill -9): 50/50 | Sem AOF: **FAIL 0/50** (graceful e kill); AOF everysec: PASS 50/50 (graceful e kill); AOF always (kill): PASS 50/50 | PASS (graceful e kill): 50/50 |
 | S3 entrega duplicada | PASS: reenvio ignorado; crash após efeito, 2 execuções, 1 efeito | PASS: idem (s3-1 também reentregue) | PASS: idem |
+
+Nota S3: o cenário não é idêntico entre opções (A: s3-1 com 1 execução; B e C: 2). A diferença vem do momento do crash em relação às tarefas concorrentes no mesmo worker, não da regra de entrega; a conclusão não muda.
 | S4 tarefa agendada +4 s | PASS, 4123 ms | PASS, 4176 ms | PASS, 4778 ms |
 | S5 limite 2 por tenant (3 workers) | PASS, máx. 2 | PASS, máx. 2 (fila por tenant + `setGlobalConcurrency`); **fila única FAIL, máx. 6** | **FAIL, máx. 5** (limite é por worker); com 1 worker PASS |
 | S6 justiça sob rajada (A 120 tarefas; B, C 6+6) | PASS, espera B/C máx. 1,6 s | PASS, máx. 0,56 s (fila por tenant); **fila única FAIL, 9,3 s** | **FAIL, 38 s** (dev server saturado) |
@@ -76,7 +78,7 @@ Saída completa: [`../poc/dec-007/evidencia/saida-poc.txt`](../poc/dec-007/evide
 | S9 aprovação humana pendente + reinício de backend e workers | PASS | PASS (delay de 7 dias + `promote`; depende do AOF) | PASS (signal + timer de 7 dias, nativo) |
 | S10 rollback da transação de negócio após enfileirar | PASS, 0 órfãs (atômico) | **FAIL**, 1 tarefa órfã (escrita dupla) | **FAIL**, 1 workflow órfão |
 
-Limites da PoC: S9 foi em **tempo comprimido** (segundos, não dias); os mecanismos são independentes da duração mas o timeout de 7 dias não foi esperado. Temporal rodou no servidor `start-dev` com SQLite; os resultados de justiça e throughput **não** representam um Temporal de produção com banco dedicado e vários serviços. A opção B' (BullMQ sobre PostgreSQL) não foi medida.
+Limites da PoC: a saída registrada é de uma execução anterior ao `process.exit` acrescentado ao fim de `poc.mjs` (o processo não encerrava e foi terminado à mão: a saída termina com `exit 143`, depois de "containers destruidos"); a mudança não toca cenários e não foi reexecutada para B e C. As imagens usam tag mutável (`postgres:16`, `temporalio/temporal:latest`) e os digests constam só na saída; produção deve fixar o digest. O `finally` de `poc.mjs` chama `fx.end()` sem guarda, então uma falha antes do primeiro uso pode pular a remoção de containers; o `trap` de `run.sh` cobre o uso documentado (`./run.sh`), não `node poc.mjs` direto. S9 foi em **tempo comprimido** (segundos, não dias); os mecanismos são independentes da duração mas o timeout de 7 dias não foi esperado. Temporal rodou no servidor `start-dev` com SQLite; os resultados de justiça e throughput **não** representam um Temporal de produção com banco dedicado e vários serviços. A opção B' (BullMQ sobre PostgreSQL) não foi medida.
 
 ## Métricas (mesma bancada; RAM em MiB via `docker stats` e `VmRSS`)
 

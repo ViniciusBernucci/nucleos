@@ -20,7 +20,7 @@
 
 PoC em `documentacoes/arquitetura/poc/dec-007/` compara as três opções com o mesmo handler idempotente (efeito por `task_id`, `ON CONFLICT DO NOTHING`), lease/heartbeat/lock de 5 s e limite de 2 tarefas por tenant. `run.sh` sobe PostgreSQL 16, Redis 8.8.3 e Temporal (`start-dev`) em containers efêmeros publicados só em `127.0.0.1`, sem dados reais, executa 10 cenários por opção (S1..S10, com variantes) e métricas, e destrói os containers (inclusive volumes anônimos, `docker rm -fv`). Workers e produtor ("Dispatcher") são processos filhos mortos com `SIGKILL` nos cenários de falha.
 
-Resultado (ADR-021 tem a tabela completa; [saída](../arquitetura/poc/dec-007/evidencia/saida-poc.txt)): a opção A (PostgreSQL com lease) passou em todos os cenários; B (BullMQ) falhou sem AOF (50/50 tarefas perdidas), em relógio dessincronizado e na atomicidade com o banco, e com fila única em limite e justiça; C (Temporal dev server) falhou no limite global por tenant, na justiça sob rajada (servidor sqlite saturado) e na atomicidade. Em todas as opções, a idempotência do consumidor manteve efeitos exatos (nenhum perdido ou duplicado nos cenários PASS).
+Resultado (ADR-021 tem a tabela completa; [saída](../arquitetura/poc/dec-007/evidencia/saida-poc.txt)): a opção A (PostgreSQL com lease) passou em todos os cenários; B (BullMQ) falhou sem AOF (50/50 tarefas perdidas), em relógio dessincronizado e na atomicidade com o banco, e com fila única em limite e justiça; C (Temporal dev server) falhou no limite global por tenant, na justiça sob rajada (servidor sqlite saturado) e na atomicidade. Em todas as opções, a idempotência do consumidor absorveu as reentregas sem perda de efeito. Ressalva: como `effects` tem chave primária por `task_id`, a ausência de efeito duplicado não é medida de forma independente (ver seção 11).
 
 Achado fora do roteiro: a documentação do BullMQ 6 descreve um backend PostgreSQL opcional (consulta em 2026-10-26); registrado no ADR como alternativa B' não avaliada.
 
@@ -80,3 +80,12 @@ Não executado: `make lint`, `make test`, `make build` (a PoC não pertence aos 
 ## 10. Pendências
 
 Nenhuma pendência técnica conhecida da tarefa. Dependem de decisão humana: aceitar/alterar/rejeitar o ADR-021; confirmar gatilhos numéricos; aceitar o trade-off de throughput e latência da opção A; autorizar avaliação de BullMQ sobre PostgreSQL e de Temporal de produção; política de classificação/retenção do payload das tarefas; política de retry, dead-letter e cancelamento (lista completa no ADR-021).
+
+## 11. Correção rodada 1 (review [2026-10-26-review-dec-007](../reviews/2026-10-26-review-dec-007.md), somente texto; PoC não alterada)
+
+- **REVIEW-001:** o ADR (seção Resultados) declara que a PK por `task_id` em `effects` impede medir "nenhum efeito duplicado" de forma independente; a PoC prova ausência de perda e absorção das reentregas, e o limite do AC-2 fica explícito.
+- **REVIEW-002:** o ADR declara que a saída é anterior ao `process.exit` em `poc.mjs` e termina com `exit 143`.
+- **REVIEW-003:** o ADR anota imagens por tag mutável, digests só na saída, e que produção deve fixar o digest.
+- **REVIEW-004:** nota de que S3 difere entre opções (1 vs 2 execuções de `s3-1`) pelo momento do crash, sem mudar a conclusão.
+- **REVIEW-005:** o ADR registra a limitação do `finally`/`fx.end()`; o `trap` de `run.sh` cobre o uso documentado.
+- **Arquivos tocados:** ADR-021 e esta entrega. A lesson só ganhou a ressalva de idempotência (abaixo). Commit: um novo (sem amend) sobre `c6c1e81`; SHA no relatório. Validação: releitura; nenhum comando de PoC reexecutado.

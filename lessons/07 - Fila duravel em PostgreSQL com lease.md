@@ -78,7 +78,7 @@ Saida real da execucao (2026-10-26): `linhas apos enfileirar t1 duas vezes: 1`; 
 
 - Contar o limite por tenant sem travar uma linha do tenant: duas reivindicacoes simultaneas passam do limite.
 - Usar `Date.now()` do cliente para `run_at` ou lease: relogio errado antecipa ou atrasa a tarefa (na PoC, o BullMQ falhou nesse teste; esta tecnica passou).
-- Esquecer a idempotencia do efeito: a tarefa pode rodar mais de uma vez.
+- Esquecer a idempotencia do efeito: a tarefa pode rodar mais de uma vez. Na PoC do ADR-021 a chave primaria da tabela de efeitos faz a idempotencia, entao ela prova ausencia de perda e absorcao das reentregas, nao mede duplicacao de efeito de forma independente.
 - Fila de alta rotatividade exige indice adequado e vacuum; polling consome conexoes.
 - Nao se aplica quando o fluxo tem muitos passos com compensacao ou throughput acima do gatilho do ADR (Temporal ou fila dedicada merecem reavaliacao).
 
