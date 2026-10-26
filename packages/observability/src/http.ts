@@ -71,7 +71,11 @@ export function observeRequest(
 }
 
 export function observeHttp(kit: Observability, handler: RequestListener, options: ObserveOptions): RequestListener {
-  return (req, res) => observeRequest(kit, req, res, options, () => handler(req, res));
+  return (req, res) => {
+    observeRequest(kit, req, res, options, () => {
+      handler(req, res);
+    });
+  };
 }
 
 const CHECK_TIMEOUT_MS = 2000;
@@ -94,10 +98,12 @@ export async function handleProbe(
   const results = await Promise.all(
     Object.entries(checks).map(async ([name, check]) => {
       let timer: NodeJS.Timeout | undefined;
-      let ok = false;
+      let ok: boolean;
       try {
         const timeout = new Promise<boolean>((r) => {
-          timer = setTimeout(() => r(false), CHECK_TIMEOUT_MS);
+          timer = setTimeout(() => {
+            r(false);
+          }, CHECK_TIMEOUT_MS);
           timer.unref();
         });
         ok = await Promise.race([Promise.resolve().then(check), timeout]);

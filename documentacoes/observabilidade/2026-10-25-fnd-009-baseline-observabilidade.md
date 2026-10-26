@@ -120,6 +120,34 @@ Correcao do AC-2: considerado provado somente nas classes listadas acima (e nas 
 
 Notas N1..N3 do QA permanecem conhecidas e nao tratadas aqui; itens ADIADOS inalterados. Lessons: nao aplicavel (mesma justificativa acima).
 
+## Correcao rodada 3 (integracao com `revisao/2026-10-25-ep00-ep01-fundacao`)
+
+**Motivo:** a branch de integracao (HEAD `c09f6fc8c7000090bbf12da543c8151ed2fe1001`) ja continha FND-002 (linters estritos) e FND-004; a FND-009 foi escrita antes dessas regras.
+
+**Merge (`a49a167`, `merge: integra revisao em FND-009`, sem amend):** conflitos em `services/{ai-gateway,event-dispatcher,tenant-runtime,tool-gateway}/tests/test_health.py` (mantida a versao da FND-009, mais rica), `pnpm-lock.yaml` e `uv.lock` (regenerados com `pnpm install --no-frozen-lockfile` e `uv lock`; nao editados a mao). O auto-merge de `apps/api/src/health.test.ts` deixou um `AddressInfo` sem import (erro TS2304); corrigido no commit de correcao.
+
+**Correcoes de lint (sem desligar regra, sem alterar config de FND-002, sem enfraquecer assercoes):**
+- `no-confusing-void-expression`: arrows com corpo `{ ... }` em `apps/api/src/observability.ts`, `packages/observability/src/http.ts` e `observability.test.ts`; `res.writeHead(200); res.end("ok")` em instrucoes separadas.
+- `no-useless-assignment`: `let ok: boolean;` (sem valor inicial inutil) em `handleProbe`.
+- `restrict-plus-operands`: `(c: Buffer) => { body += c.toString(); }` no helper `get` do teste.
+- `no-misused-promises`: o handler async passado a `observeHttp` virou handler sincrono com IIFE `void (async () => {...})().catch(...)`; a falha antes silenciosa agora destroi a resposta (o teste falha em vez de pendurar). `runJob` e sincrono, entao o `Promise.resolve(...).then(done)` foi trocado por chamada direta seguida de `done()` (mesma ordem de efeitos).
+- `apps/api/src/health.test.ts`: `app.getUrl()` em vez de cast `as AddressInfo` (padrao da integracao).
+- Python (ruff S310/PT017/PT018/E501/I001): os 4 `test_health.py` passaram a usar `http.client.HTTPConnection` (sem `urlopen` de URL dinamica, sem `try/except` com assert); assercoes equivalentes, `assert a and b` dividido em duas.
+- mypy strict: adicionado `packages/observability-py/src/nucleos_observability/py.typed` (o pacote e tipado; sem isso `import-untyped` nos servicos).
+- `pnpm run format` (prettier) reformatou arquivos da FND-009 (`apps/tenant-provisioner/src/server.ts`, `server.test.ts`, etc.), apenas quebras de linha.
+
+**Validacao (reais, na worktree apos o merge):**
+
+| Verificacao | Resultado |
+|---|---|
+| `make setup` (com `--frozen`) | rc 0 |
+| `make lint` (tsc, eslint, depcruise, prettier, ruff, ruff format, mypy, lint-imports, gitleaks, regressao dos linters) | rc 0; 0 erros; 9 avisos `security/detect-object-injection`/`detect-unsafe-regex` (nivel warning da config de FND-002) em `packages/observability/src/{http,logger,red,redact}.ts`, nao tratados |
+| `make test` | rc 0; pytest 18 passed; testes TS de todos os pacotes passam |
+| `make build` | rc 0 (turbo + wheels/sdists) |
+| `pytest --all-packages` em loop | 40 execucoes consecutivas, 0 falhas (flaky da rodada 2 continua corrigido) |
+
+Lessons: nao aplicavel (mesma justificativa; correcoes de lint/integracao). Sem pendencias novas alem das ja listadas e dos 9 avisos acima.
+
 ## Impactos, riscos e rollback
 
 - `GET /healthz` mantem o formato anterior; `/readyz` e novo. Log JSON agora vai a stdout nos servicos (probes em nivel `debug`, ocultos por padrao).
@@ -135,7 +163,10 @@ Base `4be3ce391a51b9e24cd85f7c894d841636dcd50f`.
 
 3. Commit da correcao rodada 2 (sem amend, sobre `6217fd4`): mensagem `fix(observabilidade): resposta HTTP apos o log, elimina corrida nos testes (FND-009)`; SHA reportado ao coordenador (consulte `git log`).
 
-Patches (secoes "Correcao rodada 1" e "Correcao rodada 2" para os commits 2 e 3): [diffs](2026-10-25-fnd-009-baseline-observabilidade-diffs.md) (a secao "Correcao rodada 1" contem o diff do commit 2; a escrita em `documentacoes/` nao entra no patch).
+4. Merge `a49a167` - `merge: integra revisao em FND-009` (resolucao de conflitos; os lock files e a historia vem da integracao).
+5. Commit da correcao rodada 3 (sem amend, sobre `a49a167`): `fix(observabilidade): ajusta FND-009 ao lint estrito da integracao (FND-009)`; SHA reportado ao coordenador (consulte `git log`).
+
+Patches (secoes "Correcao rodada 1", "Correcao rodada 2" e "Correcao rodada 3" para os commits 2, 3 e 5): [diffs](2026-10-25-fnd-009-baseline-observabilidade-diffs.md) (a secao "Correcao rodada 1" contem o diff do commit 2; a escrita em `documentacoes/` nao entra no patch).
 
 ## Lessons
 

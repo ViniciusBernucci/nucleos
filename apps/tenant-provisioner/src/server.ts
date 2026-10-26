@@ -12,7 +12,11 @@ const SERVICE = "tenant-provisioner";
 const ROUTES = new Set(["/healthz", "/readyz"]);
 
 export function createDefaultObservability(service = SERVICE): Observability {
-  const meta = { service, version: process.env["APP_VERSION"] ?? "0.0.0", env: process.env["APP_ENV"] ?? "local" };
+  const meta = {
+    service,
+    version: process.env["APP_VERSION"] ?? "0.0.0",
+    env: process.env["APP_ENV"] ?? "local",
+  };
   return createObservability(meta, telemetryConfigFromEnv(process.env, meta));
 }
 

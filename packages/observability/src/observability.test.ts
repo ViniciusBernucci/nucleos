@@ -34,15 +34,24 @@ function get(port: number, path: string, headers: Record<string, string> = {}): 
   return new Promise((resolve, reject) => {
     const req = request({ host: "127.0.0.1", port, path, headers }, (res) => {
       let body = "";
-      res.on("data", (c) => (body += c));
-      res.on("end", () => resolve({ status: res.statusCode ?? 0, body, headers: res.headers }));
+      res.on("data", (c: Buffer) => {
+        body += c.toString();
+      });
+      res.on("end", () => {
+        resolve({ status: res.statusCode ?? 0, body, headers: res.headers });
+      });
     });
     req.on("error", reject);
     req.end();
   });
 }
 
-const listen = (s: Server) => new Promise<number>((r) => s.listen(0, "127.0.0.1", () => r((s.address() as AddressInfo).port)));
+const listen = (s: Server) =>
+  new Promise<number>((r) => {
+    s.listen(0, "127.0.0.1", () => {
+      r((s.address() as AddressInfo).port);
+    });
+  });
 
 test("correlation id: padrao NAO confia no cliente; com trustEdge aceita so formato seguro", () => {
   const uuid = /^[0-9a-f-]{36}$/;
@@ -66,16 +75,24 @@ test("AC-1: requisicao sintetica gera log, metrica e trace com o mesmo correlati
   const server = createServer(
     observeHttp(
       kit,
-      async (req, res) => {
-        const envelope = createJobEnvelope("demo.job", { n: 1 });
-        // O job roda fora do contexto HTTP, so com o envelope (como um worker real).
-        await new Promise<void>((done) =>
-          setImmediate(() => {
-            void Promise.resolve(runJob(envelope, () => kit.logger.log("info", "job.done", { job_type: envelope.type }))).then(() => done());
-          }),
-        );
-        assert.equal(correlationHeaders()[CORRELATION_HEADER], currentContext()?.correlationId);
-        res.writeHead(200).end("ok");
+      (_req, res) => {
+        void (async () => {
+          const envelope = createJobEnvelope("demo.job", { n: 1 });
+          // O job roda fora do contexto HTTP, so com o envelope (como um worker real).
+          await new Promise<void>((done) => {
+            setImmediate(() => {
+              runJob(envelope, () => {
+                kit.logger.log("info", "job.done", { job_type: envelope.type });
+              });
+              done();
+            });
+          });
+          assert.equal(correlationHeaders()[CORRELATION_HEADER], currentContext()?.correlationId);
+          res.writeHead(200);
+          res.end("ok");
+        })().catch((e: unknown) => {
+          res.destroy(e instanceof Error ? e : new Error(String(e)));
+        });
       },
       { routeOf: () => "/demo", trustEdge: true },
     ),

@@ -3854,3 +3854,560 @@ index bfaedc2..cb13546 100644
          assert [r["data"]["method"] for r in records if r["event"] == "http.request"][-3:] == ["POST", "DELETE", "PUT"]
      finally:
 ```
+
+## Correcao rodada 3 (integracao) (commit 5, sobre o merge a49a167)
+
+Diff do codigo/testes (sem os lock files, regenerados por pnpm/uv; sem documentacoes/). O commit de merge a49a167 integra `revisao/2026-10-25-ep00-ep01-fundacao` (HEAD c09f6fc); conflitos: 4 test_health.py (mantida a versao da FND-009), pnpm-lock.yaml e uv.lock (regenerados, nao editados a mao).
+
+```diff
+diff --git a/apps/api/src/health.test.ts b/apps/api/src/health.test.ts
+index 4146caa..473a881 100644
+--- a/apps/api/src/health.test.ts
++++ b/apps/api/src/health.test.ts
+@@ -22,13 +22,15 @@ test("middleware de observabilidade: correlation id propagado, /readyz sem versa
+   const SENTINEL = "SENTINEL_api_c0ffee";
+   const meta = { service: "api", version: "9.9.9", env: "test" };
+   const logs: string[] = [];
+-  const kit = createObservability({ ...meta, level: "debug", destination: { write: (l) => void logs.push(l) } }, { ...meta, enabled: false });
++  const kit = createObservability(
++    { ...meta, level: "debug", destination: { write: (l) => void logs.push(l) } },
++    { ...meta, enabled: false },
++  );
+   const app = await NestFactory.create(AppModule, { logger: false });
+   app.use(observabilityMiddleware(kit));
+   await app.listen(0, "127.0.0.1");
+   try {
+-    const { port } = app.getHttpServer().address() as AddressInfo;
+-    const res = await fetch(`http://127.0.0.1:${port}/readyz?token=${SENTINEL}`, {
++    const res = await fetch(`${await app.getUrl()}/readyz?token=${SENTINEL}`, {
+       headers: { "x-request-id": "edge-api-0001", authorization: `Bearer ${SENTINEL}` },
+     });
+     assert.equal(res.status, 200);
+@@ -37,7 +39,10 @@ test("middleware de observabilidade: correlation id propagado, /readyz sem versa
+     assert.match(String(returned), /^[0-9a-f-]{36}$/);
+     assert.deepEqual(await res.json(), { status: "ready", service: "api" });
+     await new Promise((r) => setTimeout(r, 50));
+-    const record = JSON.parse(logs.find((l) => l.includes("http.request")) ?? "{}") as Record<string, unknown>;
++    const record = JSON.parse(logs.find((l) => l.includes("http.request")) ?? "{}") as Record<
++      string,
++      unknown
++    >;
+     assert.equal(record["correlation_id"], returned);
+     assert.equal((record["data"] as Record<string, unknown>)["route"], "/readyz");
+     assert.ok(!logs.join("").includes(SENTINEL));
+diff --git a/apps/api/src/observability.ts b/apps/api/src/observability.ts
+index 36bab84..62f9cc1 100644
+--- a/apps/api/src/observability.ts
++++ b/apps/api/src/observability.ts
+@@ -1,16 +1,32 @@
+ import type { IncomingMessage, ServerResponse } from "node:http";
+-import { type Observability, createObservability, observeRequest, telemetryConfigFromEnv } from "@nucleos/observability";
++import {
++  type Observability,
++  createObservability,
++  observeRequest,
++  telemetryConfigFromEnv,
++} from "@nucleos/observability";
+ 
+ /** `req.route` e preenchido pelo Express ao casar a rota (sem depender de @types/express). */
+ type ExpressLike = IncomingMessage & { route?: { path?: string } };
+ 
+ export function createApiObservability(): Observability {
+-  const meta = { service: "api", version: process.env["APP_VERSION"] ?? "0.0.0", env: process.env["APP_ENV"] ?? "local" };
++  const meta = {
++    service: "api",
++    version: process.env["APP_VERSION"] ?? "0.0.0",
++    env: process.env["APP_ENV"] ?? "local",
++  };
+   return createObservability(meta, telemetryConfigFromEnv(process.env, meta));
+ }
+ 
+ /** Middleware Express: correlation id, span, log e metricas RED; rota = template do Express. */
+ export function observabilityMiddleware(kit: Observability) {
+-  return (req: IncomingMessage, res: ServerResponse, next: () => void): void =>
+-    observeRequest(kit, req, res, { routeOf: (r) => (r as ExpressLike).route?.path, quietRoutes: ["/healthz", "/readyz"] }, next);
++  return (req: IncomingMessage, res: ServerResponse, next: () => void): void => {
++    observeRequest(
++      kit,
++      req,
++      res,
++      { routeOf: (r) => (r as ExpressLike).route?.path, quietRoutes: ["/healthz", "/readyz"] },
++      next,
++    );
++  };
+ }
+diff --git a/apps/tenant-provisioner/src/server.test.ts b/apps/tenant-provisioner/src/server.test.ts
+index bbf0ba0..db35d22 100644
+--- a/apps/tenant-provisioner/src/server.test.ts
++++ b/apps/tenant-provisioner/src/server.test.ts
+@@ -9,7 +9,10 @@ const meta = { service: "tenant-provisioner", version: "9.9.9", env: "test" };
+ 
+ async function withServer(fn: (base: string, logs: string[]) => Promise<void>): Promise<void> {
+   const logs: string[] = [];
+-  const kit = createObservability({ ...meta, level: "debug", destination: { write: (l) => void logs.push(l) } }, { ...meta, enabled: false });
++  const kit = createObservability(
++    { ...meta, level: "debug", destination: { write: (l) => void logs.push(l) } },
++    { ...meta, enabled: false },
++  );
+   const server = createHealthServer("tenant-provisioner", kit, { self: () => true });
+   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+   const { port } = server.address() as AddressInfo;
+@@ -40,13 +43,20 @@ test("GET /readyz responde 200 ready sem expor versao", async () => {
+ test("X-Request-Id do cliente e ignorado (trustEdge=false); nenhum sentinela aparece no log", async () => {
+   await withServer(async (base, logs) => {
+     const res = await fetch(`${base}/outra?token=${SENTINEL}`, {
+-      headers: { "x-request-id": "edge-prov-0001", authorization: `Bearer ${SENTINEL}`, cookie: `s=${SENTINEL}` },
++      headers: {
++        "x-request-id": "edge-prov-0001",
++        authorization: `Bearer ${SENTINEL}`,
++        cookie: `s=${SENTINEL}`,
++      },
+     });
+     const returned = res.headers.get("x-request-id");
+     assert.notEqual(returned, "edge-prov-0001"); // padrao trustEdge=false: id do cliente e ignorado
+     assert.match(String(returned), /^[0-9a-f-]{36}$/);
+     await new Promise((r) => setTimeout(r, 50));
+-    const record = JSON.parse(logs.find((l) => l.includes("http.request")) ?? "{}") as Record<string, unknown>;
++    const record = JSON.parse(logs.find((l) => l.includes("http.request")) ?? "{}") as Record<
++      string,
++      unknown
++    >;
+     assert.equal(record["correlation_id"], returned);
+     assert.equal((record["data"] as Record<string, unknown>)["route"], "unmatched");
+     assert.ok(!logs.join("").includes(SENTINEL));
+diff --git a/apps/tenant-provisioner/src/server.ts b/apps/tenant-provisioner/src/server.ts
+index 356171b..3279e9e 100644
+--- a/apps/tenant-provisioner/src/server.ts
++++ b/apps/tenant-provisioner/src/server.ts
+@@ -12,7 +12,11 @@ const SERVICE = "tenant-provisioner";
+ const ROUTES = new Set(["/healthz", "/readyz"]);
+ 
+ export function createDefaultObservability(service = SERVICE): Observability {
+-  const meta = { service, version: process.env["APP_VERSION"] ?? "0.0.0", env: process.env["APP_ENV"] ?? "local" };
++  const meta = {
++    service,
++    version: process.env["APP_VERSION"] ?? "0.0.0",
++    env: process.env["APP_ENV"] ?? "local",
++  };
+   return createObservability(meta, telemetryConfigFromEnv(process.env, meta));
+ }
+ 
+diff --git a/packages/observability-py/src/nucleos_observability/py.typed b/packages/observability-py/src/nucleos_observability/py.typed
+new file mode 100644
+index 0000000..e69de29
+diff --git a/packages/observability/src/http.ts b/packages/observability/src/http.ts
+index dfd62b8..bb40cdc 100644
+--- a/packages/observability/src/http.ts
++++ b/packages/observability/src/http.ts
+@@ -71,7 +71,11 @@ export function observeRequest(
+ }
+ 
+ export function observeHttp(kit: Observability, handler: RequestListener, options: ObserveOptions): RequestListener {
+-  return (req, res) => observeRequest(kit, req, res, options, () => handler(req, res));
++  return (req, res) => {
++    observeRequest(kit, req, res, options, () => {
++      handler(req, res);
++    });
++  };
+ }
+ 
+ const CHECK_TIMEOUT_MS = 2000;
+@@ -94,10 +98,12 @@ export async function handleProbe(
+   const results = await Promise.all(
+     Object.entries(checks).map(async ([name, check]) => {
+       let timer: NodeJS.Timeout | undefined;
+-      let ok = false;
++      let ok: boolean;
+       try {
+         const timeout = new Promise<boolean>((r) => {
+-          timer = setTimeout(() => r(false), CHECK_TIMEOUT_MS);
++          timer = setTimeout(() => {
++            r(false);
++          }, CHECK_TIMEOUT_MS);
+           timer.unref();
+         });
+         ok = await Promise.race([Promise.resolve().then(check), timeout]);
+diff --git a/packages/observability/src/observability.test.ts b/packages/observability/src/observability.test.ts
+index b7384cf..9e83c09 100644
+--- a/packages/observability/src/observability.test.ts
++++ b/packages/observability/src/observability.test.ts
+@@ -34,15 +34,24 @@ function get(port: number, path: string, headers: Record<string, string> = {}):
+   return new Promise((resolve, reject) => {
+     const req = request({ host: "127.0.0.1", port, path, headers }, (res) => {
+       let body = "";
+-      res.on("data", (c) => (body += c));
+-      res.on("end", () => resolve({ status: res.statusCode ?? 0, body, headers: res.headers }));
++      res.on("data", (c: Buffer) => {
++        body += c.toString();
++      });
++      res.on("end", () => {
++        resolve({ status: res.statusCode ?? 0, body, headers: res.headers });
++      });
+     });
+     req.on("error", reject);
+     req.end();
+   });
+ }
+ 
+-const listen = (s: Server) => new Promise<number>((r) => s.listen(0, "127.0.0.1", () => r((s.address() as AddressInfo).port)));
++const listen = (s: Server) =>
++  new Promise<number>((r) => {
++    s.listen(0, "127.0.0.1", () => {
++      r((s.address() as AddressInfo).port);
++    });
++  });
+ 
+ test("correlation id: padrao NAO confia no cliente; com trustEdge aceita so formato seguro", () => {
+   const uuid = /^[0-9a-f-]{36}$/;
+@@ -66,16 +75,24 @@ test("AC-1: requisicao sintetica gera log, metrica e trace com o mesmo correlati
+   const server = createServer(
+     observeHttp(
+       kit,
+-      async (req, res) => {
+-        const envelope = createJobEnvelope("demo.job", { n: 1 });
+-        // O job roda fora do contexto HTTP, so com o envelope (como um worker real).
+-        await new Promise<void>((done) =>
+-          setImmediate(() => {
+-            void Promise.resolve(runJob(envelope, () => kit.logger.log("info", "job.done", { job_type: envelope.type }))).then(() => done());
+-          }),
+-        );
+-        assert.equal(correlationHeaders()[CORRELATION_HEADER], currentContext()?.correlationId);
+-        res.writeHead(200).end("ok");
++      (_req, res) => {
++        void (async () => {
++          const envelope = createJobEnvelope("demo.job", { n: 1 });
++          // O job roda fora do contexto HTTP, so com o envelope (como um worker real).
++          await new Promise<void>((done) => {
++            setImmediate(() => {
++              runJob(envelope, () => {
++                kit.logger.log("info", "job.done", { job_type: envelope.type });
++              });
++              done();
++            });
++          });
++          assert.equal(correlationHeaders()[CORRELATION_HEADER], currentContext()?.correlationId);
++          res.writeHead(200);
++          res.end("ok");
++        })().catch((e: unknown) => {
++          res.destroy(e instanceof Error ? e : new Error(String(e)));
++        });
+       },
+       { routeOf: () => "/demo", trustEdge: true },
+     ),
+diff --git a/services/ai-gateway/tests/test_health.py b/services/ai-gateway/tests/test_health.py
+index 52c2c06..d119f5f 100644
+--- a/services/ai-gateway/tests/test_health.py
++++ b/services/ai-gateway/tests/test_health.py
+@@ -1,11 +1,10 @@
++import http.client
+ import io
+ import json
+ import threading
+-import urllib.error
+-import urllib.request
+ 
+-from nucleos_observability import Logger, Telemetry, TelemetryConfig, make_observability
+ from ai_gateway.app import SERVICE, make_server
++from nucleos_observability import Logger, Telemetry, TelemetryConfig, make_observability
+ 
+ SENTINEL = "SENTINEL_ai_gateway_5ec7e7"
+ 
+@@ -13,32 +12,45 @@ SENTINEL = "SENTINEL_ai_gateway_5ec7e7"
+ def _serve():
+     out = io.StringIO()
+     cfg = TelemetryConfig(enabled=False, service=SERVICE, version="9.9.9", env="test")
+-    kit = make_observability(Logger(SERVICE, "9.9.9", "test", level="debug", stream=out), Telemetry(cfg))
++    logger = Logger(SERVICE, "9.9.9", "test", level="debug", stream=out)
++    kit = make_observability(logger, Telemetry(cfg))
+     server = make_server("127.0.0.1", 0, kit)
+     threading.Thread(target=server.serve_forever, daemon=True).start()
+     return server, out
+ 
+ 
++def _get(port: int, path: str, headers: dict[str, str] | None = None):
++    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
++    try:
++        conn.request("GET", path, headers=headers or {})
++        res = conn.getresponse()
++        return res.status, dict(res.getheaders()), res.read()
++    finally:
++        conn.close()
++
++
+ def test_healthz_readyz_correlation_e_sem_vazamento() -> None:
+     server, out = _serve()
+-    base = f"http://127.0.0.1:{server.server_address[1]}"
++    port = server.server_address[1]
+     try:
+-        with urllib.request.urlopen(f"{base}/healthz") as res:
+-            assert res.status == 200
+-            assert json.load(res) == {"status": "ok", "service": "ai-gateway"}
+-        with urllib.request.urlopen(f"{base}/readyz") as res:
+-            assert json.load(res) == {"status": "ready", "service": "ai-gateway"}
+-        req = urllib.request.Request(
+-            f"{base}/outra?token={SENTINEL}",
+-            headers={"x-request-id": "edge-py-0001", "authorization": f"Bearer {SENTINEL}", "cookie": f"s={SENTINEL}"},
++        status, _, body = _get(port, "/healthz")
++        assert status == 200
++        assert json.loads(body) == {"status": "ok", "service": "ai-gateway"}
++        _, _, body = _get(port, "/readyz")
++        assert json.loads(body) == {"status": "ready", "service": "ai-gateway"}
++        status, headers, _ = _get(
++            port,
++            f"/outra?token={SENTINEL}",
++            {
++                "x-request-id": "edge-py-0001",
++                "authorization": f"Bearer {SENTINEL}",
++                "cookie": f"s={SENTINEL}",
++            },
+         )
+-        try:
+-            urllib.request.urlopen(req)
+-            raise AssertionError("esperava 404")
+-        except urllib.error.HTTPError as err:
+-            assert err.code == 404
+-            returned = err.headers["x-request-id"]
+-            assert returned != "edge-py-0001" and len(returned) == 36  # trust_edge=False por padrao
++        assert status == 404
++        returned = headers["x-request-id"]
++        assert returned != "edge-py-0001"  # trust_edge=False por padrao
++        assert len(returned) == 36
+     finally:
+         server.shutdown()
+         server.server_close()
+diff --git a/services/event-dispatcher/tests/test_health.py b/services/event-dispatcher/tests/test_health.py
+index 3d5ee37..17dff70 100644
+--- a/services/event-dispatcher/tests/test_health.py
++++ b/services/event-dispatcher/tests/test_health.py
+@@ -1,11 +1,10 @@
++import http.client
+ import io
+ import json
+ import threading
+-import urllib.error
+-import urllib.request
+ 
+-from nucleos_observability import Logger, Telemetry, TelemetryConfig, make_observability
+ from event_dispatcher.app import SERVICE, make_server
++from nucleos_observability import Logger, Telemetry, TelemetryConfig, make_observability
+ 
+ SENTINEL = "SENTINEL_event_dispatcher_5ec7e7"
+ 
+@@ -13,32 +12,45 @@ SENTINEL = "SENTINEL_event_dispatcher_5ec7e7"
+ def _serve():
+     out = io.StringIO()
+     cfg = TelemetryConfig(enabled=False, service=SERVICE, version="9.9.9", env="test")
+-    kit = make_observability(Logger(SERVICE, "9.9.9", "test", level="debug", stream=out), Telemetry(cfg))
++    logger = Logger(SERVICE, "9.9.9", "test", level="debug", stream=out)
++    kit = make_observability(logger, Telemetry(cfg))
+     server = make_server("127.0.0.1", 0, kit)
+     threading.Thread(target=server.serve_forever, daemon=True).start()
+     return server, out
+ 
+ 
++def _get(port: int, path: str, headers: dict[str, str] | None = None):
++    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
++    try:
++        conn.request("GET", path, headers=headers or {})
++        res = conn.getresponse()
++        return res.status, dict(res.getheaders()), res.read()
++    finally:
++        conn.close()
++
++
+ def test_healthz_readyz_correlation_e_sem_vazamento() -> None:
+     server, out = _serve()
+-    base = f"http://127.0.0.1:{server.server_address[1]}"
++    port = server.server_address[1]
+     try:
+-        with urllib.request.urlopen(f"{base}/healthz") as res:
+-            assert res.status == 200
+-            assert json.load(res) == {"status": "ok", "service": "event-dispatcher"}
+-        with urllib.request.urlopen(f"{base}/readyz") as res:
+-            assert json.load(res) == {"status": "ready", "service": "event-dispatcher"}
+-        req = urllib.request.Request(
+-            f"{base}/outra?token={SENTINEL}",
+-            headers={"x-request-id": "edge-py-0001", "authorization": f"Bearer {SENTINEL}", "cookie": f"s={SENTINEL}"},
++        status, _, body = _get(port, "/healthz")
++        assert status == 200
++        assert json.loads(body) == {"status": "ok", "service": "event-dispatcher"}
++        _, _, body = _get(port, "/readyz")
++        assert json.loads(body) == {"status": "ready", "service": "event-dispatcher"}
++        status, headers, _ = _get(
++            port,
++            f"/outra?token={SENTINEL}",
++            {
++                "x-request-id": "edge-py-0001",
++                "authorization": f"Bearer {SENTINEL}",
++                "cookie": f"s={SENTINEL}",
++            },
+         )
+-        try:
+-            urllib.request.urlopen(req)
+-            raise AssertionError("esperava 404")
+-        except urllib.error.HTTPError as err:
+-            assert err.code == 404
+-            returned = err.headers["x-request-id"]
+-            assert returned != "edge-py-0001" and len(returned) == 36  # trust_edge=False por padrao
++        assert status == 404
++        returned = headers["x-request-id"]
++        assert returned != "edge-py-0001"  # trust_edge=False por padrao
++        assert len(returned) == 36
+     finally:
+         server.shutdown()
+         server.server_close()
+diff --git a/services/tenant-runtime/tests/test_health.py b/services/tenant-runtime/tests/test_health.py
+index 63612b7..b0c0abf 100644
+--- a/services/tenant-runtime/tests/test_health.py
++++ b/services/tenant-runtime/tests/test_health.py
+@@ -1,8 +1,7 @@
++import http.client
+ import io
+ import json
+ import threading
+-import urllib.error
+-import urllib.request
+ 
+ from nucleos_observability import Logger, Telemetry, TelemetryConfig, make_observability
+ from tenant_runtime.app import SERVICE, make_server
+@@ -13,32 +12,45 @@ SENTINEL = "SENTINEL_tenant_runtime_5ec7e7"
+ def _serve():
+     out = io.StringIO()
+     cfg = TelemetryConfig(enabled=False, service=SERVICE, version="9.9.9", env="test")
+-    kit = make_observability(Logger(SERVICE, "9.9.9", "test", level="debug", stream=out), Telemetry(cfg))
++    logger = Logger(SERVICE, "9.9.9", "test", level="debug", stream=out)
++    kit = make_observability(logger, Telemetry(cfg))
+     server = make_server("127.0.0.1", 0, kit)
+     threading.Thread(target=server.serve_forever, daemon=True).start()
+     return server, out
+ 
+ 
++def _get(port: int, path: str, headers: dict[str, str] | None = None):
++    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
++    try:
++        conn.request("GET", path, headers=headers or {})
++        res = conn.getresponse()
++        return res.status, dict(res.getheaders()), res.read()
++    finally:
++        conn.close()
++
++
+ def test_healthz_readyz_correlation_e_sem_vazamento() -> None:
+     server, out = _serve()
+-    base = f"http://127.0.0.1:{server.server_address[1]}"
++    port = server.server_address[1]
+     try:
+-        with urllib.request.urlopen(f"{base}/healthz") as res:
+-            assert res.status == 200
+-            assert json.load(res) == {"status": "ok", "service": "tenant-runtime"}
+-        with urllib.request.urlopen(f"{base}/readyz") as res:
+-            assert json.load(res) == {"status": "ready", "service": "tenant-runtime"}
+-        req = urllib.request.Request(
+-            f"{base}/outra?token={SENTINEL}",
+-            headers={"x-request-id": "edge-py-0001", "authorization": f"Bearer {SENTINEL}", "cookie": f"s={SENTINEL}"},
++        status, _, body = _get(port, "/healthz")
++        assert status == 200
++        assert json.loads(body) == {"status": "ok", "service": "tenant-runtime"}
++        _, _, body = _get(port, "/readyz")
++        assert json.loads(body) == {"status": "ready", "service": "tenant-runtime"}
++        status, headers, _ = _get(
++            port,
++            f"/outra?token={SENTINEL}",
++            {
++                "x-request-id": "edge-py-0001",
++                "authorization": f"Bearer {SENTINEL}",
++                "cookie": f"s={SENTINEL}",
++            },
+         )
+-        try:
+-            urllib.request.urlopen(req)
+-            raise AssertionError("esperava 404")
+-        except urllib.error.HTTPError as err:
+-            assert err.code == 404
+-            returned = err.headers["x-request-id"]
+-            assert returned != "edge-py-0001" and len(returned) == 36  # trust_edge=False por padrao
++        assert status == 404
++        returned = headers["x-request-id"]
++        assert returned != "edge-py-0001"  # trust_edge=False por padrao
++        assert len(returned) == 36
+     finally:
+         server.shutdown()
+         server.server_close()
+diff --git a/services/tool-gateway/tests/test_health.py b/services/tool-gateway/tests/test_health.py
+index 26f9396..1b0a632 100644
+--- a/services/tool-gateway/tests/test_health.py
++++ b/services/tool-gateway/tests/test_health.py
+@@ -1,8 +1,7 @@
++import http.client
+ import io
+ import json
+ import threading
+-import urllib.error
+-import urllib.request
+ 
+ from nucleos_observability import Logger, Telemetry, TelemetryConfig, make_observability
+ from tool_gateway.app import SERVICE, make_server
+@@ -13,32 +12,45 @@ SENTINEL = "SENTINEL_tool_gateway_5ec7e7"
+ def _serve():
+     out = io.StringIO()
+     cfg = TelemetryConfig(enabled=False, service=SERVICE, version="9.9.9", env="test")
+-    kit = make_observability(Logger(SERVICE, "9.9.9", "test", level="debug", stream=out), Telemetry(cfg))
++    logger = Logger(SERVICE, "9.9.9", "test", level="debug", stream=out)
++    kit = make_observability(logger, Telemetry(cfg))
+     server = make_server("127.0.0.1", 0, kit)
+     threading.Thread(target=server.serve_forever, daemon=True).start()
+     return server, out
+ 
+ 
++def _get(port: int, path: str, headers: dict[str, str] | None = None):
++    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
++    try:
++        conn.request("GET", path, headers=headers or {})
++        res = conn.getresponse()
++        return res.status, dict(res.getheaders()), res.read()
++    finally:
++        conn.close()
++
++
+ def test_healthz_readyz_correlation_e_sem_vazamento() -> None:
+     server, out = _serve()
+-    base = f"http://127.0.0.1:{server.server_address[1]}"
++    port = server.server_address[1]
+     try:
+-        with urllib.request.urlopen(f"{base}/healthz") as res:
+-            assert res.status == 200
+-            assert json.load(res) == {"status": "ok", "service": "tool-gateway"}
+-        with urllib.request.urlopen(f"{base}/readyz") as res:
+-            assert json.load(res) == {"status": "ready", "service": "tool-gateway"}
+-        req = urllib.request.Request(
+-            f"{base}/outra?token={SENTINEL}",
+-            headers={"x-request-id": "edge-py-0001", "authorization": f"Bearer {SENTINEL}", "cookie": f"s={SENTINEL}"},
++        status, _, body = _get(port, "/healthz")
++        assert status == 200
++        assert json.loads(body) == {"status": "ok", "service": "tool-gateway"}
++        _, _, body = _get(port, "/readyz")
++        assert json.loads(body) == {"status": "ready", "service": "tool-gateway"}
++        status, headers, _ = _get(
++            port,
++            f"/outra?token={SENTINEL}",
++            {
++                "x-request-id": "edge-py-0001",
++                "authorization": f"Bearer {SENTINEL}",
++                "cookie": f"s={SENTINEL}",
++            },
+         )
+-        try:
+-            urllib.request.urlopen(req)
+-            raise AssertionError("esperava 404")
+-        except urllib.error.HTTPError as err:
+-            assert err.code == 404
+-            returned = err.headers["x-request-id"]
+-            assert returned != "edge-py-0001" and len(returned) == 36  # trust_edge=False por padrao
++        assert status == 404
++        returned = headers["x-request-id"]
++        assert returned != "edge-py-0001"  # trust_edge=False por padrao
++        assert len(returned) == 36
+     finally:
+         server.shutdown()
+         server.server_close()
+```
