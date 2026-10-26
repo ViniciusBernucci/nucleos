@@ -1,0 +1,20 @@
+{
+  "header": {
+    "alg": "none",
+    "typ": "nucleos-runtime+jwt",
+    "kid": "cp-key-1"
+  },
+  "claims": {
+    "iss": "nucleos-control-plane",
+    "sub": "runtime:3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+    "aud": "tool-gateway",
+    "scope": [
+      "tool:invoke"
+    ],
+    "tenant_id": "3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+    "jti": "jti_0123456789abcdef",
+    "iat": 1790000000,
+    "exp": 1790000300,
+    "ver": 1
+  }
+}

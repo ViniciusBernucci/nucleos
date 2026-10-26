@@ -1,0 +1,132 @@
+[
+  {
+    "nome": "valido",
+    "claims": {
+      "iss": "nucleos-control-plane",
+      "sub": "runtime:3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+      "aud": "tool-gateway",
+      "scope": [
+        "tool:invoke"
+      ],
+      "tenant_id": "3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+      "jti": "jti_0123456789abcdef",
+      "iat": 1790000000,
+      "exp": 1790000300,
+      "ver": 1
+    },
+    "erros": []
+  },
+  {
+    "nome": "ttl-no-limite-600",
+    "claims": {
+      "iss": "nucleos-control-plane",
+      "sub": "runtime:3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+      "aud": "tool-gateway",
+      "scope": [
+        "tool:invoke"
+      ],
+      "tenant_id": "3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+      "jti": "jti_0123456789abcdef",
+      "iat": 1790000000,
+      "exp": 1790000600,
+      "ver": 1
+    },
+    "erros": []
+  },
+  {
+    "nome": "sub-diverge-do-tenant",
+    "claims": {
+      "iss": "nucleos-control-plane",
+      "sub": "runtime:a1b2c3d4-0000-4000-8000-123456789abc",
+      "aud": "tool-gateway",
+      "scope": [
+        "tool:invoke"
+      ],
+      "tenant_id": "3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+      "jti": "jti_0123456789abcdef",
+      "iat": 1790000000,
+      "exp": 1790000300,
+      "ver": 1
+    },
+    "erros": [
+      "sub_tenant_mismatch"
+    ]
+  },
+  {
+    "nome": "ttl-acima-de-600",
+    "claims": {
+      "iss": "nucleos-control-plane",
+      "sub": "runtime:3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+      "aud": "tool-gateway",
+      "scope": [
+        "tool:invoke"
+      ],
+      "tenant_id": "3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+      "jti": "jti_0123456789abcdef",
+      "iat": 1790000000,
+      "exp": 1790000601,
+      "ver": 1
+    },
+    "erros": [
+      "ttl_too_long"
+    ]
+  },
+  {
+    "nome": "exp-igual-a-iat",
+    "claims": {
+      "iss": "nucleos-control-plane",
+      "sub": "runtime:3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+      "aud": "tool-gateway",
+      "scope": [
+        "tool:invoke"
+      ],
+      "tenant_id": "3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+      "jti": "jti_0123456789abcdef",
+      "iat": 1790000000,
+      "exp": 1790000000,
+      "ver": 1
+    },
+    "erros": [
+      "ttl_not_positive"
+    ]
+  },
+  {
+    "nome": "exp-antes-de-iat",
+    "claims": {
+      "iss": "nucleos-control-plane",
+      "sub": "runtime:3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+      "aud": "tool-gateway",
+      "scope": [
+        "tool:invoke"
+      ],
+      "tenant_id": "3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+      "jti": "jti_0123456789abcdef",
+      "iat": 1790000000,
+      "exp": 1789999995,
+      "ver": 1
+    },
+    "erros": [
+      "ttl_not_positive"
+    ]
+  },
+  {
+    "nome": "sub-diverge-e-ttl-longo",
+    "claims": {
+      "iss": "nucleos-control-plane",
+      "sub": "runtime:a1b2c3d4-0000-4000-8000-123456789abc",
+      "aud": "tool-gateway",
+      "scope": [
+        "tool:invoke"
+      ],
+      "tenant_id": "3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+      "jti": "jti_0123456789abcdef",
+      "iat": 1790000000,
+      "exp": 1790000900,
+      "ver": 1
+    },
+    "erros": [
+      "sub_tenant_mismatch",
+      "ttl_too_long"
+    ]
+  }
+]

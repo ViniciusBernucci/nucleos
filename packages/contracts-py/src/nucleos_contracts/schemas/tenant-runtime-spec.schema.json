@@ -1,0 +1,208 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nucleos.invalid/contracts/tenant-runtime-spec.schema.json",
+  "x-schema-version": "1.0",
+  "title": "TenantRuntimeSpec - especificacao declarativa do runtime de um tenant",
+  "description": "Renderizada pelo provisioner (EP-09/PRV-002). Imagens somente por digest; segredos somente por referencia; nenhum valor de segredo no spec.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tenant_id",
+    "images",
+    "resources",
+    "network",
+    "volumes",
+    "secrets",
+    "modules",
+    "limits",
+    "endpoints"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "description": "Versao semantica do contrato (major.minor). Campo opcional novo = minor; remocao/mudanca = major."
+    },
+    "tenant_id": {
+      "$ref": "#/$defs/uuid"
+    },
+    "images": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtime",
+        "sidecar"
+      ],
+      "properties": {
+        "runtime": {
+          "type": "string",
+          "maxLength": 300,
+          "pattern": "^[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}$"
+        },
+        "sidecar": {
+          "type": "string",
+          "maxLength": 300,
+          "pattern": "^[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cpu_millis",
+        "memory_mib",
+        "pids",
+        "tmpfs_mib"
+      ],
+      "properties": {
+        "cpu_millis": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 64000
+        },
+        "memory_mib": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 262144
+        },
+        "pids": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 65536
+        },
+        "tmpfs_mib": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "subnet"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,62}$"
+        },
+        "subnet": {
+          "type": "string",
+          "pattern": "^(10|172\\.(1[6-9]|2[0-9]|3[01])|192\\.168)\\.[0-9]{1,3}(\\.[0-9]{1,3}){0,2}/([0-9]|[12][0-9]|3[0-2])$",
+          "description": "CIDR IPv4 privado (RFC 1918)."
+        }
+      }
+    },
+    "volumes": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "mount_path"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,62}$"
+          },
+          "mount_path": {
+            "type": "string",
+            "pattern": "^/[A-Za-z0-9_./-]{1,200}$",
+            "not": {
+              "pattern": "\\.\\."
+            }
+          }
+        }
+      }
+    },
+    "secrets": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "ref"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,62}$"
+          },
+          "ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^secretref:[A-Za-z0-9_./-]+$",
+            "description": "Referencia opaca; o valor nunca trafega no spec."
+          }
+        }
+      }
+    },
+    "modules": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 64,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]{0,62}$"
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_concurrency",
+        "budget_minor"
+      ],
+      "properties": {
+        "max_concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "budget_minor": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "endpoints": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "url"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,62}$"
+          },
+          "url": {
+            "type": "string",
+            "maxLength": 256,
+            "pattern": "^https?://[a-z0-9.-]+(:[0-9]{1,5})?(/[A-Za-z0-9_./-]*)?$"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    }
+  }
+}

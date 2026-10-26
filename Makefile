@@ -10,7 +10,7 @@ export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 export TURBO_TELEMETRY_DISABLED=1
 export DO_NOT_TRACK=1
 
-.PHONY: setup lint lint-ts lint-py test test-ts test-py build ci-regressao up down health check-env compose-up compose-down compose-reset compose-smoke lint-regressao lint-workflows format hooks
+.PHONY: setup lint lint-ts lint-py test test-ts test-py build ci-regressao up down health check-env compose-up compose-down compose-reset compose-smoke lint-regressao lint-workflows format hooks contracts contracts-gen contracts-check contracts-baseline
 
 setup:
 	@node -e "const v=require('fs').readFileSync('.nvmrc','utf8').trim().split('.')[0]; if(process.versions.node.split('.')[0]!==v){console.error('Node '+v+'.x requerido (.nvmrc); atual '+process.version);process.exit(1)}"
@@ -28,10 +28,10 @@ lint-ts: check-env
 	$(PNPM) run lint:quality
 
 lint-py:
-	$(UV) run --frozen python -m compileall -q services
+	$(UV) run --frozen python -m compileall -q services packages/contracts-py/src
 	$(UV) lock --check
-	$(UV) run --frozen ruff check services
-	$(UV) run --frozen ruff format --check services
+	$(UV) run --frozen ruff check services packages/contracts-py
+	$(UV) run --frozen ruff format --check services packages/contracts-py
 	$(UV) run --frozen mypy
 	$(UV) run --frozen lint-imports
 
@@ -50,7 +50,7 @@ ci-regressao:
 
 format:
 	$(PNPM) run format
-	$(UV) run --frozen ruff format services
+	$(UV) run --frozen ruff format services packages/contracts-py
 
 # Instala os hooks do lefthook no .git (explicito: o diretorio de hooks e compartilhado por worktrees).
 hooks:
@@ -93,3 +93,20 @@ compose-reset:
 
 compose-smoke:
 	./infrastructure/docker/scripts/smoke.sh $(if $(findstring runtime,$(PERFIS)),--runtime) $(if $(findstring observability,$(PERFIS)),--observability)
+
+# --- Contratos TS/Python (FND-003). Fonte: packages/contracts/schemas e openapi; ver documentacoes/contratos/.
+# contracts-gen regenera tipos TS, cliente do SDK, modelos Pydantic e a copia dos schemas (exige make setup).
+# contracts-check NAO escreve nada: falha se algum gerado divergir da fonte (drift) ou se a mudanca de
+# schema quebrar a compatibilidade com packages/contracts/baseline (usado pelo job contracts-drift do CI).
+# contracts-baseline promove os schemas atuais a baseline: so apos liberar a versao.
+contracts: contracts-gen
+
+contracts-gen: check-env
+	$(PNPM) --filter @nucleos/contracts run gerar
+
+contracts-check: check-env
+	$(PNPM) --filter @nucleos/contracts run verificar-gerados
+	$(PNPM) --filter @nucleos/contracts run compat
+
+contracts-baseline:
+	node packages/contracts/scripts/compat.mjs --baseline

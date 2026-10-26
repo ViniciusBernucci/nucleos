@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "run_id": "a1b2c3d4-0000-4000-8000-123456789abc",
+  "agent_id": "3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+  "step_seq": 1,
+  "idempotency_key": "run-1:step-1",
+  "model_alias": "padrao",
+  "messages": [],
+  "max_output_tokens": 512,
+  "temperature": 0.2
+}

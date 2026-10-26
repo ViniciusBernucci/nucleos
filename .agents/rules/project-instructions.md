@@ -180,6 +180,10 @@ estas regras e as secoes anteriores deste arquivo.
   alvos (`make lint-ts`, `lint-py`, `lint`, `test-ts`, `test-py`, `build`) mais varreduras de
   seguranca; `make lint-workflows` e `make ci-regressao` validam o proprio CI localmente. A
   branch protection e manual (ver `documentacoes/engenharia/2026-10-26-fnd-005-ci-bloqueante.md`).
+  Contratos TS/Python (FND-003): `make contracts-gen` (alias `make contracts`) regenera tipos TS,
+  cliente do SDK, modelos Pydantic e a copia dos schemas a partir de `packages/contracts`;
+  `make contracts-check` falha em drift ou mudanca incompativel de schema (job `contracts-drift`
+  do CI); `make contracts-baseline` promove os schemas a baseline apos liberar a versao.
   Entrega somente de documentacao registra NA com justificativa.
 - **Dados:** nao ha banco nem servico de producao declarado. Nenhum teste ou script acessa
   banco ou servico real sem um ambiente isolado declarado nesta secao. Ambiente isolado de PoC

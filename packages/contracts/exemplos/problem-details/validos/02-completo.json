@@ -1,0 +1,15 @@
+{
+  "type": "https://nucleos.invalid/problemas/validacao",
+  "title": "Dados invalidos",
+  "status": 422,
+  "detail": "campo x invalido",
+  "instance": "/v1/agents/1",
+  "code": "validation_error",
+  "correlation_id": "corr-0123456789",
+  "errors": [
+    {
+      "pointer": "/x",
+      "detail": "obrigatorio"
+    }
+  ]
+}

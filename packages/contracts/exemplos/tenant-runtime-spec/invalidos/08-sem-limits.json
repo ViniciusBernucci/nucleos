@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "tenant_id": "3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+  "images": {
+    "runtime": "registry.example.invalid/nucleos/runtime@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "sidecar": "registry.example.invalid/nucleos/sidecar@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "resources": {
+    "cpu_millis": 1000,
+    "memory_mib": 1024,
+    "pids": 256,
+    "tmpfs_mib": 64
+  },
+  "network": {
+    "name": "tenant-net",
+    "subnet": "10.20.0.0/24"
+  },
+  "volumes": [
+    {
+      "name": "dados",
+      "mount_path": "/var/lib/tenant"
+    }
+  ],
+  "secrets": [
+    {
+      "name": "db-url",
+      "ref": "secretref:tenant/db-url"
+    }
+  ],
+  "modules": [
+    "rag",
+    "tools"
+  ],
+  "endpoints": [
+    {
+      "name": "dispatcher",
+      "url": "http://dispatcher.internal:8080/v1"
+    }
+  ]
+}

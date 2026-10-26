@@ -1,0 +1,47 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Nucleos Control Plane API",
+    "version": "1.0.0",
+    "description": "Contrato REST do Control Plane. Fonte de verdade do cliente de packages/sdk. Hoje cobre apenas o endpoint de saude; novos endpoints entram aqui junto com a implementacao (a geracao a partir do NestJS esta pendente, ver documentacao da entrega FND-003)."
+  },
+  "servers": [{ "url": "http://127.0.0.1:3000", "description": "Desenvolvimento local" }],
+  "paths": {
+    "/healthz": {
+      "get": {
+        "operationId": "getHealth",
+        "summary": "Saude do componente",
+        "responses": {
+          "200": {
+            "description": "Componente saudavel",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/HealthResponse" } }
+            }
+          },
+          "default": {
+            "description": "Erro",
+            "content": {
+              "application/problem+json": {
+                "schema": { "$ref": "#/components/schemas/ProblemDetails" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ProblemDetails": { "$ref": "../schemas/problem-details.schema.json" },
+      "HealthResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "service"],
+        "properties": {
+          "status": { "const": "ok" },
+          "service": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

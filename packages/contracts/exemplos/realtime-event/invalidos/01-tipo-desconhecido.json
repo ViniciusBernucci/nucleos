@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "event_id": "a1b2c3d4-0000-4000-8000-123456789abc",
+  "type": "run.exploded",
+  "occurred_at": "2026-10-26T12:00:00Z",
+  "tenant_id": "3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+  "subject": {
+    "kind": "run",
+    "id": "run_42"
+  },
+  "state": "running",
+  "data": {
+    "step": 3,
+    "final": false,
+    "label": "buscando"
+  }
+}

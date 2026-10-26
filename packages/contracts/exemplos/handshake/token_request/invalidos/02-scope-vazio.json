@@ -1,0 +1,5 @@
+{
+  "client_assertion": "aaa.bbb.ccc",
+  "audience": "ai-gateway",
+  "scope": []
+}

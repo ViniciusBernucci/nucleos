@@ -7,6 +7,7 @@ dependencies = []
 
 [dependency-groups]
 dev = [
+    "datamodel-code-generator==0.83.0",
     "import-linter==2.15",
     "mypy==2.4.0",
     "pytest==9.0.3",
@@ -18,17 +19,20 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["services/*", "packages/observability-py"]
+members = ["services/*", "packages/observability-py", "packages/contracts-py"]
 
 [tool.pytest.ini_options]
-testpaths = ["services", "packages/observability-py"]
+testpaths = ["services", "packages/observability-py", "packages/contracts-py"]
 addopts = "--import-mode=importlib"
 
 # --- Qualidade Python (ENT-FND-002) ---
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-extend-exclude = ["tools/qualidade/regressao"]
+extend-exclude = [
+  "tools/qualidade/regressao",
+  "packages/contracts-py/src/nucleos_contracts/models", # gerado por make contracts-gen
+]
 
 [tool.ruff.lint]
 # E/F pycodestyle+pyflakes, I imports, B bugbear, UP pyupgrade, S bandit (inclui eval/exec),
