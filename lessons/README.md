@@ -45,3 +45,4 @@ numerado quando uma entrega o exercitar):
 - [01 - Sessao opaca e revogacao](01%20-%20Sessao%20opaca%20e%20revogacao.md) (bloco 7, seguranca; entrega DEC-002, ADR-016 Proposto).
 - [02 - CI bloqueante e cadeia de suprimentos](02%20-%20CI%20bloqueante%20e%20cadeia%20de%20suprimentos.md) (blocos 7 e 8, seguranca e CI; entrega FND-005).
 - [03 - Isolamento de telemetria por tenant](03%20-%20Isolamento%20de%20telemetria%20por%20tenant.md) (bloco 7, seguranca; entrega DEC-010, ADR-024 Proposto). A lesson de redacao/logging de FND-009 segue pendente e entrara em posicao propria.
+- [07 - Fila duravel em PostgreSQL com lease](07%20-%20Fila%20duravel%20em%20PostgreSQL%20com%20lease.md) (bloco 5, PostgreSQL; entrega DEC-007, ADR-021 Proposto; numeracao provisoria).
