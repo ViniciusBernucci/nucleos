@@ -1,0 +1,7 @@
+# Configuracao do gitleaks (ENT-FND-002): regras padrao + allowlist minima.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Somente exemplos documentados sem valor real"
+paths = ['''(^|/)\.env\.example$''', '''pnpm-lock\.yaml$''', '''uv\.lock$''']

@@ -1,0 +1,17 @@
+✔ AC-1: cria, entrega, rotaciona e revoga segredo de tenant sem reiniciar outros tenants (7138.081871ms)
+✔ REVIEW-001: UID nunca e reutilizado (create/revoke/recreate) (3452.600878ms)
+✔ REVIEW-002: nomes de tenant fora da allowlist sao rejeitados antes de qualquer E/S (13203.027236ms)
+✔ AC-2: ausencia de segredo em env, inspect, logs, argv, saida do broker e conteudo dos volumes (8086.438552ms)
+✔ controle negativo: a mesma hits() detecta vazamento em cada canal (6229.13615ms)
+✔ backup da KEK: KDF parametrizado, frase curta rejeitada, parametros adulterados falham (9130.352262ms)
+✔ desastre completo: perde KEK e arquivos entregues, restaura e reentrega (6761.651002ms)
+✔ OBS-1: create/rotate/retire-previous com KEK errada falham fechado sem alterar o store (8687.860869ms)
+✔ OBS-1: redeliver-all e verify-store reportam por tenant e continuam nos demais (4204.243805ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 70502.006859

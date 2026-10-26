@@ -1,0 +1,6 @@
+[project]
+name = "dec-003-poc-python"
+version = "0.0.0"
+description = "PoC descartavel DEC-003: acesso Python (psycopg 3 async) ao banco do tenant."
+requires-python = ">=3.12"
+dependencies = ["psycopg[binary]==3.3.4"]

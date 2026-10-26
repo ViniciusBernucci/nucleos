@@ -1,0 +1,1 @@
+{"schema_version":"1.0","received_at":"2026-10-25T12:00:05Z","occurred_at":"2026-10-25T12:00:00Z","provider":"stripe","simulated":false,"provider_event_id":"e4","event_type":"payment.failed","subscription":{"provider_subscription_id":"s1"},"payment":{"amount_minor":100,"currency":"BRL"}}

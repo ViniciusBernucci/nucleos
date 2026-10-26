@@ -1,0 +1,14 @@
+{
+  "name": "poc-dec-004-identidade-de-servico",
+  "private": true,
+  "version": "0.0.0",
+  "description": "PoC DESCARTAVEL (ENT-DEC-004). Nao e parte do workspace pnpm nem de producao.",
+  "type": "module",
+  "engines": { "node": ">=24.22.1 <25" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "demo": "node demo.mjs",
+    "bench": "node bench.mjs"
+  },
+  "devDependencies": { "ajv": "8.17.1", "ajv-formats": "3.0.1" }
+}

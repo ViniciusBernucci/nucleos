@@ -1,0 +1,35 @@
+v24.22.1
+migrations: 0001_base.up.sql sha256=0ceae724240c | 0002_documento_vetor.up.sql sha256=c895c2c25748 | 0003_documento_busca_texto.up.sql sha256=62619bcc9a45
+
+[A1] lote sequencial com falha induzida no banco 12 (apos 0002, antes do COMMIT)
+  tempo=909ms ok=11 falhas=[{"database":"poc_tenant_12","error":"falha induzida em poc_tenant_12 apos 0002_documento_vetor.up.sql"}] nao_iniciados=8
+  versoes[0001,0002,0003] -> bancos 01 02 03 04 05 06 07 08 09 10 11
+  versoes[0001] -> bancos 12
+  versoes[-] -> bancos 13 14 15 16 17 18 19 20
+[A2] retomada: mesmo comando, sem falha
+  tempo=1247ms ok=20 falhas=0
+  banco 12 aplicou=[0002,0003] pulou=1; banco 11 aplicou=[] pulou=3
+  versoes[0001,0002,0003] -> bancos 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20
+[H1b] tokenizador (rodada 3: \r isolado em -- e tag de dollar-quote de 78/79/80/200 caracteres, fim a fim sem b1 e sem versao): 5 evasoes + aninhado + SET standard_conforming_strings rejeitados (unit e fim a fim, b1 ausente); construtos nao terminados rejeitados; defesa xact_start detecta COMMIT interno e nao registra versao
+[H1] COMMIT/BEGIN/ROLLBACK/SAVEPOINT/END/CONCURRENTLY/VACUUM rejeitados antes de executar; comentarios, literais e corpos $$ nao geram falso positivo
+[H2] erro SQL real no 2o statement: rollback total (b1 e b2 ausentes, nenhuma versao registrada); retomada com a migration corrigida aplicou 0001
+[H3] provision() rejeita nome fora da allowlist antes de qualquer SQL
+
+[B] reexecucao idempotente: tempo=677ms aplicadas=0
+[C] checksum divergente rejeitado (migration aplicada nao pode ser editada)
+[D] 2 runners concorrentes no mesmo banco: aplicadas runner1=[0001,0002,0003] runner2=[] total=3 linhas_schema_migrations=3 (610ms)
+[E] postgres=16.15 (Debian 16.15-1.pgdg12+2) pgvector=0.8.7
+  HNSW  plano: Limit  (cost=9.17..9.38 rows=2 width=40) |   ->  Index Scan using documento_embedding_hnsw_idx on documento  (cost=9.17..57.00 rows=450 width=40) |         Order By: (embedding <=> '[1,0,0]'::vector)
+  IVFFlat plano: Limit  (cost=7.53..9.55 rows=2 width=40) |   ->  Index Scan using tmp_ivf on documento  (cost=7.53..11.58 rows=4 width=40) |         Order By: (embedding <-> '[1,0,0]'::vector)
+  GIN/tsvector plano: Bitmap Heap Scan on documento  (cost=12.80..16.82 rows=1 width=32) |   Recheck Cond: (tsv @@ '''aluguel'''::tsquery) |   ->  Bitmap Index Scan on documento_tsv_gin_idx  (cost=0.00..12.80 rows=1 width=0) |         Index Cond: (tsv @@ '''aluguel'''::tsquery)
+  vizinhos(cosseno)=["Contrato de locacao","Locacao residencial"] busca_texto('aluguel')=["Contrato de locacao"]
+[F] snapshot de esquema gerado a partir do SQL: 20 colunas
+
+[G] medicao de tempo (20 bancos novos, 3 migrations cada)
+  concorrencia=1: total=1893ms por_banco_medio=85ms max=169ms falhas=0
+  concorrencia=4: total=800ms por_banco_medio=136ms max=229ms falhas=0
+
+PoC concluida: todas as asserções passaram.
+poc_tenant_02: versoes=['0001', '0002', '0003'] esquema==snapshot vetor=ok tsvector=ok identificador via sql.Identifier
+poc_tenant_07: versoes=['0001', '0002', '0003'] esquema==snapshot vetor=ok tsvector=ok identificador via sql.Identifier
+container destruido ao sair

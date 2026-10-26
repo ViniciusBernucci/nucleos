@@ -1,0 +1,24 @@
+# Hooks locais (ENT-FND-002). Hook NAO e controle de seguranca: os mesmos checks repetem no CI
+# (FND-005). Instalar com `make hooks`. Ignorar com LEFTHOOK=0 so em emergencia (registre no PR).
+pre-commit:
+  parallel: false
+  commands:
+    branch-name:
+      run: scripts/check-branch-name.sh
+    segredos:
+      run: scripts/check-secrets.sh --staged
+    prettier:
+      glob: "*.{ts,tsx,mjs,cjs,yml}"
+      exclude: 'tools/qualidade/regressao/|next-env\.d\.ts'
+      run: pnpm exec prettier --check --no-error-on-unmatched-pattern {staged_files}
+    eslint:
+      glob: "{apps,packages}/**/*.{ts,tsx}"
+      exclude: 'next-env\.d\.ts'
+      run: pnpm exec eslint --no-warn-ignored {staged_files}
+    ruff:
+      glob: "services/**/*.py"
+      run: uv run --frozen ruff check {staged_files} && uv run --frozen ruff format --check {staged_files}
+commit-msg:
+  commands:
+    mensagem:
+      run: node scripts/check-commit-msg.mjs {1}

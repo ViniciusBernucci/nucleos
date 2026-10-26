@@ -1,0 +1,72 @@
+# ADR-020 — Gestão de segredos do MVP
+
+- **Status:** Proposto (somente o usuário pode torná-lo Aceito)
+- **Data:** 2026-10-25
+- **Decisores:** usuário (pendente)
+- **Origem:** [ENT-DEC-006](../../backlog/EP-00-decisoes-pocs-e-threat-model/tickets.md#ent-dec-006); [ADR consolidado, seção 10](../../transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md)
+
+## Contexto
+
+O MVP roda em uma VPS com Docker Compose (ADR-010), runtime dedicado por tenant (ADR-002) e database por tenant (ADR-003). Há três classes de segredo: (a) da plataforma, (b) credenciais por tenant geradas pelo provisioner, (c) credenciais de integração fornecidas pelo cliente. Segredos não podem aparecer em `docker inspect`, variáveis de ambiente, logs nem imagens; a rotação e a revogação devem ser por tenant, sem reiniciar os demais. Orçamento de RAM e de operação é mínimo (sem HA no MVP).
+
+## Problema
+
+Qual mecanismo armazena, entrega, rotaciona e revoga esses segredos no MVP, e como a chave que protege tudo é recuperada após um desastre?
+
+## Decisão
+
+1. **Entrega por arquivo, nunca por ambiente.** Segredo de tenant é entregue como arquivo `0400` em volume `tmpfs` montado somente-leitura no container do tenant, usando apenas o subdiretório daquele tenant (`volume-subpath`). Política: variável de ambiente, `command`, argumento e `ENV`/`ARG` de imagem nunca carregam segredo (apenas caminhos `*_FILE`).
+2. **Hierarquia de chaves (criptografia envelope):**
+   - **Chave mestra (KEK)**: 32 bytes aleatórios, fora do banco e fora de qualquer imagem/repositório; existe em claro apenas no `tmpfs` (0400) do broker/provisioner e é injetada por stdin.
+   - **Identidade e nomes:** nome de tenant validado por allowlist `^[a-z0-9][a-z0-9-]{0,62}$` e por confirmação de que o diretório resolvido é filho direto da raiz de entrega, antes de qualquer E/S. UID de cada tenant vem de um contador `nextUid` persistido, **nunca reutilizado** (recriar um nome revogado gera UID novo); store sem o campo reinicia em `max(uid)+1`.
+   - **Chave de dados por tenant (DEK)**: AES-256-GCM (tag de 16 bytes fixada), gerada na criação do tenant, guardada somente embrulhada pela KEK (AAD = `dek:<tenant>`).
+   - **Segredo**: cifrado com a DEK (AAD = `secret:<tenant>:<versão>`); só o texto cifrado persiste (classe (c) e credenciais de (b)). Segredos da plataforma (a) em repositório usam SOPS+age (recomendação a validar no FND-006; não exercitado neste PoC).
+3. **Rotação com janela dupla:** a rotação grava `current` (nova versão) e mantém `previous`; o consumidor lê ambos; o broker aposenta `previous` ao fim da janela. Nenhum container é reiniciado.
+4. **Revogação por descarte da DEK embrulhada:** remove `wrappedDek` e os textos cifrados do tenant do store vivo e apaga os arquivos entregues; os demais tenants não são tocados. Isso só impede reentrega e descriptografia futuras a partir do store vivo. **Não é crypto-shredding verdadeiro:** o segredo só fica irrecuperável se **não existir cópia anterior do store** (backup, snapshot, blocos de disco/journal) enquanto a KEK existir, pois a KEK é única e permanente (shredding verdadeiro exigiria KEK por época com descarte, trabalho derivado de rotação da KEK). Backups do store precisam de retenção e tratamento definidos. A revogação também **não revoga a credencial no sistema de destino** nem apaga o que um container já carregou em memória; essa etapa é separada (manual/PRV).
+5. **Auditoria:** o broker grava um evento (sem valores) por criar/rotacionar/aposentar/revogar/backup/restauração. Leitura pelo tenant **não** é auditada (ver limitações).
+6. **Backup e recuperação da chave mestra:** a KEK é exportada embrulhada por `scrypt(frase)` + AES-256-GCM em um blob guardado **fora da VPS** (e separado da frase, que fica sob guarda de pessoas distintas/cofre pessoal). Procedimento de recuperação: (i) provisionar broker novo, (ii) restaurar o blob com a frase, (iii) rodar `verify-store`, (iv) rodar `redeliver-all` para reentregar os arquivos dos tenants a partir do store (coberto por teste de desastre completo). O blob grava `{N,r,p}` do scrypt (PoC: N=2^17, r=8, p=1), autentica versão e parâmetros na AAD e a frase tem mínimo de 16 caracteres (sem garantia de entropia; em produção avaliar argon2id ou frase gerada). `verify-store` retorna `{ok:false, reason}` (`kek-ausente`/`kek-invalida`/`tenants-com-falha`, esta com a lista `failed`) e código de saída 2. **Canário da KEK (OBS-1 do QA):** o store guarda `kekCanary`, um bloco fixo selado pela KEK; `create`, `rotate` e `retire-previous` o abrem antes de qualquer gravação e falham fechado (`kek invalida`, store, auditoria e arquivos intactos) se a KEK não o abre. Em store legado sem canário, valida-se abrindo a DEK do primeiro tenant ativo; o canário é gravado na próxima escrita bem-sucedida. `redeliver-all` aborta sem tocar em arquivos se a KEK é inválida e, com KEK válida, reentrega por tenant: falha isolada é reportada (`failed`, também na auditoria) e os demais continuam, com saída 2. `verify-store` também reporta por tenant. **Dependência humana:** a KEK vive em tmpfs; após reinício do host ela some e só volta com a frase do backup, logo a criação/rotação de segredos **não** é autônoma após reboot. No PoC o backup fica no mesmo volume do store apenas por conveniência; em produção fica fora da VPS. Perdida a KEK sem backup, todos os segredos cifrados são irrecuperáveis (aceito; o cliente reinforma as integrações). Rotação da KEK (re-embrulhar DEKs) é trabalho derivado. Ensaio de recuperação a cada release e após qualquer troca de custodiante.
+7. **Teste de CI:** o teste do PoC varre, com valores sentinela e uma única função de detecção, `docker inspect`, `env`, `/proc/1/environ`, argv de todos os processos (`/proc/*/cmdline`), `docker logs` (stdout+stderr), stdout/stderr de todas as chamadas ao broker, metadados e **conteúdo** dos volumes (com allowlist explícita dos arquivos entregues legitimamente) e `image inspect`; um controle negativo por canal prova que a mesma função detecta vazamento. Isolamento entre tenants é provado por leitura real de `/run/secrets/<outro>` falhando. Limites do scanner: não varre histórico/camadas de imagem nem outras codificações das sentinelas (adiado). O teste vira gate de CI no ambiente de teste (FND-005/FND-006).
+
+## Alternativas
+
+| Alternativa | Por que foi considerada | Por que não foi escolhida |
+| --- | --- | --- |
+| Docker/Compose secrets | Nativo; arquivos em `/run/secrets` ([doc Docker, consultada em 2026-10-25](https://docs.docker.com/compose/how-tos/use-secrets/): secrets montados como arquivos, entrega por bind mount de arquivo único em Linux) | Declarados estaticamente no Compose; não resolvem criação dinâmica por tenant sem reescrever/recarregar o compose, nem hierarquia de chaves, nem rotação com janela dupla. Pode ser o transporte de segredos da plataforma. |
+| SOPS+age | Segredos da plataforma versionados cifrados | Não é entrega dinâmica por tenant nem auditoria; fica restrito à classe (a). |
+| OpenBao/Vault | Vault real: segredos dinâmicos, leases, revogação em árvore, trilha de auditoria ([OpenBao, consultado em 2026-10-25](https://openbao.org/docs/what-is-openbao/)) | Custo de operação (unseal, HA, backup do storage) e RAM acima do orçamento do MVP; avaliado como destino de evolução, não descartado. |
+| Infisical | Gestão de segredos com UI | Não avaliado no PoC (sem fonte consultada); reavaliar no gatilho abaixo. |
+| Variáveis de ambiente | Simplicidade | Aparecem em `docker inspect`, `/proc/*/environ` e vazam em dumps; proibido. |
+
+## Benefícios
+
+Sem dependência de terceiros e sem serviço novo de peso; tenants isolados por montagem (um tenant não enxerga o diretório de outro); rotação e revogação por tenant sem reinício; segredos em repouso cifrados; ausência em `env`/`inspect`/logs provada por teste reproduzível.
+
+## Trade-offs
+
+- O broker é componente crítico caseiro (código de criptografia próprio, embora só use primitivas padrão do `node:crypto`): exige revisão de segurança independente antes de aceitar.
+- Chave mestra única; custódia humana do backup e da frase é ponto de falha, e há dependência humana após reinício do host (KEK em tmpfs).
+- Versão mínima do Docker para `volume-subpath` não verificada; o PoC rodou com Docker 29.8.1. Registrar a versão mínima antes de aceitar (pendência).
+
+## Consequências
+
+Limitações frente a um vault real (**sem equivalência**): sem auditoria de leitura pelo tenant; sem leases/TTL nem segredos dinâmicos; sem políticas/RBAC próprios, sem Shamir/seal-unseal, sem HSM; o segredo em claro existe no tmpfs (RAM do host) e é legível por root do host e por quem tem acesso ao socket Docker, e `docker exec` no tenant lê o arquivo; risco de swap fora do tmpfs/memória do processo não tratado; a KEK em claro reside no tmpfs do broker; sem HA do broker; sem rotação automatizada da KEK; PoC com um host e sem rede, sem teste de carga. Pendências adiadas da auditoria do review (registradas, não implementadas), com destino:
+
+- **Canário da KEK (OBS-1, limitação residual):** o canário detecta KEK trocada, mas não protege contra (i) store adulterado/restaurado de backup antigo cuja KEK correspondente já não é a atual, (ii) KEK errada que por acaso abra o canário (probabilidade desprezível com AES-GCM), (iii) tenant individualmente corrompido (DEK danificada): o `create`/`rotate` de OUTROS tenants continua permitido e a recuperação desse tenant é reentregar a partir de backup do store ou reinformar o segredo; (iv) em store legado sem canário, se a DEK do primeiro tenant ativo estiver corrompida, uma KEK correta é tratada como inválida (falha fechada, requer intervenção). O canário não substitui o ID/versão da KEK do formato de produção (FND-006).
+- **Persistência (REVIEW-005):** o PoC não tem lock, escrita atômica (temp+fsync+rename), entrega atômica nem auditoria write-ahead; queda no meio da escrita pode corromper o store (perda de DEKs) e o tenant pode ler arquivo ausente durante a rotação. O formato de produção em FND-006/PRV-004 deve ter todos. Retomada: antes de FND-006 consumir o desenho ou em qualquer teste de concorrência.
+- **Formato de produção (restante de REVIEW-008):** ID/versão da KEK no formato, autenticação da `version` do store, segredos binários/newline final, zerar chaves em memória, HMAC fixo do `tenant-app` (apenas PoC). Dependem da rotação da KEK; retomada na definição do formato final em FND-006.
+- **Auditoria (REVIEW-009):** `audit.log` é gravado com umask (0644) e sem integridade nem append-only; a auditoria de escrita é adulterável. Tratar em FND-006 (hash encadeado, destino externo).
+
+Trabalho derivado: FND-006 (formato final de configuração), PRV-004, TGW-004, DAT-009 consomem este desenho.
+
+## Quando revisar
+
+- Segundo host/VPS, HA ou exigência contratual/regulatória de auditoria de leitura de segredos.
+- Mais de ~100 tenants ou rotação automática exigida por integração.
+- Incidente de vazamento de segredo ou achado crítico na revisão do broker.
+- Orçamento de RAM/operação que comporte OpenBao.
+
+## Referências
+
+- Documento da entrega: [2026-10-25-dec-006-gestao-de-segredos.md](../../seguranca/2026-10-25-dec-006-gestao-de-segredos.md)
+- PoC e saída: [poc/dec-006](../poc/dec-006/README.md), [saida-execucao.txt](../poc/dec-006/saida-execucao.txt)
+- Relacionados: ADR-002, ADR-003, ADR-010, ADR-012, ADR-014

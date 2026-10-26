@@ -1,0 +1,35 @@
+
+> poc-dec-004-identidade-de-servico@0.0.0 test
+> node --test test/*.test.mjs
+
+✔ caminho feliz: enrollment, emissao e validacao local (14.929996ms)
+✔ enrollment: segredo de uso unico, expiravel e sem chave privada na mensagem (3.130973ms)
+✔ NEGATIVO: token expirado (alem da tolerancia de 30 s) (3.56076ms)
+✔ NEGATIVO: audiencia errada (token do gateway de IA nao vale no tool-gateway) (2.831981ms)
+✔ NEGATIVO: tenant adulterado no payload (assinatura nao confere) (3.203896ms)
+✔ NEGATIVO: token valido de A apresentado em contexto de B (SEC-07) (2.340112ms)
+✔ NEGATIVO: claims sub e tenant_id divergentes, assinados pela chave real (1.467298ms)
+✔ NEGATIVO: versao de credencial revogada; B nao e afetado (SEC-15) (5.913262ms)
+✔ NEGATIVO: replay de jti (dispatcher e uso unico; CP rejeita client_assertion repetida) (4.865431ms)
+✔ NEGATIVO: escopo nao permitido na emissao e ausente na validacao (3.103251ms)
+✔ NEGATIVO: forjados (alg none, HS256, chave propria, kid desconhecido, lixo) (6.646401ms)
+✔ NEGATIVO: TTL acima do maximo e iat no futuro (5.464925ms)
+✔ ROTACAO sem downtime com duas chaves (JWKS com kid) (13.107985ms)
+✔ ROTACAO: validador que ainda nao atualizou o JWKS faz refresh limitado por kid desconhecido (4.417464ms)
+✔ REVOGACAO DE EMERGENCIA da chave de assinatura: tokens da chave comprometida caem na hora (3.896603ms)
+✔ REVOGACAO pontual de jti (2.375394ms)
+✔ VALIDACAO LOCAL: nenhuma chamada de rede por requisicao (267.297316ms)
+✔ STALENESS: CP indisponivel - aceita dentro de max_staleness e rejeita fora (revocation_state_stale) (3.56494ms)
+✔ STALENESS: token revogado e nunca aceito sem refresh depois do limite (5.178983ms)
+✔ STALENESS: carimbo usa o relogio local no refresh bem-sucedido (nao o generated_at do CP) (0.715228ms)
+✔ REFRESH atomico: falha em fetchRevocation mantem o estado anterior e nao avanca o carimbo (7.40195ms)
+✔ REFRESH atomico: resposta de revogacao malformada (null, {}, min_ver:null) nao troca estado nem avanca carimbo (8.977463ms)
+✔ REFRESH atomico: JWKS malformado (null, {}, keys vazio, keys:null, 4 chaves) nao troca estado nem avanca carimbo (4.210785ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 23
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1329.471709

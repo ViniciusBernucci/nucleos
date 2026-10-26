@@ -1,0 +1,16 @@
+# Prettier cobre so codigo e configuracao (ts/tsx/mjs/json/yaml); Markdown e docs ficam fora.
+**/dist/
+**/.next/
+**/.turbo/
+**/node_modules/
+.run/
+**/next-env.d.ts
+pnpm-lock.yaml
+uv.lock
+tools/qualidade/regressao/
+skills/
+.claude/
+.agents/
+.agent/
+documentacoes/
+lessons/
