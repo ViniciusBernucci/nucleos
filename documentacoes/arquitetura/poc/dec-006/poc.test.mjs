@@ -319,3 +319,85 @@ test("desastre completo: perde KEK e arquivos entregues, restaura e reentrega", 
   // nada vazou na saida do broker durante backup/desastre/recuperacao
   assert.deepEqual(hits(brokerOut.join("\n")), [], "saida do broker");
 });
+
+test("OBS-1: create/rotate/retire-previous com KEK errada falham fechado sem alterar o store", () => {
+  const good = inBroker("base64 /run/mk/master.key").trim();
+  const state = () => inBroker("cat /var/broker/store.json; echo; cat /var/broker/audit.log; echo; find /tenants | sort");
+  assert.ok(storeJson().kekCanary, "canario da KEK gravado no store");
+  const putMk = (buf) => docker(["exec", "-i", N("broker"), "sh", "-c", "rm -f /run/mk/master.key; umask 277; cat > /run/mk/master.key"], buf);
+  const attempts = (label) => {
+    const before = state();
+    for (const [cmd, t] of [["create", "wrongkek-x"], ["rotate", "tenant-b"], ["retire-previous", "uid-c"], ["create", "tenant-b"]]) {
+      const r = brokerRaw([cmd, t], S.u);
+      assert.notEqual(r.status, 0, `${label}: ${cmd} ${t} deveria falhar`);
+      assert.ok(r.stderr.includes("kek invalida") || r.stderr.includes("tenant ja existe"), `${label}: ${cmd}: ${r.stderr.slice(0, 200)}`);
+    }
+    assert.equal(state(), before, `${label}: store, audit e /tenants intactos`);
+  };
+  try {
+    putMk(crypto.randomBytes(32)); // 32 bytes validos, mas diferentes
+    attempts("canario");
+    // store legado sem canario: valida pela DEK de um tenant ativo
+    const withCanary = inBroker("cat /var/broker/store.json");
+    putMk(Buffer.from(good, "base64"));
+    inBroker(`node -e "const fs=require('fs');const p='/var/broker/store.json';const s=JSON.parse(fs.readFileSync(p));delete s.kekCanary;fs.writeFileSync(p,JSON.stringify(s))"`);
+    putMk(crypto.randomBytes(32));
+    attempts("legado");
+    assert.equal(JSON.parse(inBroker("cat /var/broker/store.json")).kekCanary, undefined, "falha nao gravou canario");
+    // KEK de tamanho errado tambem falha fechado
+    putMk(crypto.randomBytes(16));
+    assert.ok(brokerRaw(["create", "wrongkek-y"], S.u).stderr.includes("kek invalida"));
+    // KEK correta: create volta a funcionar e regrava o canario
+    putMk(Buffer.from(good, "base64"));
+    broker(["create", "canary-ok"], S.u);
+    assert.ok(storeJson().kekCanary);
+    assert.ok(withCanary.includes("kekCanary"));
+  } finally {
+    putMk(Buffer.from(good, "base64"));
+  }
+  assert.equal(inBroker("base64 /run/mk/master.key").trim(), good);
+  assert.equal(hits(brokerOut.join("\n")).length, 0, "saida do broker sem segredo");
+});
+
+test("OBS-1: redeliver-all e verify-store reportam por tenant e continuam nos demais", () => {
+  const st = storeJson();
+  const original = JSON.stringify(st);
+  const active = Object.entries(st.tenants).filter(([, r]) => !r.revoked).map(([t]) => t);
+  assert.ok(active.includes("uid-b") && active.length >= 3);
+  const save = (o) => docker(["exec", "-i", N("broker"), "sh", "-c", "cat > /var/broker/store.json"], JSON.stringify(o));
+  try {
+    // corrompe a DEK embrulhada de um unico tenant (troca pela de outro: AAD nao confere)
+    const bad = structuredClone(st);
+    bad.tenants["uid-b"].wrappedDek = bad.tenants["uid-c"].wrappedDek;
+    save(bad);
+    inBroker("find /tenants -type f -delete");
+    const v = brokerRaw(["verify-store"]);
+    assert.equal(v.status, 2);
+    assert.deepEqual(JSON.parse(v.stdout), { ok: false, reason: "tenants-com-falha", checked: active.length - 1, failed: ["uid-b"] });
+    const r = brokerRaw(["redeliver-all"]);
+    assert.equal(r.status, 2);
+    assert.deepEqual(JSON.parse(r.stdout), { ok: false, reason: "tenants-com-falha", delivered: active.length - 1, failed: ["uid-b"] });
+    assert.equal(inBroker("cat /tenants/uid-c/current"), S.u2, "outros tenants foram entregues");
+    assert.equal(tenantCheck("tenant-b").current, hmac(S.b1), "tenant-b entregue");
+    assert.equal(inBroker("ls /tenants/uid-b 2>&1; true").includes("current"), false, "tenant corrompido nao recebe segredo");
+    const aud = inBroker("tail -n 1 /var/broker/audit.log");
+    assert.deepEqual(JSON.parse(aud).failed, ["uid-b"]);
+    // KEK errada: aborta antes de tocar em arquivos
+    const good = inBroker("base64 /run/mk/master.key").trim();
+    try {
+      docker(["exec", "-i", N("broker"), "sh", "-c", "rm -f /run/mk/master.key; umask 277; cat > /run/mk/master.key"], crypto.randomBytes(32));
+      inBroker("find /tenants -type f -delete");
+      const w = brokerRaw(["redeliver-all"]);
+      assert.equal(w.status, 2);
+      assert.deepEqual(JSON.parse(w.stdout), { ok: false, reason: "kek-invalida" });
+      assert.equal(inBroker("find /tenants -type f | wc -l").trim(), "0", "nada entregue com KEK errada");
+    } finally {
+      docker(["exec", "-i", N("broker"), "sh", "-c", "rm -f /run/mk/master.key; umask 277; cat > /run/mk/master.key"], Buffer.from(good, "base64"));
+    }
+  } finally {
+    docker(["exec", "-i", N("broker"), "sh", "-c", "cat > /var/broker/store.json"], original);
+  }
+  const ok = JSON.parse(broker(["redeliver-all"]));
+  assert.equal(ok.ok, true, "store restaurado volta a entregar tudo");
+  assert.equal(hits(brokerOut.join("\n")).length, 0);
+});

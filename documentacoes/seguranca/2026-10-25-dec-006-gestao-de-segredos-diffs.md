@@ -1097,3 +1097,214 @@ index ea4f427..4efae38 100644
 +  assert.deepEqual(hits(brokerOut.join("\n")), [], "saida do broker");
  });
 ```
+
+## Correção rodada 2 — patch incremental (de `9a500a4` à árvore após a correção; OBS-1 do QA)
+
+Somente `broker.mjs` e `poc.test.mjs`. ADR, delivery e `saida-execucao.txt` (escritas em `documentacoes/`) listados no documento principal e não repetidos.
+
+```diff
+diff --git a/documentacoes/arquitetura/poc/dec-006/broker.mjs b/documentacoes/arquitetura/poc/dec-006/broker.mjs
+index 441ebeb..3fcb1b3 100644
+--- a/documentacoes/arquitetura/poc/dec-006/broker.mjs
++++ b/documentacoes/arquitetura/poc/dec-006/broker.mjs
+@@ -83,6 +83,25 @@ function deliverRevoked(t, uid) {
+   fs.rmSync(path.join(tdir(t), "previous"), { force: true });
+   writeFile0400(path.join(tdir(t), "meta.json"), JSON.stringify({ revoked: true }), uid);
+ }
++// Canario da KEK: bloco fixo gravado no store, selado pela KEK. Permite detectar KEK errada ANTES de gravar.
++// Store legado (sem canario): valida abrindo a DEK de um tenant ativo; store vazio nao tem o que validar.
++const CANARY_AAD = "kek-canary:v1";
++function requireKek(st) {
++  if (!fs.existsSync(MK)) throw new Error("kek ausente");
++  const key = mk();
++  if (key.length !== 32) throw new Error("kek invalida (tamanho)");
++  try {
++    if (st.kekCanary) open(key, st.kekCanary, CANARY_AAD);
++    else {
++      const first = Object.entries(st.tenants).find(([, r]) => !r.revoked);
++      if (first) open(key, first[1].wrappedDek, `dek:${first[0]}`);
++    }
++  } catch {
++    throw new Error("kek invalida: nao abre o store existente (nada foi gravado)");
++  }
++  st.kekCanary ??= seal(key, crypto.randomBytes(16), CANARY_AAD); // gravado junto da proxima escrita
++  return key;
++}
+ const decrypt = (t, rec, which) => {
+   const dek = open(mk(), rec.wrappedDek, `dek:${t}`);
+   return open(dek, rec.secrets[which], `secret:${t}:${which === "current" ? rec.version : rec.version - 1}`).toString("utf8");
+@@ -111,6 +130,7 @@ const rec = Object.hasOwn(store.tenants, tenant) ? store.tenants[tenant] : undef
+ switch (cmd) {
+   case "create": {
+     if (rec && !rec.revoked) throw new Error("tenant ja existe");
++    requireKek(store); // falha fechado antes de qualquer gravacao
+     const dek = crypto.randomBytes(32);
+     const r = { uid: allocUid(store), version: 1, revoked: false, wrappedDek: seal(mk(), dek, `dek:${tenant}`), secrets: {} };
+     r.secrets.current = seal(dek, Buffer.from(readStdin()), `secret:${tenant}:1`);
+@@ -122,6 +142,7 @@ switch (cmd) {
+   }
+   case "rotate": {
+     if (!rec || rec.revoked) throw new Error("tenant inexistente/revogado");
++    requireKek(store);
+     const prev = decrypt(tenant, rec, "current");
+     const dek = open(mk(), rec.wrappedDek, `dek:${tenant}`);
+     const next = rec.version + 1;
+@@ -134,6 +155,7 @@ switch (cmd) {
+   }
+   case "retire-previous": {
+     if (!rec || rec.revoked) throw new Error("tenant inexistente/revogado");
++    requireKek(store);
+     delete rec.secrets.previous;
+     saveStore(store);
+     deliver(tenant, rec, { current: decrypt(tenant, rec, "current") });
+@@ -151,17 +173,27 @@ switch (cmd) {
+     break;
+   }
+   case "redeliver-all": {
+-    // recuperacao: reentrega todos os arquivos a partir do store (KEK ja restaurada)
++    // recuperacao: reentrega por tenant a partir do store (KEK ja restaurada). KEK errada aborta tudo antes
++    // de tocar em arquivos; falha isolada de um tenant e reportada e os demais continuam.
++    try { requireKek(store); } catch (e) {
++      console.log(JSON.stringify({ ok: false, reason: "kek-invalida" }));
++      process.exitCode = 2;
++      break;
++    }
+     let delivered = 0;
++    const failed = [];
+     for (const [t, r] of Object.entries(store.tenants)) {
+-      if (r.revoked) { deliverRevoked(t, r.uid); continue; }
+-      const files = { current: decrypt(t, r, "current") };
+-      if (r.secrets.previous) files.previous = decrypt(t, r, "previous");
+-      deliver(t, r, files);
+-      delivered += 1;
++      try {
++        if (r.revoked) { deliverRevoked(t, r.uid); continue; }
++        const files = { current: decrypt(t, r, "current") };
++        if (r.secrets.previous) files.previous = decrypt(t, r, "previous");
++        deliver(t, r, files);
++        delivered += 1;
++      } catch { failed.push(t); }
+     }
+-    audit("redeliver-all", "-", { tenants: delivered });
+-    console.log(JSON.stringify({ ok: true, delivered }));
++    audit("redeliver-all", "-", { tenants: delivered, failed });
++    console.log(JSON.stringify(failed.length ? { ok: false, reason: "tenants-com-falha", delivered, failed } : { ok: true, delivered }));
++    if (failed.length) process.exitCode = 2;
+     break;
+   }
+   case "backup-mk": {
+@@ -184,14 +216,20 @@ switch (cmd) {
+     break;
+   }
+   case "verify-store": {
+-    // prova que a KEK atual abre a DEK de cada tenant ativo (sem imprimir valores); {ok:false} + exit 2 se nao
++    // prova que a KEK atual abre o canario e a DEK de cada tenant ativo (sem imprimir valores); reporta por
++    // tenant e continua nos demais; {ok:false} + exit 2 se algo falha
+     const targets = Object.entries(store.tenants).filter(([t, r]) => !r.revoked && (!tenant || tenant === "-" || t === tenant));
+     let result;
+     if (tenant && tenant !== "-" && targets.length === 0) result = { ok: false, reason: "tenant-inexistente-ou-revogado" };
+     else if (!fs.existsSync(MK)) result = { ok: false, reason: "kek-ausente" };
+     else {
+-      try { for (const [t, r] of targets) decrypt(t, r, "current"); result = { ok: true, checked: targets.length }; }
+-      catch { result = { ok: false, reason: "kek-invalida" }; }
++      let kekOk = true;
++      try { requireKek({ ...store }); } catch { kekOk = false; }
++      const failed = [];
++      for (const [t, r] of targets) { try { decrypt(t, r, "current"); } catch { failed.push(t); } }
++      if (!kekOk || (targets.length > 0 && failed.length === targets.length && !store.kekCanary)) result = { ok: false, reason: "kek-invalida" };
++      else if (failed.length) result = { ok: false, reason: "tenants-com-falha", checked: targets.length - failed.length, failed };
++      else result = { ok: true, checked: targets.length };
+     }
+     console.log(JSON.stringify(result));
+     if (!result.ok) process.exitCode = 2;
+diff --git a/documentacoes/arquitetura/poc/dec-006/poc.test.mjs b/documentacoes/arquitetura/poc/dec-006/poc.test.mjs
+index 4efae38..16a83b2 100644
+--- a/documentacoes/arquitetura/poc/dec-006/poc.test.mjs
++++ b/documentacoes/arquitetura/poc/dec-006/poc.test.mjs
+@@ -319,3 +319,85 @@ test("desastre completo: perde KEK e arquivos entregues, restaura e reentrega",
+   // nada vazou na saida do broker durante backup/desastre/recuperacao
+   assert.deepEqual(hits(brokerOut.join("\n")), [], "saida do broker");
+ });
++
++test("OBS-1: create/rotate/retire-previous com KEK errada falham fechado sem alterar o store", () => {
++  const good = inBroker("base64 /run/mk/master.key").trim();
++  const state = () => inBroker("cat /var/broker/store.json; echo; cat /var/broker/audit.log; echo; find /tenants | sort");
++  assert.ok(storeJson().kekCanary, "canario da KEK gravado no store");
++  const putMk = (buf) => docker(["exec", "-i", N("broker"), "sh", "-c", "rm -f /run/mk/master.key; umask 277; cat > /run/mk/master.key"], buf);
++  const attempts = (label) => {
++    const before = state();
++    for (const [cmd, t] of [["create", "wrongkek-x"], ["rotate", "tenant-b"], ["retire-previous", "uid-c"], ["create", "tenant-b"]]) {
++      const r = brokerRaw([cmd, t], S.u);
++      assert.notEqual(r.status, 0, `${label}: ${cmd} ${t} deveria falhar`);
++      assert.ok(r.stderr.includes("kek invalida") || r.stderr.includes("tenant ja existe"), `${label}: ${cmd}: ${r.stderr.slice(0, 200)}`);
++    }
++    assert.equal(state(), before, `${label}: store, audit e /tenants intactos`);
++  };
++  try {
++    putMk(crypto.randomBytes(32)); // 32 bytes validos, mas diferentes
++    attempts("canario");
++    // store legado sem canario: valida pela DEK de um tenant ativo
++    const withCanary = inBroker("cat /var/broker/store.json");
++    putMk(Buffer.from(good, "base64"));
++    inBroker(`node -e "const fs=require('fs');const p='/var/broker/store.json';const s=JSON.parse(fs.readFileSync(p));delete s.kekCanary;fs.writeFileSync(p,JSON.stringify(s))"`);
++    putMk(crypto.randomBytes(32));
++    attempts("legado");
++    assert.equal(JSON.parse(inBroker("cat /var/broker/store.json")).kekCanary, undefined, "falha nao gravou canario");
++    // KEK de tamanho errado tambem falha fechado
++    putMk(crypto.randomBytes(16));
++    assert.ok(brokerRaw(["create", "wrongkek-y"], S.u).stderr.includes("kek invalida"));
++    // KEK correta: create volta a funcionar e regrava o canario
++    putMk(Buffer.from(good, "base64"));
++    broker(["create", "canary-ok"], S.u);
++    assert.ok(storeJson().kekCanary);
++    assert.ok(withCanary.includes("kekCanary"));
++  } finally {
++    putMk(Buffer.from(good, "base64"));
++  }
++  assert.equal(inBroker("base64 /run/mk/master.key").trim(), good);
++  assert.equal(hits(brokerOut.join("\n")).length, 0, "saida do broker sem segredo");
++});
++
++test("OBS-1: redeliver-all e verify-store reportam por tenant e continuam nos demais", () => {
++  const st = storeJson();
++  const original = JSON.stringify(st);
++  const active = Object.entries(st.tenants).filter(([, r]) => !r.revoked).map(([t]) => t);
++  assert.ok(active.includes("uid-b") && active.length >= 3);
++  const save = (o) => docker(["exec", "-i", N("broker"), "sh", "-c", "cat > /var/broker/store.json"], JSON.stringify(o));
++  try {
++    // corrompe a DEK embrulhada de um unico tenant (troca pela de outro: AAD nao confere)
++    const bad = structuredClone(st);
++    bad.tenants["uid-b"].wrappedDek = bad.tenants["uid-c"].wrappedDek;
++    save(bad);
++    inBroker("find /tenants -type f -delete");
++    const v = brokerRaw(["verify-store"]);
++    assert.equal(v.status, 2);
++    assert.deepEqual(JSON.parse(v.stdout), { ok: false, reason: "tenants-com-falha", checked: active.length - 1, failed: ["uid-b"] });
++    const r = brokerRaw(["redeliver-all"]);
++    assert.equal(r.status, 2);
++    assert.deepEqual(JSON.parse(r.stdout), { ok: false, reason: "tenants-com-falha", delivered: active.length - 1, failed: ["uid-b"] });
++    assert.equal(inBroker("cat /tenants/uid-c/current"), S.u2, "outros tenants foram entregues");
++    assert.equal(tenantCheck("tenant-b").current, hmac(S.b1), "tenant-b entregue");
++    assert.equal(inBroker("ls /tenants/uid-b 2>&1; true").includes("current"), false, "tenant corrompido nao recebe segredo");
++    const aud = inBroker("tail -n 1 /var/broker/audit.log");
++    assert.deepEqual(JSON.parse(aud).failed, ["uid-b"]);
++    // KEK errada: aborta antes de tocar em arquivos
++    const good = inBroker("base64 /run/mk/master.key").trim();
++    try {
++      docker(["exec", "-i", N("broker"), "sh", "-c", "rm -f /run/mk/master.key; umask 277; cat > /run/mk/master.key"], crypto.randomBytes(32));
++      inBroker("find /tenants -type f -delete");
++      const w = brokerRaw(["redeliver-all"]);
++      assert.equal(w.status, 2);
++      assert.deepEqual(JSON.parse(w.stdout), { ok: false, reason: "kek-invalida" });
++      assert.equal(inBroker("find /tenants -type f | wc -l").trim(), "0", "nada entregue com KEK errada");
++    } finally {
++      docker(["exec", "-i", N("broker"), "sh", "-c", "rm -f /run/mk/master.key; umask 277; cat > /run/mk/master.key"], Buffer.from(good, "base64"));
++    }
++  } finally {
++    docker(["exec", "-i", N("broker"), "sh", "-c", "cat > /var/broker/store.json"], original);
++  }
++  const ok = JSON.parse(broker(["redeliver-all"]));
++  assert.equal(ok.ok, true, "store restaurado volta a entregar tudo");
++  assert.equal(hits(brokerOut.join("\n")).length, 0);
++});
+```

@@ -83,6 +83,25 @@ function deliverRevoked(t, uid) {
   fs.rmSync(path.join(tdir(t), "previous"), { force: true });
   writeFile0400(path.join(tdir(t), "meta.json"), JSON.stringify({ revoked: true }), uid);
 }
+// Canario da KEK: bloco fixo gravado no store, selado pela KEK. Permite detectar KEK errada ANTES de gravar.
+// Store legado (sem canario): valida abrindo a DEK de um tenant ativo; store vazio nao tem o que validar.
+const CANARY_AAD = "kek-canary:v1";
+function requireKek(st) {
+  if (!fs.existsSync(MK)) throw new Error("kek ausente");
+  const key = mk();
+  if (key.length !== 32) throw new Error("kek invalida (tamanho)");
+  try {
+    if (st.kekCanary) open(key, st.kekCanary, CANARY_AAD);
+    else {
+      const first = Object.entries(st.tenants).find(([, r]) => !r.revoked);
+      if (first) open(key, first[1].wrappedDek, `dek:${first[0]}`);
+    }
+  } catch {
+    throw new Error("kek invalida: nao abre o store existente (nada foi gravado)");
+  }
+  st.kekCanary ??= seal(key, crypto.randomBytes(16), CANARY_AAD); // gravado junto da proxima escrita
+  return key;
+}
 const decrypt = (t, rec, which) => {
   const dek = open(mk(), rec.wrappedDek, `dek:${t}`);
   return open(dek, rec.secrets[which], `secret:${t}:${which === "current" ? rec.version : rec.version - 1}`).toString("utf8");
@@ -111,6 +130,7 @@ const rec = Object.hasOwn(store.tenants, tenant) ? store.tenants[tenant] : undef
 switch (cmd) {
   case "create": {
     if (rec && !rec.revoked) throw new Error("tenant ja existe");
+    requireKek(store); // falha fechado antes de qualquer gravacao
     const dek = crypto.randomBytes(32);
     const r = { uid: allocUid(store), version: 1, revoked: false, wrappedDek: seal(mk(), dek, `dek:${tenant}`), secrets: {} };
     r.secrets.current = seal(dek, Buffer.from(readStdin()), `secret:${tenant}:1`);
@@ -122,6 +142,7 @@ switch (cmd) {
   }
   case "rotate": {
     if (!rec || rec.revoked) throw new Error("tenant inexistente/revogado");
+    requireKek(store);
     const prev = decrypt(tenant, rec, "current");
     const dek = open(mk(), rec.wrappedDek, `dek:${tenant}`);
     const next = rec.version + 1;
@@ -134,6 +155,7 @@ switch (cmd) {
   }
   case "retire-previous": {
     if (!rec || rec.revoked) throw new Error("tenant inexistente/revogado");
+    requireKek(store);
     delete rec.secrets.previous;
     saveStore(store);
     deliver(tenant, rec, { current: decrypt(tenant, rec, "current") });
@@ -151,17 +173,27 @@ switch (cmd) {
     break;
   }
   case "redeliver-all": {
-    // recuperacao: reentrega todos os arquivos a partir do store (KEK ja restaurada)
-    let delivered = 0;
-    for (const [t, r] of Object.entries(store.tenants)) {
-      if (r.revoked) { deliverRevoked(t, r.uid); continue; }
-      const files = { current: decrypt(t, r, "current") };
-      if (r.secrets.previous) files.previous = decrypt(t, r, "previous");
-      deliver(t, r, files);
-      delivered += 1;
+    // recuperacao: reentrega por tenant a partir do store (KEK ja restaurada). KEK errada aborta tudo antes
+    // de tocar em arquivos; falha isolada de um tenant e reportada e os demais continuam.
+    try { requireKek(store); } catch (e) {
+      console.log(JSON.stringify({ ok: false, reason: "kek-invalida" }));
+      process.exitCode = 2;
+      break;
     }
-    audit("redeliver-all", "-", { tenants: delivered });
-    console.log(JSON.stringify({ ok: true, delivered }));
+    let delivered = 0;
+    const failed = [];
+    for (const [t, r] of Object.entries(store.tenants)) {
+      try {
+        if (r.revoked) { deliverRevoked(t, r.uid); continue; }
+        const files = { current: decrypt(t, r, "current") };
+        if (r.secrets.previous) files.previous = decrypt(t, r, "previous");
+        deliver(t, r, files);
+        delivered += 1;
+      } catch { failed.push(t); }
+    }
+    audit("redeliver-all", "-", { tenants: delivered, failed });
+    console.log(JSON.stringify(failed.length ? { ok: false, reason: "tenants-com-falha", delivered, failed } : { ok: true, delivered }));
+    if (failed.length) process.exitCode = 2;
     break;
   }
   case "backup-mk": {
@@ -184,14 +216,20 @@ switch (cmd) {
     break;
   }
   case "verify-store": {
-    // prova que a KEK atual abre a DEK de cada tenant ativo (sem imprimir valores); {ok:false} + exit 2 se nao
+    // prova que a KEK atual abre o canario e a DEK de cada tenant ativo (sem imprimir valores); reporta por
+    // tenant e continua nos demais; {ok:false} + exit 2 se algo falha
     const targets = Object.entries(store.tenants).filter(([t, r]) => !r.revoked && (!tenant || tenant === "-" || t === tenant));
     let result;
     if (tenant && tenant !== "-" && targets.length === 0) result = { ok: false, reason: "tenant-inexistente-ou-revogado" };
     else if (!fs.existsSync(MK)) result = { ok: false, reason: "kek-ausente" };
     else {
-      try { for (const [t, r] of targets) decrypt(t, r, "current"); result = { ok: true, checked: targets.length }; }
-      catch { result = { ok: false, reason: "kek-invalida" }; }
+      let kekOk = true;
+      try { requireKek({ ...store }); } catch { kekOk = false; }
+      const failed = [];
+      for (const [t, r] of targets) { try { decrypt(t, r, "current"); } catch { failed.push(t); } }
+      if (!kekOk || (targets.length > 0 && failed.length === targets.length && !store.kekCanary)) result = { ok: false, reason: "kek-invalida" };
+      else if (failed.length) result = { ok: false, reason: "tenants-com-falha", checked: targets.length - failed.length, failed };
+      else result = { ok: true, checked: targets.length };
     }
     console.log(JSON.stringify(result));
     if (!result.ok) process.exitCode = 2;

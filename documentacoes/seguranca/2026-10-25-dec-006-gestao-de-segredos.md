@@ -5,7 +5,7 @@ Data: 2026-10-25
 - **Domínio:** seguranca
 - **Solicitação:** [ENT-DEC-006](../backlog/EP-00-decisoes-pocs-e-threat-model/tickets.md#ent-dec-006) (lote 2026-10-25-ep00-ep01-fundacao)
 - **Branch:** `tarefa/dec-006`; **base/HEAD inicial:** `4be3ce391a51b9e24cd85f7c894d841636dcd50f`; árvore limpa no início
-- **Estado:** correção rodada 1 aplicada, pronto para nova revisão independente; ADR-020 **Proposto** (aceite é do usuário)
+- **Estado:** correção rodada 2 aplicada (OBS-1 do QA), pronto para nova validação independente; ADR-020 **Proposto** (aceite é do usuário)
 - **Autores:** executor de IA (Claude) sob demanda do usuário
 
 ## Objetivo, contexto, escopo
@@ -75,3 +75,20 @@ Validação real: `PATH=~/.local/opt/node-v24.22.1-linux-x64/bin:$PATH node --te
 Lessons: sem alteração; mesma justificativa da seção Lessons (trilha de segurança ainda inexistente; `lessons/README.md` pertence a LOC-001).
 
 Pendências: aceite humano do ADR; nova revisão independente; itens adiados acima.
+
+## Correção rodada 2 (2026-10-26)
+
+Origem: OBS-1 (MÉDIO) do [relatório de QA](../reviews/2026-10-25-qa-dec-006.md): `create` com KEK de 32 bytes válidos porém diferentes da KEK do store retornava sucesso e deixava o tenant irrecuperável; `verify-store`/`redeliver-all` falhavam para o store inteiro. Partida: HEAD `9a500a43d0c97bb1ace603be2cffd9ec619b4414`, árvore limpa. Um novo commit (sem amend), local, sem push/merge; SHA informado ao coordenador. ADR-020 continua **Proposto**. Diff incremental em [diffs](2026-10-25-dec-006-gestao-de-segredos-diffs.md).
+
+Aplicado em `broker.mjs`:
+- Canário da KEK (`kekCanary`, bloco aleatório selado pela KEK com AAD fixa) no store; `requireKek` roda em `create`, `rotate` e `retire-previous` antes de qualquer gravação e falha fechado com `kek invalida`. Store legado sem canário: valida pela DEK do primeiro tenant ativo; o canário é gravado na próxima escrita bem-sucedida. KEK ausente ou de tamanho diferente de 32 bytes também falha.
+- `redeliver-all`: KEK inválida aborta sem tocar em arquivos (`{ok:false,reason:"kek-invalida"}`, saída 2); com KEK válida segue por tenant e reporta `failed` (também no `audit.log`), saída 2 se houver falha.
+- `verify-store`: reporta `tenants-com-falha` com `checked` e `failed` em vez de falhar o store inteiro; `kek-invalida` quando o canário não abre.
+
+Testes novos em `poc.test.mjs` (9 no total): (a) KEK errada (32 bytes aleatórios) com canário e em store legado, e KEK de 16 bytes: `create`, `rotate`, `retire-previous` e `create` de tenant existente falham, e store, `audit.log` e árvore `/tenants` ficam idênticos; KEK correta volta a funcionar e regrava o canário; (b) DEK de um tenant corrompida: `verify-store` e `redeliver-all` reportam apenas esse tenant, entregam os demais (conteúdo verificado), auditoria registra `failed`; KEK errada em `redeliver-all` não entrega nada; store restaurado volta a entregar tudo.
+
+Validação real: `PATH=~/.local/opt/node-v24.22.1-linux-x64/bin:$PATH node --test documentacoes/arquitetura/poc/dec-006/poc.test.mjs`: 9 testes, 9 aprovados, 0 falhas, 70,5 s (saída em [saida-execucao.txt](../arquitetura/poc/dec-006/saida-execucao.txt)), aprovados já na primeira execução. Containers `--network none`, sentinelas sintéticas; ao final 0 containers e 0 volumes `dec006`. Lint/build do monorepo: NA (workspaces intactos).
+
+Limitação residual (registrada no ADR-020, Consequências): o canário detecta KEK trocada, não store adulterado ou restaurado de backup antigo, nem protege o tenant com DEK corrompida (só o isola e o reporta; recuperação por backup do store ou reinformando o segredo); em store legado, DEK corrompida do primeiro tenant ativo faz uma KEK correta ser tratada como inválida. ID/versão da KEK segue em FND-006.
+
+Lessons: sem alteração; mesma justificativa da seção Lessons. Pendências: aceite humano do ADR; nova validação independente; itens adiados anteriores.
