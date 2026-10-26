@@ -1,0 +1,49 @@
+# imagem: postgres:16-alpine ; postgres (PostgreSQL) 16.15
+== controle positivo/negativo do harness
+PASS  app lê runtime.messages
+PASS  senha errada é negada (harness detecta negação) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  password authentication fa]
+== app (runtime): escopo operacional
+PASS  app INSERT em runtime.executions
+PASS  app UPDATE em runtime.executions
+PASS  app DELETE em runtime.messages [negado: ERROR:  permission denied for table messages]
+PASS  app lê a listagem de documentos (view)
+PASS  app lê content.chunks [negado: ERROR:  permission denied for schema content]
+PASS  app lê content.documents [negado: ERROR:  permission denied for schema content]
+PASS  app lê audit.tool_invocations
+PASS  app INSERT em audit.tool_invocations [negado: ERROR:  permission denied for table tool_invocations]
+PASS  app CREATE TABLE no schema public [negado: ERROR:  permission denied for schema public]
+PASS  app SET ROLE owner [negado: ERROR:  permission denied to set role "ta_owner"]
+== tools (sidecar): escopo de ferramentas
+PASS  tools lê content.chunks
+PASS  tools escreve content.documents
+PASS  tools lê runtime.messages [negado: ERROR:  permission denied for schema runtime]
+PASS  tools lê runtime.conversations [negado: ERROR:  permission denied for schema runtime]
+PASS  tools INSERT em audit.tool_invocations
+PASS  tools lê audit.tool_invocations [negado: ERROR:  permission denied for table tool_invocations]
+PASS  tools UPDATE em audit (append-only) [negado: ERROR:  permission denied for table tool_invocations]
+PASS  tools DELETE em audit (append-only) [negado: ERROR:  permission denied for table tool_invocations]
+PASS  tools CREATE TABLE no schema content [negado: ERROR:  permission denied for schema content]
+== migrator: DDL somente via owner, sem login em outro tenant
+PASS  migrator SET ROLE owner + CREATE no schema runtime
+PASS  migrator sem SET ROLE não cria em runtime [negado: ERROR:  permission denied for schema runtime]
+== SEC-02 / SEC-03: fronteira entre bancos
+PASS  ta_app conecta ao banco tb (SEC-02) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_app conecta ao nucleos_control (SEC-03) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_app conecta ao banco postgres [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_app conecta ao template1 [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_tools conecta ao banco tb (SEC-02) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_tools conecta ao nucleos_control (SEC-03) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_tools conecta ao banco postgres [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_tools conecta ao template1 [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_migrator conecta ao banco tb (SEC-02) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_migrator conecta ao nucleos_control (SEC-03) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_migrator conecta ao banco postgres [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
+PASS  ta_migrator conecta ao template1 [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
+PASS  tb_app conecta ao banco ta [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
+PASS  nucleos_cp conecta ao banco ta (CP sem papel de leitura no tenant: rejeita opção 1-B) [negado: connection to server at "172.17.0.2", port 5432 failed: FATAL:  permission denied for data]
+PASS  CP conecta ao seu banco de controle
+== atributos dos papéis (nenhum privilegiado)
+PASS  nenhum papel de tenant tem superuser/createdb/createrole/replication/bypassrls/inherit
+INFO  membros (efetivo): ta_migrator->ta_owner,tb_migrator->tb_owner
+PASS  única associação: migrator->owner do próprio tenant (SET, sem INHERIT)
+== resumo: PASS=40 FAIL=0
