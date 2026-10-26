@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "event_id": "a1b2c3d4-0000-4000-8000-123456789abc",
+  "type": "run.progress",
+  "occurred_at": "2026-10-26T12:00:00Z",
+  "subject": {
+    "kind": "run",
+    "id": "run_42"
+  },
+  "state": "running",
+  "data": {
+    "step": 3,
+    "final": false,
+    "label": "buscando"
+  }
+}

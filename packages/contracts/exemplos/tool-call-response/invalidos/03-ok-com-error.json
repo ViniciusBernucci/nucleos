@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "status": "ok",
+  "result": {
+    "linhas": 3
+  },
+  "error": {
+    "code": "e",
+    "message": "m"
+  }
+}

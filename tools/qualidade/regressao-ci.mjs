@@ -101,7 +101,11 @@ try {
     rmSync(tmp, { recursive: true, force: true });
     mkdirSync(join(tmp, "packages"), { recursive: true });
     writeFileSync(join(tmp, "packages", "base.txt"), "x\n");
-    writeFileSync(join(tmp, "Makefile"), `contracts-check:\n\t${gerador}\n`);
+    // gerador === null: Makefile SEM o alvo contracts-check (gate nao pode ficar inativo em silencio).
+    writeFileSync(
+      join(tmp, "Makefile"),
+      gerador === null ? "outro:\n\ttrue\n" : `contracts-check:\n\t${gerador}\n`,
+    );
     sh(["init", "-q"]);
     sh(["add", "-A"]);
     sh(["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base"]);
@@ -116,6 +120,8 @@ try {
   deveFalhar("contracts-drift detecta arquivo novo", drift(), "drift");
   preparar("echo y > packages/base.txt");
   deveFalhar("contracts-drift detecta arquivo modificado", drift(), "drift");
+  preparar(null);
+  deveFalhar("contracts-drift falha quando o alvo contracts-check some", drift(), "ausente");
   preparar("true");
   deveSer("contracts-drift passa sem alteracao", drift().status === 0);
 } finally {

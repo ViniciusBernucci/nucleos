@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "status": "error",
+  "error": {
+    "code": "tool_failed",
+    "message": "falhou"
+  }
+}

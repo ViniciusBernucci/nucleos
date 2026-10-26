@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nucleos.invalid/contracts/problem-details.schema.json",
+  "x-schema-version": "1.0",
+  "title": "ProblemDetails - erro HTTP (RFC 9457)",
+  "description": "Corpo de erro da API (application/problem+json). Sem stack trace, SQL, segredos nem PII. additionalProperties=false: extensoes novas entram por versao do contrato.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "type",
+    "title",
+    "status"
+  ],
+  "properties": {
+    "type": {
+      "type": "string",
+      "maxLength": 2048,
+      "pattern": "^(about:blank|[A-Za-z][A-Za-z0-9+.-]*:[\\u0021-\\u007e]*|/[\\u0021-\\u007e]*)$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "status": {
+      "type": "integer",
+      "minimum": 400,
+      "maximum": 599
+    },
+    "detail": {
+      "type": "string",
+      "maxLength": 2048
+    },
+    "instance": {
+      "type": "string",
+      "maxLength": 2048,
+      "pattern": "^[\\u0021-\\u007e]+$"
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 8,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "errors": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "pointer",
+          "detail"
+        ],
+        "properties": {
+          "pointer": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
+      }
+    }
+  }
+}

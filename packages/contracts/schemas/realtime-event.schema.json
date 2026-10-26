@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nucleos.invalid/contracts/realtime-event.schema.json",
+  "x-schema-version": "1.0",
+  "title": "RealtimeEvent - evento de tempo real para a interface",
+  "description": "Payload minimo e sem conteudo privado (IDs, estados, rotulos); detalhes sao buscados por API autorizada (EP-05).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "type",
+    "occurred_at",
+    "tenant_id",
+    "subject"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "description": "Versao semantica do contrato (major.minor). Campo opcional novo = minor; remocao/mudanca = major."
+    },
+    "event_id": {
+      "$ref": "#/$defs/uuid"
+    },
+    "type": {
+      "enum": [
+        "agent.status_changed",
+        "run.started",
+        "run.progress",
+        "run.waiting_approval",
+        "run.completed",
+        "run.failed",
+        "approval.requested",
+        "approval.decided",
+        "tenant.state_changed",
+        "budget.threshold_reached"
+      ]
+    },
+    "occurred_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "tenant_id": {
+      "$ref": "#/$defs/uuid"
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "id"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "agent",
+            "run",
+            "approval",
+            "tenant",
+            "budget"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9_.:-]+$"
+        }
+      }
+    },
+    "state": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9_.-]*$"
+    },
+    "data": {
+      "type": "object",
+      "maxProperties": 16,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]{0,31}$"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string",
+            "maxLength": 128
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "description": "Apenas escalares curtos; nada de texto livre longo nem conteudo de usuario."
+    }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    }
+  }
+}

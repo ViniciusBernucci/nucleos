@@ -5,6 +5,7 @@
 **/node_modules/
 .run/
 **/next-env.d.ts
+**/generated/
 pnpm-lock.yaml
 uv.lock
 tools/qualidade/regressao/

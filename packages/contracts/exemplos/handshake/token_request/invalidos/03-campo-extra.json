@@ -1,0 +1,8 @@
+{
+  "client_assertion": "aaa.bbb.ccc",
+  "audience": "ai-gateway",
+  "scope": [
+    "ai:complete"
+  ],
+  "tenant_id": "3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15"
+}

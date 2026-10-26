@@ -1,0 +1,5 @@
+{
+  "access_token": "aaa.bbb.ccc",
+  "token_type": "Basic",
+  "expires_in": 300
+}

@@ -1,0 +1,7 @@
+{
+  "client_assertion": "aaa.bbb.ccc",
+  "audience": "admin",
+  "scope": [
+    "ai:complete"
+  ]
+}

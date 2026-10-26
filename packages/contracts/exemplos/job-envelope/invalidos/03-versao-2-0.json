@@ -1,0 +1,16 @@
+{
+  "schema_version": "2.0",
+  "job_id": "a1b2c3d4-0000-4000-8000-123456789abc",
+  "tenant_id": "3f2b8c1e-5a7d-4e90-9b61-0c4d2e8f7a15",
+  "type": "agent.run",
+  "idempotency_key": "run-0001:step-1",
+  "attempt": 1,
+  "issued_at": "2026-10-26T12:00:00Z",
+  "expires_at": "2026-10-26T12:05:00Z",
+  "correlation_id": "corr-0123456789",
+  "assignment_signature": {
+    "kid": "cp-key-1",
+    "alg": "EdDSA",
+    "value": "c2lnbmF0dXJlLWV4YW1wbGU"
+  }
+}

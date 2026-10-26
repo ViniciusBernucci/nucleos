@@ -52,3 +52,5 @@ A numeracao segue dependencia de aprendizagem: qualidade estatica (02) e Compose
 - [06 - Isolamento de telemetria por tenant](06%20-%20Isolamento%20de%20telemetria%20por%20tenant.md) (bloco 7, seguranca; entrega DEC-010, ADR-024 Proposto). Pre-requisitos: lessons 01, 03 e 05.
 - [07 - Papeis e privilegios minimos no PostgreSQL](07%20-%20Papeis%20e%20privilegios%20minimos%20no%20PostgreSQL.md) (blocos 5 e 7, PostgreSQL e seguranca; entrega DEC-013, ADR-025 Proposto).
 - [08 - Autorizacao de object storage e URLs assinadas](08%20-%20Autorizacao%20de%20object%20storage%20e%20URLs%20assinadas.md) (bloco 7, seguranca; entrega DEC-009, ADR-023 Proposto; numeracao provisoria, o coordenador reconcilia).
+- [09 - Contratos JSON Schema entre TypeScript e Python](09%20-%20Contratos%20JSON%20Schema%20entre%20TypeScript%20e%20Python.md) (blocos 1, 3 e 7; entrega FND-003; numeracao provisoria).
+- [10 - Drift e compatibilidade de contratos](10%20-%20Drift%20e%20compatibilidade%20de%20contratos.md) (bloco 8; entrega FND-003; numeracao provisoria).
