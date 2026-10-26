@@ -50,6 +50,8 @@ Ambiente: Docker 29.8.1, Compose v5.5.1, Python 3.13.17 (via `uv`), Node 24.22.1
 | `uv run --frozen ruff check` e `ruff format --check`, `mypy` no driver | OK |
 | `make setup && make lint` | rc 0 (inclui gitleaks "no leaks found" e regressao dos linters) |
 
+Ressalvas de escopo (rodada 1): a saida mostra apenas `retention_enabled`/`retention_period: 2w` (as regras por classe estao em `loki.yaml` e foram aceitas pelo boot, sem listagem na saida); a redacao foi exercitada para chaves sensiveis por nome e chave fora da allowlist (nao: valor sensivel em campo permitido, dict aninhado, excecao, headers/query, atributos de span); o bypass direto ao Loki com header forjado nao foi medido (premissa vem da documentacao).
+
 Nao executado: `make test`/`make build` (nenhum codigo de aplicacao alterado), CI (FND-005 inexistente neste ramo), coletor OTel, expiracao de retencao, carga em VPS real. Falhas intermediarias do desenvolvimento do PoC (1 verificacao de admin com teto de 5000 linhas; `du` ausente nas imagens) foram corrigidas no proprio PoC antes da execucao final.
 
 ## Impactos, riscos, compatibilidade e rollback
@@ -81,6 +83,17 @@ Ver a secao homonima do ADR (docs do Loki e Tempo; versoes pela API do Docker Hu
 - `690e1e029c10d17d113dee4c0e49dec8032272ba` - `feat(infra): PoC efemero de telemetria LGTM com isolamento por tenant (DEC-010)`: diff completo em [-diffs.md](2026-10-26-dec-010-telemetria-diffs.md) (7 arquivos, 597 insercoes).
 - Commit de documentacao e lessons: o proprio commit que contem este registro (SHA informado ao coordenador no retorno; um documento nao pode conter o proprio SHA). Seus arquivos sao os listados acima em "Documentacao/lessons" e nao entram em patch.
 
+## Correcao rodada 1 (review `939eaac`, auditoria `68e8e91` em `documentacoes/reviews/`)
+
+Aplicados REVIEW-001, 002, 003, 004, 006 e 007, somente em Markdown (ADR-024, este registro, lesson 03); PoC, `-diffs.md` e `-saida-poc.txt` inalterados.
+- 001: ADR, lesson e registro dizem que o bypass direto ao Loki nao foi medido; so o gateway sobrescrever o header foi medido.
+- 002: ADR registra que o PoC nao restringe escrita (classe `audit` e `tenant_id` do corpo controlados pelo tenant) e exige no gateway de producao: `class` por credencial, `tenant_id` validado, push negado ao admin, `audit` nao gravavel pelo tenant, controle negativo direto.
+- 003/004: frases de cobertura de redacao e de retencao limitadas ao que a saida mostra.
+- 006: ADR coerente (digest em producao/tags no PoC; porta do Grafana; Prometheus **[NAO VERIFICADO]** na decisao).
+- 007: lesson com Python 3.10+ (verificado em 3.10.12) e typo corrigido.
+- **Adiados (pendencias):** REVIEW-005 (contagem `accepted == 250` e mais traces amostrados no driver), REVIEW-008 (`|| true` na subida e limpeza de volumes no `run-poc.sh`), ajuste do `grep` de retencao e casos extras de redacao no driver; condicao: proxima alteracao do PoC ou OBS-001. Renumeracao da lesson 03 cabe ao coordenador na integracao.
+- Validacao: `make lint` (ver commit abaixo); exemplo da lesson reexecutado com `python3 -I`.
+
 ## Pendencias
 
-Nenhuma alem das decisoes humanas e das lacunas acima (expiracao de retencao nao provada, coletor OTel nao exercitado, medicao em carga real).
+Alem das decisoes humanas e das lacunas acima (expiracao de retencao nao provada, coletor OTel nao exercitado, medicao em carga real, bypass direto ao Loki nao medido): REVIEW-005 e REVIEW-008 e os ajustes do PoC listados na rodada 1, adiados.

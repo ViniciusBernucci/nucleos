@@ -1,7 +1,7 @@
 # 03 - Isolamento de telemetria por tenant
 
-Criada em 2026-10-26. Ultima atualizacao: 2026-10-26.
-Versoes dos exemplos: Node 24.22.1, TypeScript 5.9.3, Python 3.13.17 (o exemplo tambem roda em 3.9+).
+Criada em 2026-10-26. Ultima atualizacao: 2026-10-26 (rodada 1 de correcao).
+Versoes: Node 24.22.1, TypeScript 5.9.3, Python 3.13.17 declarado pelo repositorio; o exemplo exige Python 3.10+ e foi executado em 3.10.12.
 
 ## Objetivo, pre-requisitos e posicao na trilha
 
@@ -14,7 +14,7 @@ vizinho, ainda sem lesson publicada: nao e repetida aqui.
 ## Modelo mental
 
 Loki e Tempo separam dados pelo header `X-Scope-OrgID` (o "org id" e o tenant). O backend **confia**
-no header: quem o escreve decide de quem e o dado. Se o navegador ou um servico de tenant puder
+no header (premissa da documentacao do Loki/Tempo, **nao medida** no PoC): quem o escreve decide de quem e o dado. Se o navegador ou um servico de tenant puder
 escrever esse header, o isolamento acabou. Regra: um **gateway** confiavel deriva o tenant da
 credencial, **descarta** o header do cliente e escreve o valor verdadeiro. O backend nunca e
 publicado diretamente.
@@ -25,7 +25,8 @@ PoC do ENT-DEC-010 (ADR-024, **Proposto**): ver
 [o registro](../documentacoes/observabilidade/2026-10-26-dec-010-telemetria.md) e o
 [ADR-024](../documentacoes/arquitetura/adr/0024-stack-de-telemetria-e-politica-de-reducao-retencao.md).
 O gateway nginx do PoC mapeia token -> tenant e a prova mede que o tenant A, mesmo forjando
-`X-Scope-OrgID: tenant-b`, so enxerga o proprio dado.
+`X-Scope-OrgID: tenant-b` **no pedido ao gateway**, so enxerga o proprio dado. O acesso direto ao
+Loki com header forjado nao foi medido no PoC (fica para OBS-001).
 
 ## Exemplo minimo executavel (Python)
 
@@ -52,7 +53,7 @@ def headers_para_o_backend(headers: dict[str, str]) -> dict[str, str] | None:
     tenant = tenant_do_pedido(headers)
     if tenant is None:
         return None  # 401
-    # Descarta qualquer X-Scope-OrgID do cliente e o credencial; escreve o valor confiavel.
+    # Descarta qualquer X-Scope-OrgID do cliente e a credencial; escreve o valor confiavel.
     return {"X-Scope-OrgID": tenant}
 
 
@@ -63,7 +64,7 @@ assert headers_para_o_backend({"X-Scope-OrgID": "tenant-b"}) is None
 print("ok")
 ```
 
-Salve como `gateway.py` e rode `python3 gateway.py`; deve imprimir `ok`.
+Salve como `gateway.py` e rode `python3 gateway.py` (Python 3.10+); deve imprimir `ok`.
 
 ## Do minimo ao padrao do projeto
 
