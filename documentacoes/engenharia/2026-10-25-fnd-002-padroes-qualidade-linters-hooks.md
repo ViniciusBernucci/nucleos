@@ -80,3 +80,7 @@ nao exercita C#/.NET. `lessons/README.md` nao alterado.
 
 - `CLAUDE.md`, `AGENTS.md` e `.agents/rules/project-instructions.md` ainda dizem "Linters, hooks e CI ainda nao existem": atualizar na integracao (arquivos espelhados, evitado por contencao). Incluir `make lint`, `make hooks` e gitleaks como pre-requisito.
 - FND-005: rodar `make lint` no CI, `pnpm install --frozen-lockfile` e `uv lock --check`; avaliar `exclude-newer` do uv.
+
+## Atualizacao no fechamento do lote (2026-10-26)
+
+A justificativa de "sem lesson" desta entrega ficou desatualizada: a trilha de `lessons/` agora e de TypeScript, Python, Docker, PostgreSQL e seguranca (LOC-001) e ja tem lessons publicadas. Esta entrega exercita conceitos relevantes (ESLint type-aware, ruff, mypy strict e regras de arquitetura de imports (TypeScript/Python). Lesson candidata: `Qualidade estatica em TypeScript e Python`.) e, pela regra do `CLAUDE.md`, a lesson **ainda deve ser criada**: pendencia real registrada, nao criada neste fechamento.

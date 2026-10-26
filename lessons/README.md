@@ -27,8 +27,8 @@ TypeScript (NestJS e Next.js), Python, Docker/Compose, PostgreSQL e seguranca.
 
 ## Ordem pedagogica prevista
 
-Blocos planejados, ainda sem lessons publicadas (cada item vira um arquivo numerado quando
-uma entrega o exercitar):
+Blocos planejados (as lessons ja publicadas estao no indice abaixo; cada item vira um arquivo
+numerado quando uma entrega o exercitar):
 
 1. TypeScript: tipos, modulos e `strict`.
 2. Monorepo com `pnpm` workspaces.

@@ -176,3 +176,7 @@ Nao aplicavel nesta entrega (inclui a rodada 1): `lessons/README.md` (LOC-001, e
 
 - Extracao de `traceparent`/propagacao de trace em chamadas de saida; instrumentacao do `apps/web`.
 - `/readyz` sem dependencias reais ate existirem banco/fila; `JobEnvelope` oficial em FND-003; politica de labels por tenant em DEC-010; exemplars nao verificados.
+
+## Atualizacao no fechamento do lote (2026-10-26)
+
+A justificativa de "sem lesson" desta entrega ficou desatualizada: a trilha de `lessons/` agora e de TypeScript, Python, Docker, PostgreSQL e seguranca (LOC-001) e ja tem lessons publicadas. Esta entrega exercita conceitos relevantes (logging estruturado, redacao por allowlist, correlation id e OpenTelemetry. Lesson candidata: `Observabilidade e redacao de logs`.) e, pela regra do `CLAUDE.md`, a lesson **ainda deve ser criada**: pendencia real registrada, nao criada neste fechamento.

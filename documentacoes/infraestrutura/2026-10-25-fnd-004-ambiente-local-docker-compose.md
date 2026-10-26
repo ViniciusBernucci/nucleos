@@ -109,3 +109,7 @@ Nao aplicavel: a trilha `lessons/` e de C#/.NET e esta entrega e infraestrutura 
 - Decisao humana sobre o storage S3 local (imagem MinIO oficial descontinuada): DEC-009.
 - Medir AC-1 com cache frio de imagens e testar a partir de outra maquina da LAN.
 - Registrar comandos `make compose-*` em `CLAUDE.md` (coordenador/LOC-001).
+
+## Atualizacao no fechamento do lote (2026-10-26)
+
+A justificativa de "sem lesson" desta entrega ficou desatualizada: a trilha de `lessons/` agora e de TypeScript, Python, Docker, PostgreSQL e seguranca (LOC-001) e ja tem lessons publicadas. Esta entrega exercita conceitos relevantes (Docker Compose (healthchecks, perfis, redes, bind em 127.0.0.1). Lesson candidata: `Docker Compose para ambiente local` (bloco 4 da trilha).) e, pela regra do `CLAUDE.md`, a lesson **ainda deve ser criada**: pendencia real registrada, nao criada neste fechamento.
