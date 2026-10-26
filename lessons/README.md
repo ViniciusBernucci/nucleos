@@ -41,4 +41,4 @@ uma entrega o exercitar):
 
 ## Indice de lessons
 
-Nenhuma lesson publicada ainda.
+- [00 - Sessao opaca e revogacao](00%20-%20Sessao%20opaca%20e%20revogacao.md) (seguranca; ADR-016 Proposto).
