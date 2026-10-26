@@ -113,7 +113,7 @@ em runner limpo); `trivy image`/SBOM/`docker build` (sem Dockerfile); hadolint e
    - *Require a pull request before merging*, com **1 aprovacao** minima; *Dismiss stale approvals*; *Require review from Code Owners* (`CODEOWNERS` ja existe; os caminhos de seguranca
      `/services/tool-gateway/`, `/apps/tenant-provisioner/`, `/infrastructure/`, `/CODEOWNERS` exigem o dono listado; para **2 revisoes nesses caminhos** (ticket), cadastrar um segundo
      revisor/time em `CODEOWNERS` e usar um Ruleset com `required approvals = 2` — a regra classica nao diferencia por caminho; **decisao humana**, pois hoje ha um unico dono).
-   - *Require status checks to pass* + *Require branches to be up to date*; marcar como obrigatorios: `lint-ts`, `lint-py`, `make-lint`, `test-ts`, `test-py`, `build`, `contracts-drift`, `build-images`, `security`.
+   - *Require status checks to pass* + *Require branches to be up to date*; marcar como obrigatorios apenas os checks com cobertura real: `lint-ts`, `lint-py`, `make-lint`, `test-ts`, `test-py`, `build`, `security`. **NAO marcar `contracts-drift` nem `build-images`** por enquanto (passam com aviso sem proteger nada; ver rodada 1) ate FND-003 e o primeiro Dockerfile.
    - *Do not allow bypassing the above settings*; *Block force pushes* (sim); *Allow deletions* (nao); *Require linear history* (opcional); *Require signed commits* (opcional, decisao humana).
 4. **Provas AC-1 (3 PRs sinteticos, nao mergear, fechar ao final):** (a) adicionar um arquivo com token sintetico gerado na hora (nunca reutilize um valor real) -> `security` e `make-lint` falham;
    (b) copiar `tools/qualidade/regressao-ci/dependencias/package-lock.json` para a raiz de um workspace ou fixar `lodash@4.17.15` -> `security` falha; (c) inserir `any` explicito em `apps/api/src` -> `lint-ts`/`make-lint` falham.
@@ -124,7 +124,7 @@ em runner limpo); `trivy image`/SBOM/`docker build` (sem Dockerfile); hadolint e
 
 ## Impactos, riscos, compatibilidade, observabilidade e rollback
 
-- Impacto: merges em `main` passam a depender de 9 checks; runners `ubuntu-24.04` (minutos do GitHub). `make lint`/`make test` mantem comportamento.
+- Impacto: merges em `main` passam a depender de 7 checks obrigatorios (9 jobs existem; `contracts-drift` e `build-images` ficam fora ate terem cobertura real); runners `ubuntu-24.04` (minutos do GitHub). `make lint`/`make test` mantem comportamento.
 - Riscos: (1) gate `security` vermelho de partida (multer); (2) fixacao por SHA exige manutencao (ver pendencia, sem Dependabot por nao ser pedido); (3) `trivy`/`osv`/`pip-audit` dependem de bancos online —
   indisponibilidade falha fechado; (4) `make-lint` duplica trabalho de `lint-ts`/`lint-py` (aceito); (5) `pip-audit` via `uvx` nao tem hash das transitivas; (6) o CI nao foi exercitado no GitHub; `allowBuilds` do pnpm (FND-001) continua bloqueando scripts de instalacao.
 - Observabilidade: logs dos jobs, artefatos `pytest-junit`, `security-sarif`, `imagens-sbom-sarif`; avisos `::warning` explicitam gates inativos.
@@ -191,3 +191,17 @@ Origem: revalidacao `documentacoes/reviews/2026-10-26-revalidacao-fnd-005-r1.md`
 - **REV-001:** a rodada 1 declarou "11 novos" casos de `ci-regressao`; o numero correto e **9**: 3 fixtures de politica (`injecao-inputs`, `injecao-steps-outputs`, `segredo-indexado`), 2 de PATH ausente
   (`auditar-dependencias`, `check-licenses`), 3 de drift (arquivo novo, arquivo modificado, sem alteracao) e 1 de nomes de imagem. A ocorrencia unica do numero (secao "Validacoes da rodada 1") foi corrigida; nao ha outras.
 - **Nota (limitacao):** a guarda de PATH para `uv`, `uvx` e `osv-scanner` em `auditar-dependencias.sh` (e `uv` em `check-licenses.mjs`) nao tem teste proprio; os casos de regressao exercitam apenas a ausencia de `pnpm`, a primeira verificada.
+
+---
+
+## Rodada de correcao 3 (2026-10-26)
+
+Origem: QA `documentacoes/reviews/2026-10-26-qa-fnd-005.md` (`acc6b98`). Somente documentacao; nenhum codigo alterado.
+
+- **BUG-001 (medio):** o item 3 das instrucoes manuais listava os 9 jobs como obrigatorios, contradizendo a orientacao da rodada 1. Corrigido no proprio item 3: obrigatorios sao `lint-ts`, `lint-py`, `make-lint`, `test-ts`, `test-py`,
+  `build`, `security`; `contracts-drift` e `build-images` ficam explicitamente excluidos ate FND-003 e o primeiro Dockerfile. A frase de impacto ("9 checks") tambem foi ajustada. Nenhum outro README/doc do CI lista os 9 checks
+  (varredura em `*.md`/`*.yml`, exceto o proprio ticket, que e a especificacao). Observacao: o comentario de cabecalho de `.github/workflows/ci.yml` ainda diz "todos os jobs sao checks obrigatorios"; e codigo e nao foi alterado nesta rodada (pendencia de redacao).
+- **BUG-002 (baixo), decisao humana:** com um unico dono em `CODEOWNERS` (`@ViniciusBernucci`) que tambem e o autor dos PRs, o GitHub nao permite autoaprovacao, entao *Require review from Code Owners* com 1 aprovacao deixaria os PRs sem
+  como serem mergeados. Opcoes: (a) cadastrar um segundo dono/revisor (necessario tambem para as 2 revisoes em caminhos de seguranca) e manter 1+ aprovacao; (b) manter **0 aprovacoes obrigatorias** (e desmarcar *Require review from Code Owners*)
+  ate existir um segundo revisor, mantendo os checks obrigatorios e a proibicao de force-push. Escolha pendente do dono do repositorio; a politica do ticket (1 revisao) so e atendida na opcao (a).
+- **BUG-003:** permanece ADIADO (sem alteracao).
