@@ -99,7 +99,7 @@ Validações da rodada:
 | sem `ALTER DEFAULT PRIVILEGES` | `PASS=55 FAIL=1` (morto) |
 | sem `REVOKE CONNECT` em `postgres`/`template1` (bootstrap) | `PASS=48 FAIL=7` (morto) |
 
-Os IDs M8, M9, M12 e M13 do review correspondem aos quatro controles acima (mapeamento por controle; o review não nomeia cada linha). O clone do scratchpad foi removido. Contagens "40 verificações" nas seções 3 e 6 e na conferência acima descrevem a entrega original; a vigente é 56. Commit da rodada: `{sha}` (código/ADR); um segundo commit adiciona esta seção e o patch. Sem revalidação independente nesta sessão.
+Os IDs M8, M9, M12 e M13 do review correspondem aos quatro controles acima (mapeamento por controle; o review não nomeia cada linha). O clone do scratchpad foi removido. Contagens "40 verificações" nas seções 3 e 6 e na conferência acima descrevem a entrega original; a vigente é 56. Commit da rodada: `616ebb6` (código/ADR); um segundo commit adiciona esta seção e o patch. Sem revalidação independente nesta sessão.
 
 ## 11. Pendências
 
