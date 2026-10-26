@@ -26,4 +26,5 @@ Os ADR-001..015 foram importados do [documento consolidado de 2026-10-25](../../
 | ADR-018 | [Identidade de serviço: runtime, Control Plane e gateways](0018-identidade-de-servico-runtime-control-plane-gateways.md) (**Aceito** em 2026-10-26) |
 | ADR-020 | [Gestão de segredos do MVP](0020-gestao-de-segredos-do-mvp.md) (**Aceito** em 2026-10-26) |
 | ADR-024 | [Stack de telemetria e política de redação/retenção](0024-stack-de-telemetria-e-politica-de-reducao-retencao.md) (**Aceito** em 2026-10-26) |
+| ADR-025 | [Acesso da UI aos dados do tenant e posição do Tool Gateway](0025-acesso-da-ui-aos-dados-do-tenant-e-posicao-do-tool-gateway.md) (**Proposto** em 2026-10-26; aceite pendente, Q-08) |
 | ADR-026 | [Provedor de assinatura e contrato SubscriptionEvent](0026-provedor-de-assinatura-e-contrato-subscriptionevent.md) (**Aceito** em 2026-10-26) |
