@@ -1,0 +1,311 @@
+{
+ "descricao": "Tabela unica de casos (env => aceita/recusa) consumida por packages/config e packages/config-py (REVIEW-003)",
+ "casos": [
+  {
+   "caso": "vazio usa padroes",
+   "env": {},
+   "aceita": true
+  },
+  {
+   "caso": "porta minima",
+   "env": {
+    "PORT": "1"
+   },
+   "aceita": true
+  },
+  {
+   "caso": "porta maxima",
+   "env": {
+    "PORT": "65535"
+   },
+   "aceita": true
+  },
+  {
+   "caso": "porta comum",
+   "env": {
+    "PORT": "8080"
+   },
+   "aceita": true
+  },
+  {
+   "caso": "porta zero",
+   "env": {
+    "PORT": "0"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "porta acima do limite",
+   "env": {
+    "PORT": "65536"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "porta com espacos",
+   "env": {
+    "PORT": " 80 "
+   },
+   "aceita": false
+  },
+  {
+   "caso": "porta com sinal",
+   "env": {
+    "PORT": "+80"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "porta com underscore",
+   "env": {
+    "PORT": "1_000"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "porta decimal",
+   "env": {
+    "PORT": "80.0"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "porta texto",
+   "env": {
+    "PORT": "abc"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "duracao em segundos",
+   "env": {
+    "REQUEST_TIMEOUT": "30s"
+   },
+   "aceita": true
+  },
+  {
+   "caso": "duracao sem unidade",
+   "env": {
+    "REQUEST_TIMEOUT": "30"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "duracao abaixo do minimo",
+   "env": {
+    "REQUEST_TIMEOUT": "1ms"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "url postgres",
+   "env": {
+    "DATABASE_URL": "postgres://u@h:5432/db"
+   },
+   "aceita": true
+  },
+  {
+   "caso": "url postgresql",
+   "env": {
+    "DATABASE_URL": "postgresql://u@h/db"
+   },
+   "aceita": true
+  },
+  {
+   "caso": "url com sslmode",
+   "env": {
+    "DATABASE_URL": "postgres://u@h/db?sslmode=require"
+   },
+   "aceita": true
+  },
+  {
+   "caso": "url http",
+   "env": {
+    "DATABASE_URL": "http://h/db"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "url ftp",
+   "env": {
+    "DATABASE_URL": "ftp://h/x"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "url com senha",
+   "env": {
+    "DATABASE_URL": "postgres://u:p@h/db"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "url com password na query",
+   "env": {
+    "DATABASE_URL": "postgres://u@h/db?password=SENT"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "url com sslPassword na query",
+   "env": {
+    "DATABASE_URL": "postgres://u@h/db?sslPassword=SENT"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "url com passfile na query",
+   "env": {
+    "DATABASE_URL": "postgres://u@h/db?passfile=/x"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "url com token na query",
+   "env": {
+    "DATABASE_URL": "postgres://u@h/db?sslmode=require&token=SENT"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "url com apikey na query",
+   "env": {
+    "DATABASE_URL": "postgres://u@h/db?apikey=SENT"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "url invalida",
+   "env": {
+    "DATABASE_URL": "nao e url"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "APP_ENV desconhecido",
+   "env": {
+    "APP_ENV": "prod"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "staging sem banco",
+   "env": {
+    "APP_ENV": "staging"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "nome de segredo DB_PASS",
+   "env": {
+    "DB_PASS": "valor"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "nome de segredo SECRET_KEY",
+   "env": {
+    "SECRET_KEY": "valor"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "nome de segredo JWT_SECRET_KEY",
+   "env": {
+    "JWT_SECRET_KEY": "valor"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "nome de segredo AWS_SECRET_ACCESS_KEY",
+   "env": {
+    "AWS_SECRET_ACCESS_KEY": "valor"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "nome de segredo ACCESS_KEY",
+   "env": {
+    "ACCESS_KEY": "valor"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "nome de segredo API_TOKEN",
+   "env": {
+    "API_TOKEN": "valor"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "nome de segredo DB_PASSWORD",
+   "env": {
+    "DB_PASSWORD": "valor"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "nome de segredo STRIPE_SECRET",
+   "env": {
+    "STRIPE_SECRET": "valor"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "nome de segredo DB_DSN",
+   "env": {
+    "DB_DSN": "valor"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "nome de segredo DBPASSWORD",
+   "env": {
+    "DBPASSWORD": "valor"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "nome de segredo API_KEY",
+   "env": {
+    "API_KEY": "valor"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "nome de segredo X_PWD",
+   "env": {
+    "X_PWD": "valor"
+   },
+   "aceita": false
+  },
+  {
+   "caso": "nome legitimo SSH_KEY_PATH",
+   "env": {
+    "SSH_KEY_PATH": "x"
+   },
+   "aceita": true
+  },
+  {
+   "caso": "nome legitimo OTEL_SERVICE_NAME",
+   "env": {
+    "OTEL_SERVICE_NAME": "x"
+   },
+   "aceita": true
+  },
+  {
+   "caso": "nome legitimo KEYBOARD",
+   "env": {
+    "KEYBOARD": "x"
+   },
+   "aceita": true
+  },
+  {
+   "caso": "nome legitimo TOKENIZER_MODE",
+   "env": {
+    "TOKENIZER_MODE": "x"
+   },
+   "aceita": true
+  }
+ ]
+}

@@ -191,6 +191,11 @@ estas regras e as secoes anteriores deste arquivo.
   cliente do SDK, modelos Pydantic e a copia dos schemas a partir de `packages/contracts`;
   `make contracts-check` falha em drift ou mudanca incompativel de schema (job `contracts-drift`
   do CI); `make contracts-baseline` promove os schemas a baseline apos liberar a versao.
+  Configuracao e ambientes (FND-006): `make lint` inclui `make lint-deploy` (overlays de staging/prod
+  sem segredo literal, com digest e hardening); `make test-ambientes` (requer Docker e `make build`)
+  ensaia config invalida, deploy/rollback e ausencia de segredo em `docker inspect`/env/logs em
+  containers efemeros em `127.0.0.1`; ainda nao roda no CI. Nao ha ambiente de staging declarado:
+  deploy real fica BLOCKED (ver `documentacoes/runbooks/deploy-staging-producao.md`).
   Entrega somente de documentacao registra NA com justificativa.
 - **Dados:** nao ha banco nem servico de producao declarado. Nenhum teste ou script acessa
   banco ou servico real sem um ambiente isolado declarado nesta secao. Ambiente isolado de PoC

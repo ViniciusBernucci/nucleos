@@ -1,0 +1,20 @@
+# Overlay de STAGING (FND-006): espelho reduzido da producao, SOMENTE dados sinteticos.
+# Staging nunca recebe dados reais nem segredos de producao (arquivos de segredo proprios).
+# Uso: docker compose -f compose.deploy.yml -f compose.staging.yml up -d   (ver scripts/deploy.sh)
+name: nucleos-staging
+
+services:
+  api:
+    environment: {APP_ENV: staging}
+    labels: {"nucleos.ambiente": "staging"}
+    cpus: 0.5
+    mem_limit: 256m
+    memswap_limit: 256m
+    pids_limit: 128
+    ulimits: {nofile: {soft: 4096, hard: 4096}}
+  postgres:
+    labels: {"nucleos.ambiente": "staging"}
+    cpus: 0.5
+    mem_limit: 512m
+    memswap_limit: 512m
+    pids_limit: 200

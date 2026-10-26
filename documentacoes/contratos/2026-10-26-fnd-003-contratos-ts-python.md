@@ -111,3 +111,7 @@ Validacoes reexecutadas na rodada: `make contracts-baseline`, `make contracts-ge
 - Decisao humana: marcar `contracts-drift` como obrigatorio; contract-first vs gerar OpenAPI do NestJS; ownership dos schemas minimos novos.
 - Gerar OpenAPI do NestJS quando houver endpoints (EP-02).
 - `format:check` raiz nao cobre `packages/` (preexistente, fora do escopo).
+
+## Atualização na integração (2026-10-26)
+
+Ao integrar com a FND-006 (`packages/config-py` fixa `pydantic==2.14.1`), o pin de `packages/contracts-py` passou de `pydantic==2.13.5` para `pydantic==2.14.1`, porque o workspace `uv` exige uma única versão. `uv.lock` foi regenerado; `make contracts-check`, `make lint`, `make test` e `make build` passaram depois da mudança. O patch literal em `-diffs.md` descreve a entrega original (2.13.5).

@@ -4,7 +4,7 @@ version = "0.0.0"
 description = "Modelos Pydantic gerados dos JSON Schemas de packages/contracts e validacao de contratos (FND-003)"
 requires-python = ">=3.12"
 dependencies = [
-  "pydantic==2.13.5",
+  "pydantic==2.14.1",
   "jsonschema==4.26.0",
 ]
 

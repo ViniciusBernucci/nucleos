@@ -19,10 +19,10 @@ dev = [
 package = false
 
 [tool.uv.workspace]
-members = ["services/*", "packages/observability-py", "packages/contracts-py"]
+members = ["services/*", "packages/observability-py", "packages/contracts-py", "packages/config-py"]
 
 [tool.pytest.ini_options]
-testpaths = ["services", "packages/observability-py", "packages/contracts-py"]
+testpaths = ["services", "packages/observability-py", "packages/contracts-py", "packages/config-py"]
 addopts = "--import-mode=importlib"
 
 # --- Qualidade Python (ENT-FND-002) ---
@@ -51,8 +51,10 @@ mypy_path = [
   "services/tool-gateway/src",
   "services/event-dispatcher/src",
   "services/tenant-runtime/src",
+  "packages/config-py/src",
 ]
 files = [
+  "packages/config-py/src",
   "services/tool-gateway/src",
   "services/event-dispatcher/src",
   "services/tenant-runtime/src/tenant_runtime/policy",

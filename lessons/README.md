@@ -55,3 +55,5 @@ A numeracao segue dependencia de aprendizagem: qualidade estatica (02) e Compose
 - [09 - Contratos JSON Schema entre TypeScript e Python](09%20-%20Contratos%20JSON%20Schema%20entre%20TypeScript%20e%20Python.md) (blocos 1, 3 e 7; entrega FND-003; numeracao provisoria).
 - [10 - Drift e compatibilidade de contratos](10%20-%20Drift%20e%20compatibilidade%20de%20contratos.md) (bloco 8; entrega FND-003; numeracao provisoria).
 - [11 - Fila duravel em PostgreSQL com lease](11%20-%20Fila%20duravel%20em%20PostgreSQL%20com%20lease.md) (bloco 5, PostgreSQL; entrega DEC-007, ADR-021 Proposto; numeracao provisoria).
+- [12 - Configuracao tipada com falha rapida](12%20-%20Configuracao%20tipada%20com%20falha%20rapida.md) (bloco 7, seguranca; entrega FND-006; numeracao provisoria).
+- [13 - Segredos por arquivo e verificacao de vazamento](13%20-%20Segredos%20por%20arquivo%20e%20verificacao%20de%20vazamento.md) (blocos 4 e 7, Docker e seguranca; entrega FND-006; numeracao provisoria).

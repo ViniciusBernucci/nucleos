@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import type { ApiConfig } from "@nucleos/config";
 import {
   type Observability,
   createObservability,
@@ -9,12 +10,8 @@ import {
 /** `req.route` e preenchido pelo Express ao casar a rota (sem depender de @types/express). */
 type ExpressLike = IncomingMessage & { route?: { path?: string } };
 
-export function createApiObservability(): Observability {
-  const meta = {
-    service: "api",
-    version: process.env["APP_VERSION"] ?? "0.0.0",
-    env: process.env["APP_ENV"] ?? "local",
-  };
+export function createApiObservability(config: ApiConfig): Observability {
+  const meta = { service: "api", version: config.appVersion, env: config.appEnv };
   return createObservability(meta, telemetryConfigFromEnv(process.env, meta));
 }
 
