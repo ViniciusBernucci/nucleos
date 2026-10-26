@@ -24,6 +24,8 @@ x-app-node: &app-node
     redis: {condition: service_healthy}
     minio: {condition: service_healthy}
 
+# PYTHONPATH comum dos servicos Python (INT-001): fonte de nucleos_observability + site-packages do .venv do uv
+# (make setup), montado ro em /workspace. Evita pip ad hoc na imagem slim; mesmas versoes travadas em uv.lock.
 x-app-python: &app-python
   <<: *seguro
   image: python:3.13.17-slim-bookworm@sha256:e32be0e55814a08977501ca863271d9bd02443710db8f2afaf8372e2c4508530
@@ -194,7 +196,7 @@ services:
 
   tenant-runtime:
     <<: *app-python
-    environment: {HOST: 0.0.0.0, PORT: "8001", PYTHONPATH: /workspace/services/tenant-runtime/src, PYTHONDONTWRITEBYTECODE: "1"}
+    environment: {HOST: 0.0.0.0, PORT: "8001", PYTHONPATH: "/workspace/services/tenant-runtime/src:/workspace/packages/observability-py/src:/workspace/.venv/lib/python3.13/site-packages", PYTHONDONTWRITEBYTECODE: "1"}
     command: ["python", "-m", "tenant_runtime"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8001/healthz', timeout=3)"]
@@ -204,7 +206,7 @@ services:
 
   ai-gateway:
     <<: *app-python
-    environment: {HOST: 0.0.0.0, PORT: "8002", PYTHONPATH: /workspace/services/ai-gateway/src, PYTHONDONTWRITEBYTECODE: "1"}
+    environment: {HOST: 0.0.0.0, PORT: "8002", PYTHONPATH: "/workspace/services/ai-gateway/src:/workspace/packages/observability-py/src:/workspace/.venv/lib/python3.13/site-packages", PYTHONDONTWRITEBYTECODE: "1"}
     command: ["python", "-m", "ai_gateway"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8002/healthz', timeout=3)"]
@@ -214,7 +216,7 @@ services:
 
   tool-gateway:
     <<: *app-python
-    environment: {HOST: 0.0.0.0, PORT: "8003", PYTHONPATH: /workspace/services/tool-gateway/src, PYTHONDONTWRITEBYTECODE: "1"}
+    environment: {HOST: 0.0.0.0, PORT: "8003", PYTHONPATH: "/workspace/services/tool-gateway/src:/workspace/packages/observability-py/src:/workspace/.venv/lib/python3.13/site-packages", PYTHONDONTWRITEBYTECODE: "1"}
     command: ["python", "-m", "tool_gateway"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8003/healthz', timeout=3)"]
@@ -224,7 +226,7 @@ services:
 
   event-dispatcher:
     <<: *app-python
-    environment: {HOST: 0.0.0.0, PORT: "8004", PYTHONPATH: /workspace/services/event-dispatcher/src, PYTHONDONTWRITEBYTECODE: "1"}
+    environment: {HOST: 0.0.0.0, PORT: "8004", PYTHONPATH: "/workspace/services/event-dispatcher/src:/workspace/packages/observability-py/src:/workspace/.venv/lib/python3.13/site-packages", PYTHONDONTWRITEBYTECODE: "1"}
     command: ["python", "-m", "event_dispatcher"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8004/healthz', timeout=3)"]
