@@ -1,6 +1,6 @@
 # Trilha de lessons do Nucleos
 
-Criada em 2026-10-25. Ultima atualizacao: 2026-10-26 (lessons 02, 03 e 05 criadas; 04 e 06 renumeradas).
+Criada em 2026-10-25. Ultima atualizacao: 2026-10-30 (lesson 14 criada para LOC-WEB-001; lessons 02, 03 e 05 criadas anteriormente; 04 e 06 renumeradas).
 
 `lessons/` e uma trilha progressiva e didatica da stack do projeto, nao um changelog.
 A stack segue o [ADR de arquitetura do MVP](../documentacoes/transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md):
@@ -57,3 +57,4 @@ A numeracao segue dependencia de aprendizagem: qualidade estatica (02) e Compose
 - [11 - Fila duravel em PostgreSQL com lease](11%20-%20Fila%20duravel%20em%20PostgreSQL%20com%20lease.md) (bloco 5, PostgreSQL; entrega DEC-007, ADR-021 Proposto; numeracao provisoria).
 - [12 - Configuracao tipada com falha rapida](12%20-%20Configuracao%20tipada%20com%20falha%20rapida.md) (bloco 7, seguranca; entrega FND-006; numeracao provisoria).
 - [13 - Segredos por arquivo e verificacao de vazamento](13%20-%20Segredos%20por%20arquivo%20e%20verificacao%20de%20vazamento.md) (blocos 4 e 7, Docker e seguranca; entrega FND-006; numeracao provisoria).
+- [14 - Estado deterministico de UI e fronteira de mocks no Next.js](14%20-%20Estado%20deterministico%20de%20UI%20e%20fronteira%20de%20mocks%20no%20Next.js.md) (blocos 6 e 8, Next.js e testes; entrega LOC-WEB-001; numeracao provisoria).
