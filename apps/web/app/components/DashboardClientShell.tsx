@@ -3,12 +3,21 @@
 import { useState } from "react";
 import { deriveDashboardViewModel, listMockOrganizations } from "../../lib/mock-selectors.ts";
 import type { DemoStateVariant } from "../../lib/mock-types.ts";
+import { AgentChatAndSecurityPanel } from "./AgentChatAndSecurityPanel.tsx";
+import { AuthAndMultiOrgPanel } from "./AuthAndMultiOrgPanel.tsx";
 import { BuildingFloorMap } from "./BuildingFloorMap.tsx";
 import { OperationsPanels, type SimulatedApprovalDecision } from "./OperationsPanels.tsx";
+import { OrganizationGovernancePanel } from "./OrganizationGovernancePanel.tsx";
+import { PlatformBackofficePanel } from "./PlatformBackofficePanel.tsx";
 
-type NavigationSection = "overview" | "building" | "operations";
+export type NavigationSection =
+  "overview" | "building" | "operations" | "chat" | "governance" | "auth" | "platform";
 
-export function DashboardClientShell() {
+export interface DashboardClientShellProps {
+  readonly initialSection?: NavigationSection;
+}
+
+export function DashboardClientShell({ initialSection = "overview" }: DashboardClientShellProps) {
   const organizations = listMockOrganizations();
   const defaultOrgSlug = organizations[0]?.slug ?? "aurora-industrial";
 
@@ -16,7 +25,7 @@ export function DashboardClientShell() {
   const [variant, setVariant] = useState<DemoStateVariant>("ready");
   const [selectedFloorId, setSelectedFloorId] = useState<string | undefined>(undefined);
   const [agentQuery, setAgentQuery] = useState<string>("");
-  const [activeSection, setActiveSection] = useState<NavigationSection>("overview");
+  const [activeSection, setActiveSection] = useState<NavigationSection>(initialSection);
   const [decisions, setDecisions] = useState<readonly SimulatedApprovalDecision[]>([]);
 
   const viewModel = deriveDashboardViewModel({
@@ -54,7 +63,7 @@ export function DashboardClientShell() {
           <strong>MODO DEMONSTRAÇÃO (MOCK LOCAL)</strong> — {viewModel.demoBannerText}
         </div>
         <span className="demo-badge demo-badge--warn">
-          Sem rede · Sem autenticação real · LOC-WEB-001
+          Sem rede · Sem autenticação real · EP-10 Mockado
         </span>
       </aside>
 
@@ -63,7 +72,7 @@ export function DashboardClientShell() {
           <div className="brand-block">
             <span className="brand-title">NÚCLEOS ENTERPRISE</span>
             <span className="brand-subtitle">
-              Shell Multi-Organização &amp; Escritório de Agentes (Fixtures TypeScript)
+              Interface Web Completa com Dados Mockados (WEB-001..004, WEB-008, WEB-009)
             </span>
           </div>
 
@@ -117,7 +126,7 @@ export function DashboardClientShell() {
                 setActiveSection("overview");
               }}
             >
-              Visão Completa (Dashboard + Edifício)
+              Visão Completa
             </button>
           </li>
           <li>
@@ -129,7 +138,7 @@ export function DashboardClientShell() {
                 setActiveSection("building");
               }}
             >
-              Edifício &amp; Departamentos
+              Departamentos &amp; Agentes
             </button>
           </li>
           <li>
@@ -142,6 +151,54 @@ export function DashboardClientShell() {
               }}
             >
               Aprovações, Filas &amp; Orçamento
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className="nav-button"
+              aria-current={activeSection === "chat" ? "page" : undefined}
+              onClick={() => {
+                setActiveSection("chat");
+              }}
+            >
+              Chat Agentes &amp; XSS (WEB-004/008)
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className="nav-button"
+              aria-current={activeSection === "governance" ? "page" : undefined}
+              onClick={() => {
+                setActiveSection("governance");
+              }}
+            >
+              Governança &amp; CSV (WEB-003)
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className="nav-button"
+              aria-current={activeSection === "auth" ? "page" : undefined}
+              onClick={() => {
+                setActiveSection("auth");
+              }}
+            >
+              Login, MFA &amp; Multi-Org (WEB-001)
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className="nav-button"
+              aria-current={activeSection === "platform" ? "page" : undefined}
+              onClick={() => {
+                setActiveSection("platform");
+              }}
+            >
+              Backoffice /platform (WEB-009)
             </button>
           </li>
         </ul>
@@ -286,9 +343,9 @@ export function DashboardClientShell() {
               </h2>
               <div className="kpi-grid">
                 <div className="kpi-card">
-                  <span className="kpi-card__label">Andares / Departamentos</span>
+                  <span className="kpi-card__label">Departamentos Ativos</span>
                   <span className="kpi-card__value">{viewModel.metrics.totalFloors}</span>
-                  <span className="kpi-card__detail">Módulos contratados no edifício</span>
+                  <span className="kpi-card__detail">Módulos contratados na organização</span>
                 </div>
 
                 <div className="kpi-card">
@@ -321,7 +378,7 @@ export function DashboardClientShell() {
                   <span className="kpi-card__detail">
                     R$ {viewModel.metrics.totalBudget.spentBrl} / R${" "}
                     {viewModel.metrics.totalBudget.limitBrl} (
-                    {viewModel.metrics.budgetAlertFloorsCount} andar(es) em alerta)
+                    {viewModel.metrics.budgetAlertFloorsCount} depto(s) em alerta)
                   </span>
                 </div>
               </div>
@@ -355,16 +412,36 @@ export function DashboardClientShell() {
                 onDecideApproval={handleDecideApproval}
               />
             ) : null}
+
+            {activeSection === "overview" || activeSection === "chat" ? (
+              <AgentChatAndSecurityPanel />
+            ) : null}
+
+            {activeSection === "overview" || activeSection === "governance" ? (
+              <OrganizationGovernancePanel
+                orgSlug={viewModel.organization.slug}
+                activeRole={viewModel.organization.activeRole}
+                canMutateGovernance={viewModel.organization.canDecideApprovals}
+              />
+            ) : null}
+
+            {activeSection === "overview" || activeSection === "auth" ? (
+              <AuthAndMultiOrgPanel />
+            ) : null}
+
+            {activeSection === "overview" || activeSection === "platform" ? (
+              <PlatformBackofficePanel />
+            ) : null}
           </>
         ) : null}
       </main>
 
       <footer className="shell-footer">
-        <strong>NÚCLEOS Enterprise — Fundação Visual Mockada (LOC-WEB-001)</strong>
+        <strong>NÚCLEOS Enterprise — Interface Web Mockada (LOC-WEB-001 / EP-10 sem 3D)</strong>
         {" · "}Esta entrega utiliza exclusivamente fixtures TypeScript locais para validar
-        navegação, acessibilidade e hierarquia visual. Os tickets canônicos <code>WEB-001</code>,{" "}
-        <code>WEB-003</code> e <code>WEB-005</code> permanecem abertos aguardando integração com o
-        backend.
+        navegação, acessibilidade, fluxos de autenticação/multi-org, chat com sanitização XSS,
+        governança/CSV e backoffice. Os tickets canônicos do EP-10 permanecem abertos aguardando
+        integração com o backend; a cena 3D (<code>WEB-005..007</code>) fica para sessão futura.
       </footer>
     </div>
   );
