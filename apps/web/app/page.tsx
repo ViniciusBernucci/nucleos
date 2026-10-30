@@ -1,3 +1,5 @@
+import { DashboardClientShell } from "./components/DashboardClientShell.tsx";
+
 export default function Home() {
-  return <main>Nucleos Enterprise</main>;
+  return <DashboardClientShell />;
 }
