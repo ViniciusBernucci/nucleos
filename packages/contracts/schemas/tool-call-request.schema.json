@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nucleos.invalid/contracts/tool-call-request.schema.json",
+  "x-schema-version": "1.0",
+  "title": "ToolCallRequest - invocacao de ferramenta no Tool Gateway",
+  "description": "POST /v1/tools/{tool_name}/invoke. NAO existe campo de tenant: o tenant vem da identidade do sidecar/token (EP-07); additionalProperties=false rejeita qualquer tentativa de informa-lo.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "agent_id",
+    "step_seq",
+    "idempotency_key",
+    "arguments"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "description": "Versao semantica do contrato (major.minor). Campo opcional novo = minor; remocao/mudanca = major."
+    },
+    "run_id": {
+      "$ref": "#/$defs/uuid"
+    },
+    "agent_id": {
+      "$ref": "#/$defs/uuid"
+    },
+    "step_seq": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_.:-]+$"
+    },
+    "arguments": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    }
+  }
+}

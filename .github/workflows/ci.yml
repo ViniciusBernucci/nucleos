@@ -1,0 +1,198 @@
+# CI bloqueante (ENT-FND-005). Todos os jobs sao checks obrigatorios da branch protection de `main`
+# (ver documentacoes/engenharia/2026-10-26-fnd-005-ci-bloqueante.md). Sem segredos: somente o
+# GITHUB_TOKEN somente-leitura. Gatilho `pull_request` (nunca `pull_request_target`): PRs de forks
+# rodam sem segredos e sem token de escrita. Acoes de terceiros fixadas por SHA (consulta 2026-10-26).
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  FERRAMENTAS_BIN: ${{ github.workspace }}/.run/ferramentas
+  TURBO_TELEMETRY_DISABLED: "1"
+  DO_NOT_TRACK: "1"
+
+jobs:
+  lint-ts:
+    name: lint-ts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (consulta 2026-10-26)
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/preparar
+      - run: make lint-ts
+      - run: scripts/ci/instalar-ferramenta.sh actionlint
+      - name: Workflows (actionlint + politica)
+        run: make lint-workflows
+
+  lint-py:
+    name: lint-py
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (consulta 2026-10-26)
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/preparar
+      - run: make lint-py
+
+  # `make lint` completo (inclui gitleaks na arvore e o runner de regressao dos linters): garante que
+  # o alvo local e o CI nao divirjam.
+  make-lint:
+    name: make-lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (consulta 2026-10-26)
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/preparar
+      - run: scripts/ci/instalar-ferramenta.sh gitleaks
+      - run: make lint
+
+  test-ts:
+    name: test-ts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (consulta 2026-10-26)
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/preparar
+      - name: Servicos auxiliares (PostgreSQL+pgvector, Redis, MinIO; 127.0.0.1, senhas aleatorias)
+        run: scripts/ci/servicos-auxiliares.sh up
+      - run: make test-ts
+      - name: Remover servicos auxiliares
+        if: always()
+        run: scripts/ci/servicos-auxiliares.sh down
+
+  test-py:
+    name: test-py
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      PYTEST_ADDOPTS: --junitxml=.run/ci-artefatos/pytest-junit.xml
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (consulta 2026-10-26)
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/preparar
+      - name: Servicos auxiliares (PostgreSQL+pgvector, Redis, MinIO; 127.0.0.1, senhas aleatorias)
+        run: scripts/ci/servicos-auxiliares.sh up
+      - run: make test-py
+      - name: Remover servicos auxiliares
+        if: always()
+        run: scripts/ci/servicos-auxiliares.sh down
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 (consulta 2026-10-26)
+        if: always()
+        with:
+          name: pytest-junit
+          path: .run/ci-artefatos/pytest-junit.xml
+          if-no-files-found: warn
+
+  build:
+    name: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (consulta 2026-10-26)
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/preparar
+      - run: make build
+
+  contracts-drift:
+    name: contracts-drift
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (consulta 2026-10-26)
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/preparar
+      - run: scripts/ci/contracts-drift.sh
+
+  build-images:
+    name: build-images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (consulta 2026-10-26)
+        with:
+          persist-credentials: false
+      - run: scripts/ci/instalar-ferramenta.sh trivy
+      - run: scripts/ci/build-images.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 (consulta 2026-10-26)
+        if: always()
+        with:
+          name: imagens-sbom-sarif
+          path: .run/ci-artefatos/
+          if-no-files-found: ignore
+
+  security:
+    name: security
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 (consulta 2026-10-26)
+        with:
+          fetch-depth: 0 # historico completo para o gitleaks
+          persist-credentials: false
+      - uses: ./.github/actions/preparar
+      - run: scripts/ci/instalar-ferramenta.sh gitleaks osv-scanner trivy hadolint
+      - name: gitleaks (historico completo)
+        run: |
+          mkdir -p .run/ci-artefatos
+          gitleaks git --config .gitleaks.toml --redact --no-banner \
+            --report-format sarif --report-path .run/ci-artefatos/gitleaks.sarif .
+      - name: Dependencias vulneraveis (pnpm audit, osv-scanner, pip-audit)
+        run: scripts/ci/auditar-dependencias.sh
+      - name: trivy fs (vulnerabilidades, segredos, misconfiguracao)
+        run: |
+          trivy fs --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --ignore-unfixed \
+            --exit-code 1 --skip-dirs tools/qualidade --skip-dirs node_modules --skip-dirs .run \
+            --skip-dirs skills --skip-dirs .claude --skip-dirs .agents --skip-dirs .agent \
+            --format sarif --output .run/ci-artefatos/trivy-fs.sarif .
+      - name: hadolint (Dockerfiles versionados)
+        run: git ls-files -z '*Dockerfile' '*Dockerfile.*' '*.Dockerfile' | grep -zv '^tools/qualidade/' | xargs -0 -r hadolint
+      - name: Licencas proibidas
+        run: node scripts/ci/check-licenses.mjs
+      - name: Regressao dos gates (cada gate deve falhar na sua violacao)
+        run: make ci-regressao
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2 (consulta 2026-10-26)
+        if: always()
+        with:
+          name: security-sarif
+          path: .run/ci-artefatos/
+          if-no-files-found: ignore

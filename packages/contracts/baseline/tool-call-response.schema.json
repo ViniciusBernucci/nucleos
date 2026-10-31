@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nucleos.invalid/contracts/tool-call-response.schema.json",
+  "x-schema-version": "1.0",
+  "title": "ToolCallResponse - resultado da invocacao de ferramenta",
+  "description": "Resposta do Tool Gateway. status=ok exige result; status=error|denied exige error.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "description": "Versao semantica do contrato (major.minor). Campo opcional novo = minor; remocao/mudanca = major."
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "error",
+        "denied"
+      ]
+    },
+    "result": {
+      "description": "Qualquer JSON; presente somente quando status=ok."
+    },
+    "error": {
+      "$ref": "#/$defs/error"
+    }
+  },
+  "$defs": {
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "ok"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "result"
+        ],
+        "not": {
+          "required": [
+            "error"
+          ]
+        }
+      },
+      "else": {
+        "required": [
+          "error"
+        ],
+        "not": {
+          "required": [
+            "result"
+          ]
+        }
+      }
+    }
+  ]
+}

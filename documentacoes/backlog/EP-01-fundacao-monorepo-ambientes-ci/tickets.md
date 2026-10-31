@@ -114,6 +114,7 @@ Regras globais (DoR/DoD, legendas): [../README.md](../README.md).
 
 **Critérios de aceite**
 - [ ] `make up` deixa todos os serviços *healthy* em ≤ 3 min em máquina de desenvolvimento.
+  > Nota de replanejamento (2026-10-26): `make up` da ENT-FND-001 já sobe os componentes localmente; para este ticket a equivalência adotada é **AC-1 := `make compose-up`** (perfis `core`, `runtime`, `observability`). Ver [planejamento-ia](../../planejamento-ia/lote-2026-10-25-ep00-ep01-fundacao.md).
 - [ ] PostgreSQL/Redis/MinIO inacessíveis de outra máquina da LAN (teste de porta).
 - [ ] Nenhum segredo literal nos arquivos versionados (gitleaks verde).
 

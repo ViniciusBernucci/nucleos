@@ -1,0 +1,1144 @@
+v24.22.1
+# PoC DEC-007 2026-10-26T17:03:19.051Z node v24.22.1
+versoes: {"pg":"postgres (PostgreSQL) 16.15 (Debian 16.15-1.pgdg13+2)","redis":"Redis server v=8.8.3 sha=00000000:1 malloc=jemalloc-5.3.0 bits=64 build=175761cbd140d18f","temporal":"temporal version 1.9.1 (Server 1.32.0, UI 2.54.1)","img_pg":"postgres@sha256:9e2cf6287f25c3151f4c9421ccce2b17f3e60061c111a29165e0d2cdd9ff0a97","img_redis":"redis@sha256:dc95ea2fcf5d5c4253be0f967c28143d0f625846197eed2fd32c748eb99abfca","img_temporal":"temporalio/temporal@sha256:ad4c82c97bd12b417d1ea942610dbcd511afb250c4d5ed26c694009533df447e","deps":{"@temporalio/activity":"1.24.0","@temporalio/client":"1.24.0","@temporalio/worker":"1.24.0","@temporalio/workflow":"1.24.0","bullmq":"6.4.2","ioredis":"6.0.0","pg":"8.23.1"}}
+
+## A PostgreSQL lease
+[S1 kill -9 do worker no meio da tarefa][A PostgreSQL lease] PASS - efeitos=1 execucoes=2 recuperacao=8.1s (lease/heartbeat 5000ms)
+[S2 backend: restart gracioso][A PostgreSQL lease] PASS - efeitos=50/50 perdidas=0 execucoes=50
+[S2 backend: kill -9][A PostgreSQL lease] PASS - efeitos=50/50 perdidas=0 execucoes=50
+[S3 entrega duplicada (reenvio do produtor + crash apos efeito)][A PostgreSQL lease] PASS - 2o enqueue=duplicate; execucoes s3-1=1, s3-2=2 (>1 = redelivery at-least-once); efeitos distintos=2/2
+[S4 tarefa agendada (+4 s)][A PostgreSQL lease] PASS - inicio 4123 ms apos o enfileiramento (alvo 4000)
+[S5 limite 2 por tenant (3 worker(s), 6 slots)][A PostgreSQL lease] PASS - concorrencia maxima observada=2 (limite 2); 10 tarefas em 4.0s
+[S6 justica sob rajada do tenant A (120 tarefas) para B e C (6+6)][A PostgreSQL lease] PASS - espera B/C: p50=818 ms, max=1627 ms; espera A: p50=9715 ms, max=18295 ms
+[S7 reinicio do Dispatcher no meio de 100 tarefas][A PostgreSQL lease] PASS - produtor morto apos ~40 enfileiradas; apos reenvio: efeitos=100/100 execucoes=100 (0 reentregas at-least-once absorvidas pela idempotencia)
+[S8a produtor com relogio +6 s, tarefa agendada +8 s][A PostgreSQL lease] PASS - inicio 8173 ms apos o enfileiramento (alvo 8000)
+[S8b worker com relogio +2 min, tarefa agendada +3 s][A PostgreSQL lease] PASS - inicio 3063 ms apos o enfileiramento (alvo 3000); concluida=true
+[S9 aprovacao humana pendente sobrevive a reinicio (tempo comprimido: segundos, nao dias)][A PostgreSQL lease] PASS - execucoes antes da aprovacao=0; apos aprovar: efeitos=1 execucoes=1
+[S10 rollback da transacao de negocio apos enfileirar][A PostgreSQL lease] PASS - pedidos=0, tarefas orfas=0 (enfileiramento atomico com o negocio)
+[PERF] {"variant":"A PostgreSQL lease","ram_idle_backend_mb":33,"ram_idle_workers_mb":123,"ram_carga_backend_mb":36,"ram_carga_workers_mb":133,"lat_ocioso_p50_ms":116,"lat_ocioso_p95_ms":310,"lat_100pm_p50_ms":79,"lat_100pm_p95_ms":314,"lat_100pm_max_ms":713,"concluiu_100_em_s":59.8,"rajada_500":"500/500 em 10.3 s (49 tarefas/s)"}
+
+## B BullMQ (fila por tenant)
+[S1 kill -9 do worker no meio da tarefa][B BullMQ (fila por tenant)] PASS - efeitos=1 execucoes=2 recuperacao=8.0s (lease/heartbeat 5000ms)
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+[S2 backend: restart gracioso, sem AOF][B BullMQ (fila por tenant)] FAIL - efeitos=0/50 perdidas=50 execucoes=0
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: write ECONNRESET
+    at afterWriteDispatched (node:internal/stream_base_commons:138:10)
+    at writeGeneric (node:internal/stream_base_commons:126:10)
+    at Socket._writeGeneric (node:net:1324:11)
+    at Socket._write (node:net:1336:8)
+    at writeOrBuffer (node:internal/streams/writable:574:12)
+    at _write (node:internal/streams/writable:503:10)
+    at Writable.write (node:internal/streams/writable:512:10)
+    at EventEmitter.sendCommand (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/Redis.js:447:29)
+    at EventEmitter.client (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/utils/Commander.js:90:25)
+    at send (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/redis/event_handler.js:70:30) {
+  errno: -104,
+  code: 'ECONNRESET',
+  syscall: 'write'
+}
+Error: write ECONNRESET
+    at afterWriteDispatched (node:internal/stream_base_commons:138:10)
+    at writeGeneric (node:internal/stream_base_commons:126:10)
+    at Socket._writeGeneric (node:net:1324:11)
+    at Socket._write (node:net:1336:8)
+    at writeOrBuffer (node:internal/streams/writable:574:12)
+    at _write (node:internal/streams/writable:503:10)
+    at Writable.write (node:internal/streams/writable:512:10)
+    at EventEmitter.sendCommand (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/Redis.js:447:29)
+    at EventEmitter.client (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/utils/Commander.js:90:25)
+    at send (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/redis/event_handler.js:65:30) {
+  errno: -104,
+  code: 'ECONNRESET',
+  syscall: 'write'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:221:20) {
+  errno: -104,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: write EPIPE
+    at afterWriteDispatched (node:internal/stream_base_commons:138:10)
+    at writeGeneric (node:internal/stream_base_commons:126:10)
+    at Socket._writeGeneric (node:net:1324:11)
+    at Socket._write (node:net:1336:8)
+    at writeOrBuffer (node:internal/streams/writable:574:12)
+    at _write (node:internal/streams/writable:503:10)
+    at Writable.write (node:internal/streams/writable:512:10)
+    at EventEmitter.sendCommand (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/Redis.js:447:29)
+    at EventEmitter.client (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/utils/Commander.js:90:25)
+    at send (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/redis/event_handler.js:65:30) {
+  errno: -32,
+  code: 'EPIPE',
+  syscall: 'write'
+}
+[S2 backend: kill -9, sem AOF][B BullMQ (fila por tenant)] FAIL - efeitos=0/50 perdidas=50 execucoes=0
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:221:20) {
+  errno: -104,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: write EPIPE
+    at afterWriteDispatched (node:internal/stream_base_commons:138:10)
+    at writeGeneric (node:internal/stream_base_commons:126:10)
+    at Socket._writeGeneric (node:net:1324:11)
+    at Socket._write (node:net:1336:8)
+    at writeOrBuffer (node:internal/streams/writable:574:12)
+    at _write (node:internal/streams/writable:503:10)
+    at Writable.write (node:internal/streams/writable:512:10)
+    at EventEmitter.sendCommand (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/Redis.js:447:29)
+    at EventEmitter.client (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/utils/Commander.js:90:25)
+    at send (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/redis/event_handler.js:65:30) {
+  errno: -32,
+  code: 'EPIPE',
+  syscall: 'write'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:221:20) {
+  errno: -104,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:221:20) {
+  errno: -104,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: write EPIPE
+    at afterWriteDispatched (node:internal/stream_base_commons:138:10)
+    at writeGeneric (node:internal/stream_base_commons:126:10)
+    at Socket._writeGeneric (node:net:1324:11)
+    at Socket._write (node:net:1336:8)
+    at writeOrBuffer (node:internal/streams/writable:574:12)
+    at _write (node:internal/streams/writable:503:10)
+    at Writable.write (node:internal/streams/writable:512:10)
+    at EventEmitter.sendCommand (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/Redis.js:447:29)
+    at EventEmitter.client (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/utils/Commander.js:90:25)
+    at send (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/redis/event_handler.js:65:30) {
+  errno: -32,
+  code: 'EPIPE',
+  syscall: 'write'
+}
+Error: write EPIPE
+    at afterWriteDispatched (node:internal/stream_base_commons:138:10)
+    at writeGeneric (node:internal/stream_base_commons:126:10)
+    at Socket._writeGeneric (node:net:1324:11)
+    at Socket._write (node:net:1336:8)
+    at writeOrBuffer (node:internal/streams/writable:574:12)
+    at _write (node:internal/streams/writable:503:10)
+    at Writable.write (node:internal/streams/writable:512:10)
+    at EventEmitter.sendCommand (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/Redis.js:447:29)
+    at EventEmitter.client (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/utils/Commander.js:90:25)
+    at send (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/redis/event_handler.js:65:30) {
+  errno: -32,
+  code: 'EPIPE',
+  syscall: 'write'
+}
+[S2 backend: restart gracioso, AOF everysec][B BullMQ (fila por tenant)] PASS - efeitos=50/50 perdidas=0 execucoes=50
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: write EPIPE
+    at afterWriteDispatched (node:internal/stream_base_commons:138:10)
+    at writeGeneric (node:internal/stream_base_commons:126:10)
+    at Socket._writeGeneric (node:net:1324:11)
+    at Socket._write (node:net:1336:8)
+    at writeOrBuffer (node:internal/streams/writable:574:12)
+    at _write (node:internal/streams/writable:503:10)
+    at Writable.write (node:internal/streams/writable:512:10)
+    at EventEmitter.sendCommand (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/Redis.js:447:29)
+    at EventEmitter.client (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/utils/Commander.js:90:25)
+    at send (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/redis/event_handler.js:65:30) {
+  errno: -32,
+  code: 'EPIPE',
+  syscall: 'write'
+}
+Error: read ECONNRESET
+    at TCP.onStreamRead (node:internal/stream_base_commons:221:20) {
+  errno: -104,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+Error: write EPIPE
+    at afterWriteDispatched (node:internal/stream_base_commons:138:10)
+    at writeGeneric (node:internal/stream_base_commons:126:10)
+    at Socket._writeGeneric (node:net:1324:11)
+    at Socket._write (node:net:1336:8)
+    at writeOrBuffer (node:internal/streams/writable:574:12)
+    at _write (node:internal/streams/writable:503:10)
+    at Writable.write (node:internal/streams/writable:512:10)
+    at EventEmitter.sendCommand (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/Redis.js:447:29)
+    at EventEmitter.client (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/utils/Commander.js:90:25)
+    at send (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/redis/event_handler.js:65:30) {
+  errno: -32,
+  code: 'EPIPE',
+  syscall: 'write'
+}
+Error: write EPIPE
+    at afterWriteDispatched (node:internal/stream_base_commons:138:10)
+    at writeGeneric (node:internal/stream_base_commons:126:10)
+    at Socket._writeGeneric (node:net:1324:11)
+    at Socket._write (node:net:1336:8)
+    at writeOrBuffer (node:internal/streams/writable:574:12)
+    at _write (node:internal/streams/writable:503:10)
+    at Writable.write (node:internal/streams/writable:512:10)
+    at EventEmitter.sendCommand (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/Redis.js:447:29)
+    at EventEmitter.client (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/utils/Commander.js:90:25)
+    at send (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/redis/event_handler.js:65:30) {
+  errno: -32,
+  code: 'EPIPE',
+  syscall: 'write'
+}
+[S2 backend: kill -9, AOF everysec][B BullMQ (fila por tenant)] PASS - efeitos=50/50 perdidas=0 execucoes=50
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+[S2 backend: kill -9, AOF always][B BullMQ (fila por tenant)] PASS - efeitos=50/50 perdidas=0 execucoes=50
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: connect ECONNREFUSED 127.0.0.1:56379
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:2083:16) {
+  errno: -111,
+  code: 'ECONNREFUSED',
+  syscall: 'connect',
+  address: '127.0.0.1',
+  port: 56379
+}
+Error: write EPIPE
+    at afterWriteDispatched (node:internal/stream_base_commons:138:10)
+    at writeGeneric (node:internal/stream_base_commons:126:10)
+    at Socket._writeGeneric (node:net:1324:11)
+    at Socket._write (node:net:1336:8)
+    at writeOrBuffer (node:internal/streams/writable:574:12)
+    at _write (node:internal/streams/writable:503:10)
+    at Writable.write (node:internal/streams/writable:512:10)
+    at EventEmitter.sendCommand (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/Redis.js:447:29)
+    at EventEmitter.client (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/utils/Commander.js:90:25)
+    at send (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/redis/event_handler.js:65:30) {
+  errno: -32,
+  code: 'EPIPE',
+  syscall: 'write'
+}
+Error: write EPIPE
+    at afterWriteDispatched (node:internal/stream_base_commons:138:10)
+    at writeGeneric (node:internal/stream_base_commons:126:10)
+    at Socket._writeGeneric (node:net:1324:11)
+    at Socket._write (node:net:1336:8)
+    at writeOrBuffer (node:internal/streams/writable:574:12)
+    at _write (node:internal/streams/writable:503:10)
+    at Writable.write (node:internal/streams/writable:512:10)
+    at EventEmitter.sendCommand (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/Redis.js:447:29)
+    at EventEmitter.client (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/utils/Commander.js:90:25)
+    at send (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/redis/event_handler.js:65:30) {
+  errno: -32,
+  code: 'EPIPE',
+  syscall: 'write'
+}
+Error: write EPIPE
+    at afterWriteDispatched (node:internal/stream_base_commons:138:10)
+    at writeGeneric (node:internal/stream_base_commons:126:10)
+    at Socket._writeGeneric (node:net:1324:11)
+    at Socket._write (node:net:1336:8)
+    at writeOrBuffer (node:internal/streams/writable:574:12)
+    at _write (node:internal/streams/writable:503:10)
+    at Writable.write (node:internal/streams/writable:512:10)
+    at EventEmitter.sendCommand (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/Redis.js:447:29)
+    at EventEmitter.client (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/utils/Commander.js:90:25)
+    at send (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/redis/event_handler.js:65:30) {
+  errno: -32,
+  code: 'EPIPE',
+  syscall: 'write'
+}
+Error: write EPIPE
+    at afterWriteDispatched (node:internal/stream_base_commons:138:10)
+    at writeGeneric (node:internal/stream_base_commons:126:10)
+    at Socket._writeGeneric (node:net:1324:11)
+    at Socket._write (node:net:1336:8)
+    at writeOrBuffer (node:internal/streams/writable:574:12)
+    at _write (node:internal/streams/writable:503:10)
+    at Writable.write (node:internal/streams/writable:512:10)
+    at EventEmitter.sendCommand (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/Redis.js:447:29)
+    at EventEmitter.client (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/utils/Commander.js:90:25)
+    at send (/home/vinicius/nucleos-worktrees/tarefa/dec-007/documentacoes/arquitetura/poc/dec-007/node_modules/ioredis/built/redis/event_handler.js:65:30) {
+  errno: -32,
+  code: 'EPIPE',
+  syscall: 'write'
+}
+[S3 entrega duplicada (reenvio do produtor + crash apos efeito)][B BullMQ (fila por tenant)] PASS - 2o enqueue=duplicate; execucoes s3-1=2, s3-2=2 (>1 = redelivery at-least-once); efeitos distintos=2/2
+[S4 tarefa agendada (+4 s)][B BullMQ (fila por tenant)] PASS - inicio 4176 ms apos o enfileiramento (alvo 4000)
+[S5 limite 2 por tenant (3 worker(s), 6 slots)][B BullMQ (fila por tenant)] PASS - concorrencia maxima observada=2 (limite 2); 10 tarefas em 3.5s
+[S6 justica sob rajada do tenant A (120 tarefas) para B e C (6+6)][B BullMQ (fila por tenant)] PASS - espera B/C: p50=307 ms, max=561 ms; espera A: p50=10375 ms, max=19125 ms
+[S7 reinicio do Dispatcher no meio de 100 tarefas][B BullMQ (fila por tenant)] PASS - produtor morto apos ~41 enfileiradas; apos reenvio: efeitos=100/100 execucoes=100 (0 reentregas at-least-once absorvidas pela idempotencia)
+[S8a produtor com relogio +6 s, tarefa agendada +8 s][B BullMQ (fila por tenant)] FAIL - inicio 14227 ms apos o enfileiramento (alvo 8000)
+[S8b worker com relogio +2 min, tarefa agendada +3 s][B BullMQ (fila por tenant)] FAIL - inicio 71 ms apos o enfileiramento (alvo 3000); concluida=true
+[S9 aprovacao humana pendente sobrevive a reinicio (tempo comprimido: segundos, nao dias)][B BullMQ (fila por tenant)] PASS - execucoes antes da aprovacao=0; apos aprovar: efeitos=1 execucoes=1
+[S10 rollback da transacao de negocio apos enfileirar][B BullMQ (fila por tenant)] FAIL - pedidos=0, tarefas orfas=1 (escrita dupla: exige outbox/reconciliacao)
+[PERF] {"variant":"B BullMQ (fila por tenant)","ram_idle_backend_mb":7,"ram_idle_workers_mb":169,"ram_carga_backend_mb":7,"ram_carga_workers_mb":174,"lat_ocioso_p50_ms":30,"lat_ocioso_p95_ms":91,"lat_100pm_p50_ms":25,"lat_100pm_p95_ms":148,"lat_100pm_max_ms":277,"concluiu_100_em_s":59.7,"rajada_500":"500/500 em 3.3 s (150 tarefas/s)"}
+
+## B2 BullMQ (fila unica)
+[S5 limite 2 por tenant (3 worker(s), 6 slots)][B2 BullMQ (fila unica)] FAIL - concorrencia maxima observada=6 (limite 2); 10 tarefas em 1.4s
+[S6 justica sob rajada do tenant A (120 tarefas) para B e C (6+6)][B2 BullMQ (fila unica)] FAIL - espera B/C: p50=8977 ms, max=9275 ms; espera A: p50=4505 ms, max=8508 ms
+
+## C Temporal
+[S1 kill -9 do worker no meio da tarefa][C Temporal] PASS - efeitos=1 execucoes=2 recuperacao=9.5s (lease/heartbeat 5000ms)
+[S2 backend: restart gracioso][C Temporal] PASS - efeitos=50/50 perdidas=0 execucoes=50
+[S2 backend: kill -9][C Temporal] PASS - efeitos=50/50 perdidas=0 execucoes=50
+[S3 entrega duplicada (reenvio do produtor + crash apos efeito)][C Temporal] PASS - 2o enqueue=duplicate; execucoes s3-1=2, s3-2=2 (>1 = redelivery at-least-once); efeitos distintos=2/2
+[S4 tarefa agendada (+4 s)][C Temporal] PASS - inicio 4778 ms apos o enfileiramento (alvo 4000)
+[S5 limite 2 por tenant (3 worker(s), 6 slots)][C Temporal] FAIL - concorrencia maxima observada=5 (limite 2); 10 tarefas em 3.7s
+[S5 limite 2 por tenant (1 worker(s), 2 slots)][C Temporal] PASS - concorrencia maxima observada=2 (limite 2); 10 tarefas em 6.9s
+[2m2026-10-26T17:15:14.496641Z[0m [33m WARN[0m [2mtemporalio_sdk_core::worker::activities[0m[2m:[0m Activity not found on completion. This may happen if the activity has already been cancelled but completed anyway. [3mtask_token[0m[2m=[0mTaskToken(CiQwMWExNzkyYS1iMDVlLTdjMTEtYjE3ZC1iYzMwMGNmNzIyZGISEHJtdnBpb2E4cy1zNmEtMTYaJDAxYTE3OTM1LTI5Y2ItNzE0Zi1iYjY1LWYxNDZlOWM1ZmZmMSAFKAEyATFCB3J1blRhc2tKCQgBEICZwAEYAQ==) [3mdetails[0m[2m=[0mStatus { code: NotFound, message: "invalid activityID or activity already timed out or invoking workflow is completed", details: b"\x08\x05\x12Rinvalid activityID or activity already timed out or invoking workflow is completed\x1aB\n@type.googleapis.com/temporal.api.errordetails.v1.NotFoundFailure", metadata: MetadataMap { headers: {"content-type": "application/grpc"} }, source: None }
+[S6 justica sob rajada do tenant A (120 tarefas) para B e C (6+6)][C Temporal] FAIL - espera B/C: p50=19256 ms, max=38210 ms; espera A: p50=59476 ms, max=80264 ms
+[S7 reinicio do Dispatcher no meio de 100 tarefas][C Temporal] PASS - produtor morto apos ~40 enfileiradas; apos reenvio: efeitos=100/100 execucoes=139 (39 reentregas at-least-once absorvidas pela idempotencia)
+[S8a produtor com relogio +6 s, tarefa agendada +8 s][C Temporal] PASS - inicio 9336 ms apos o enfileiramento (alvo 8000)
+[S8b worker com relogio +2 min, tarefa agendada +3 s][C Temporal] PASS - inicio 3981 ms apos o enfileiramento (alvo 3000); concluida=true
+[S9 aprovacao humana pendente sobrevive a reinicio (tempo comprimido: segundos, nao dias)][C Temporal] PASS - execucoes antes da aprovacao=0; apos aprovar: efeitos=1 execucoes=1
+[S10 rollback da transacao de negocio apos enfileirar][C Temporal] FAIL - pedidos=0, tarefas orfas=1 (escrita dupla: exige outbox/reconciliacao)
+[PERF] {"variant":"C Temporal","ram_idle_backend_mb":80,"ram_idle_workers_mb":634,"ram_carga_backend_mb":140,"ram_carga_workers_mb":610,"lat_ocioso_p50_ms":438,"lat_ocioso_p95_ms":738,"lat_100pm_p50_ms":402,"lat_100pm_p95_ms":1728,"lat_100pm_max_ms":2257,"concluiu_100_em_s":60.3,"rajada_500":"500/500 em 269.6 s (2 tarefas/s)"}
+
+## Resumo
+| A PostgreSQL lease | S1 kill -9 do worker no meio da tarefa | PASS | efeitos=1 execucoes=2 recuperacao=8.1s (lease/heartbeat 5000ms) |
+| A PostgreSQL lease | S2 backend: restart gracioso | PASS | efeitos=50/50 perdidas=0 execucoes=50 |
+| A PostgreSQL lease | S2 backend: kill -9 | PASS | efeitos=50/50 perdidas=0 execucoes=50 |
+| A PostgreSQL lease | S3 entrega duplicada (reenvio do produtor + crash apos efeito) | PASS | 2o enqueue=duplicate; execucoes s3-1=1, s3-2=2 (>1 = redelivery at-least-once); efeitos distintos=2/2 |
+| A PostgreSQL lease | S4 tarefa agendada (+4 s) | PASS | inicio 4123 ms apos o enfileiramento (alvo 4000) |
+| A PostgreSQL lease | S5 limite 2 por tenant (3 worker(s), 6 slots) | PASS | concorrencia maxima observada=2 (limite 2); 10 tarefas em 4.0s |
+| A PostgreSQL lease | S6 justica sob rajada do tenant A (120 tarefas) para B e C (6+6) | PASS | espera B/C: p50=818 ms, max=1627 ms; espera A: p50=9715 ms, max=18295 ms |
+| A PostgreSQL lease | S7 reinicio do Dispatcher no meio de 100 tarefas | PASS | produtor morto apos ~40 enfileiradas; apos reenvio: efeitos=100/100 execucoes=100 (0 reentregas at-least-once absorvidas pela idempotencia) |
+| A PostgreSQL lease | S8a produtor com relogio +6 s, tarefa agendada +8 s | PASS | inicio 8173 ms apos o enfileiramento (alvo 8000) |
+| A PostgreSQL lease | S8b worker com relogio +2 min, tarefa agendada +3 s | PASS | inicio 3063 ms apos o enfileiramento (alvo 3000); concluida=true |
+| A PostgreSQL lease | S9 aprovacao humana pendente sobrevive a reinicio (tempo comprimido: segundos, nao dias) | PASS | execucoes antes da aprovacao=0; apos aprovar: efeitos=1 execucoes=1 |
+| A PostgreSQL lease | S10 rollback da transacao de negocio apos enfileirar | PASS | pedidos=0, tarefas orfas=0 (enfileiramento atomico com o negocio) |
+| B BullMQ (fila por tenant) | S1 kill -9 do worker no meio da tarefa | PASS | efeitos=1 execucoes=2 recuperacao=8.0s (lease/heartbeat 5000ms) |
+| B BullMQ (fila por tenant) | S2 backend: restart gracioso, sem AOF | FAIL | efeitos=0/50 perdidas=50 execucoes=0 |
+| B BullMQ (fila por tenant) | S2 backend: kill -9, sem AOF | FAIL | efeitos=0/50 perdidas=50 execucoes=0 |
+| B BullMQ (fila por tenant) | S2 backend: restart gracioso, AOF everysec | PASS | efeitos=50/50 perdidas=0 execucoes=50 |
+| B BullMQ (fila por tenant) | S2 backend: kill -9, AOF everysec | PASS | efeitos=50/50 perdidas=0 execucoes=50 |
+| B BullMQ (fila por tenant) | S2 backend: kill -9, AOF always | PASS | efeitos=50/50 perdidas=0 execucoes=50 |
+| B BullMQ (fila por tenant) | S3 entrega duplicada (reenvio do produtor + crash apos efeito) | PASS | 2o enqueue=duplicate; execucoes s3-1=2, s3-2=2 (>1 = redelivery at-least-once); efeitos distintos=2/2 |
+| B BullMQ (fila por tenant) | S4 tarefa agendada (+4 s) | PASS | inicio 4176 ms apos o enfileiramento (alvo 4000) |
+| B BullMQ (fila por tenant) | S5 limite 2 por tenant (3 worker(s), 6 slots) | PASS | concorrencia maxima observada=2 (limite 2); 10 tarefas em 3.5s |
+| B BullMQ (fila por tenant) | S6 justica sob rajada do tenant A (120 tarefas) para B e C (6+6) | PASS | espera B/C: p50=307 ms, max=561 ms; espera A: p50=10375 ms, max=19125 ms |
+| B BullMQ (fila por tenant) | S7 reinicio do Dispatcher no meio de 100 tarefas | PASS | produtor morto apos ~41 enfileiradas; apos reenvio: efeitos=100/100 execucoes=100 (0 reentregas at-least-once absorvidas pela idempotencia) |
+| B BullMQ (fila por tenant) | S8a produtor com relogio +6 s, tarefa agendada +8 s | FAIL | inicio 14227 ms apos o enfileiramento (alvo 8000) |
+| B BullMQ (fila por tenant) | S8b worker com relogio +2 min, tarefa agendada +3 s | FAIL | inicio 71 ms apos o enfileiramento (alvo 3000); concluida=true |
+| B BullMQ (fila por tenant) | S9 aprovacao humana pendente sobrevive a reinicio (tempo comprimido: segundos, nao dias) | PASS | execucoes antes da aprovacao=0; apos aprovar: efeitos=1 execucoes=1 |
+| B BullMQ (fila por tenant) | S10 rollback da transacao de negocio apos enfileirar | FAIL | pedidos=0, tarefas orfas=1 (escrita dupla: exige outbox/reconciliacao) |
+| B2 BullMQ (fila unica) | S5 limite 2 por tenant (3 worker(s), 6 slots) | FAIL | concorrencia maxima observada=6 (limite 2); 10 tarefas em 1.4s |
+| B2 BullMQ (fila unica) | S6 justica sob rajada do tenant A (120 tarefas) para B e C (6+6) | FAIL | espera B/C: p50=8977 ms, max=9275 ms; espera A: p50=4505 ms, max=8508 ms |
+| C Temporal | S1 kill -9 do worker no meio da tarefa | PASS | efeitos=1 execucoes=2 recuperacao=9.5s (lease/heartbeat 5000ms) |
+| C Temporal | S2 backend: restart gracioso | PASS | efeitos=50/50 perdidas=0 execucoes=50 |
+| C Temporal | S2 backend: kill -9 | PASS | efeitos=50/50 perdidas=0 execucoes=50 |
+| C Temporal | S3 entrega duplicada (reenvio do produtor + crash apos efeito) | PASS | 2o enqueue=duplicate; execucoes s3-1=2, s3-2=2 (>1 = redelivery at-least-once); efeitos distintos=2/2 |
+| C Temporal | S4 tarefa agendada (+4 s) | PASS | inicio 4778 ms apos o enfileiramento (alvo 4000) |
+| C Temporal | S5 limite 2 por tenant (3 worker(s), 6 slots) | FAIL | concorrencia maxima observada=5 (limite 2); 10 tarefas em 3.7s |
+| C Temporal | S5 limite 2 por tenant (1 worker(s), 2 slots) | PASS | concorrencia maxima observada=2 (limite 2); 10 tarefas em 6.9s |
+| C Temporal | S6 justica sob rajada do tenant A (120 tarefas) para B e C (6+6) | FAIL | espera B/C: p50=19256 ms, max=38210 ms; espera A: p50=59476 ms, max=80264 ms |
+| C Temporal | S7 reinicio do Dispatcher no meio de 100 tarefas | PASS | produtor morto apos ~40 enfileiradas; apos reenvio: efeitos=100/100 execucoes=139 (39 reentregas at-least-once absorvidas pela idempotencia) |
+| C Temporal | S8a produtor com relogio +6 s, tarefa agendada +8 s | PASS | inicio 9336 ms apos o enfileiramento (alvo 8000) |
+| C Temporal | S8b worker com relogio +2 min, tarefa agendada +3 s | PASS | inicio 3981 ms apos o enfileiramento (alvo 3000); concluida=true |
+| C Temporal | S9 aprovacao humana pendente sobrevive a reinicio (tempo comprimido: segundos, nao dias) | PASS | execucoes antes da aprovacao=0; apos aprovar: efeitos=1 execucoes=1 |
+| C Temporal | S10 rollback da transacao de negocio apos enfileirar | FAIL | pedidos=0, tarefas orfas=1 (escrita dupla: exige outbox/reconciliacao) |
+
+## Metricas
+{"variant":"A PostgreSQL lease","ram_idle_backend_mb":33,"ram_idle_workers_mb":123,"ram_carga_backend_mb":36,"ram_carga_workers_mb":133,"lat_ocioso_p50_ms":116,"lat_ocioso_p95_ms":310,"lat_100pm_p50_ms":79,"lat_100pm_p95_ms":314,"lat_100pm_max_ms":713,"concluiu_100_em_s":59.8,"rajada_500":"500/500 em 10.3 s (49 tarefas/s)"}
+{"variant":"B BullMQ (fila por tenant)","ram_idle_backend_mb":7,"ram_idle_workers_mb":169,"ram_carga_backend_mb":7,"ram_carga_workers_mb":174,"lat_ocioso_p50_ms":30,"lat_ocioso_p95_ms":91,"lat_100pm_p50_ms":25,"lat_100pm_p95_ms":148,"lat_100pm_max_ms":277,"concluiu_100_em_s":59.7,"rajada_500":"500/500 em 3.3 s (150 tarefas/s)"}
+{"variant":"C Temporal","ram_idle_backend_mb":80,"ram_idle_workers_mb":634,"ram_carga_backend_mb":140,"ram_carga_workers_mb":610,"lat_ocioso_p50_ms":438,"lat_ocioso_p95_ms":738,"lat_100pm_p50_ms":402,"lat_100pm_p95_ms":1728,"lat_100pm_max_ms":2257,"concluiu_100_em_s":60.3,"rajada_500":"500/500 em 269.6 s (2 tarefas/s)"}
+
+Opcao A (PostgreSQL lease): todos os cenarios PASS
+containers destruidos; duracao 1267 s
+Terminated
+exit 143

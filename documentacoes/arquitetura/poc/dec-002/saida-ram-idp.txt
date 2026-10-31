@@ -1,0 +1,7 @@
+keycloak pronto apos ~94 s
+MEDIDA_RAM keycloak_idle: 520.6MiB / 7.751GiB
+MEDIDA_RAM keycloak_idle: 520.6MiB / 7.751GiB
+MEDIDA_RAM keycloak_idle: 520.6MiB / 7.751GiB
+MEDIDA_RAM kratos_idle: 34.36MiB / 7.751GiB
+MEDIDA_RAM kratos_idle: 34.36MiB / 7.751GiB
+MEDIDA_RAM kratos_idle: 34.36MiB / 7.751GiB

@@ -1,0 +1,61 @@
+[project]
+name = "nucleos-enterprise-python"
+version = "0.0.0"
+description = "Raiz do workspace uv dos servicos Python (nao publicavel)"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "datamodel-code-generator==0.83.0",
+    "import-linter==2.15",
+    "mypy==2.4.0",
+    "pytest==9.0.3",
+    "pytest-asyncio==1.4.0",
+    "ruff==0.17.2",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["services/*", "packages/observability-py", "packages/contracts-py", "packages/config-py"]
+
+[tool.pytest.ini_options]
+testpaths = ["services", "packages/observability-py", "packages/contracts-py", "packages/config-py"]
+addopts = "--import-mode=importlib"
+
+# --- Qualidade Python (ENT-FND-002) ---
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [
+  "tools/qualidade/regressao",
+  "packages/contracts-py/src/nucleos_contracts/models", # gerado por make contracts-gen
+]
+
+[tool.ruff.lint]
+# E/F pycodestyle+pyflakes, I imports, B bugbear, UP pyupgrade, S bandit (inclui eval/exec),
+# ASYNC, SIM, C4, PT pytest-style, RUF.
+select = ["E", "F", "I", "B", "UP", "S", "ASYNC", "SIM", "C4", "PT", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101"]
+
+[tool.mypy]
+# Pacotes de politica: tipagem estrita obrigatoria. Demais servicos entram quando ganharem logica.
+strict = true
+python_version = "3.12"
+explicit_package_bases = true
+mypy_path = [
+  "services/tool-gateway/src",
+  "services/event-dispatcher/src",
+  "services/tenant-runtime/src",
+  "packages/config-py/src",
+]
+files = [
+  "packages/config-py/src",
+  "services/tool-gateway/src",
+  "services/event-dispatcher/src",
+  "services/tenant-runtime/src/tenant_runtime/policy",
+]

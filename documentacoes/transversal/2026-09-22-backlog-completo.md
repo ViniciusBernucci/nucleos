@@ -8,6 +8,8 @@ Estado: proposta de planejamento; nenhum item deste documento afirma implementa�
 Autores conhecidos: Vinícius (produto e especificação), Codex (decomposição)  
 Branch, commit-base e commits: não aplicável — a raiz ainda não é um repositório Git  
 
+> **Nota de substituição (2026-10-25) — status: Substituída em parte.** A **stack tecnológica** descrita neste backlog (.NET 10) foi substituída pelas decisões do [ADR de arquitetura de 2026-10-25](2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md) (NestJS/TypeScript, Python, React/Next.js; ver [ADR-004..006](../arquitetura/adr/README.md)). O restante (visão de produto, domínio, requisitos funcionais e regras de negócio) permanece como insumo, sujeito à consolidação da segunda parte do planejamento. Nenhum conteúdo original foi apagado. Origem: tarefa FND-008; questões Q-01 e Q-07 do [README do backlog](../backlog/README.md).
+
 > Este backlog cobre o produto completo. “Release” e “sprint” são marcos de construção e validação, não autorização para gastos, publicação, acesso a contas externas ou redução silenciosa de escopo.
 
 ## 1. Resumo executivo

@@ -1,0 +1,26 @@
+name: Preparar ambiente
+description: Node (.nvmrc), pnpm via corepack, uv e dependencias congeladas (lockfiles).
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0 (consulta 2026-10-26)
+      with:
+        node-version-file: .nvmrc
+    - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2 (consulta 2026-10-26)
+      with:
+        # uv fixado: 0.13.5 (latest em astral-sh/uv, publicado em 2026-10-22; consulta 2026-10-26; mesma versao dos testes locais)
+        version: "0.13.5"
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+    - name: Cache do store do pnpm
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0 (consulta 2026-10-26)
+      with:
+        path: ~/.local/share/pnpm/store
+        key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: pnpm-${{ runner.os }}-
+    - name: make setup (frozen lockfiles)
+      shell: bash
+      run: make setup
+    - name: pnpm (shim do corepack) no PATH dos passos seguintes
+      shell: bash
+      run: echo "$GITHUB_WORKSPACE/.run/bin" >> "$GITHUB_PATH"

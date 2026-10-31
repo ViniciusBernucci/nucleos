@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "status": "ok",
+  "model_alias": "padrao",
+  "content": "Ola!",
+  "finish_reason": "stop"
+}

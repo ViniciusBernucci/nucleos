@@ -1,0 +1,27 @@
+{
+  "include": [
+    "README.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "Nucleos-Especificacao-Mestra.md",
+    "documentacoes",
+    "lessons",
+    "back",
+    "front"
+  ],
+  "exclude": ["node_modules", "vendor", ".git", ".contexto", ".claude", ".agents", ".agent", "skills", "storage", "dist", "build", "bin", "obj"],
+  "workflow": {
+    "schema": 1,
+    "preset": "generic",
+    "timezone": "America/Sao_Paulo",
+    "plansDir": "documentacoes/planejamento-ia",
+    "reportsDir": "documentacoes/reviews",
+    "deliveryDir": "documentacoes",
+    "reviewBranchPrefix": "revisao/",
+    "defaultProfile": "padrao",
+    "rules": ["CLAUDE.md", "AGENTS.md", ".agents/rules/project-instructions.md"],
+    "repositories": [{ "name": "nucleos", "root": ".", "layer": "monorepo" }],
+    "worktreeDir": "../nucleos-worktrees",
+    "publish": "manual"
+  }
+}

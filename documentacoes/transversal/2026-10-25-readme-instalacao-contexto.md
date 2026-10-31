@@ -7,11 +7,11 @@
 | Item | Valor |
 | --- | --- |
 | Domínio | `transversal` (ferramenta de desenvolvimento usada em todo o repositório) |
-| Solicitação | 1) Criar um README simples, com comandos exatos, explicando como instalar o Contexto neste projeto. 2) Acrescentar o passo a passo para o Contexto funcionar automaticamente em toda sessão de IA, conferido na documentação da ferramenta. 3) Transformar os passos 6 a 8 em comandos de terminal, para uso por SSH numa VPS, e registrar o requisito de Git >= 2.36 encontrado na instalação da VPS |
+| Solicitação | 1) Criar um README simples, com comandos exatos, explicando como instalar o Contexto neste projeto. 2) Acrescentar o passo a passo para o Contexto funcionar automaticamente em toda sessão de IA, conferido na documentação da ferramenta. 3) Transformar os passos 6 a 8 em comandos de terminal, para uso por SSH numa VPS, e registrar o requisito de Git >= 2.36 encontrado na instalação da VPS. 4) Corrigir o comando do Codex, que gravava marcadores literais. 5) Oferecer um comando no README para que um agente Claude ou Codex faça toda a instalação |
 | Branch | `developer` |
 | Base / commit inicial | `25aa954` (`atualizacao`), HEAD de `developer` no início da tarefa; merge-base com `main`: `cb1885c` |
 | Estado inicial da árvore | `developer` sincronizada com `origin/developer`, sem arquivos modificados |
-| Estado final | Commit `cfaf2fb` (feito pelo usuário) com a primeira versão; acréscimo da parte 2 em `README.md` ainda não commitado |
+| Estado final | Commits `cfaf2fb` e `69496e1` (feitos pelo usuário); ainda não commitados: correção do comando do Codex e instalação rápida/por agente em `README.md`, e o novo `scripts/instalar-contexto.sh` |
 | Autores | vinicius bernucci (solicitante, commit `cfaf2fb`), Claude Code (implementação) |
 
 ## Objetivo, contexto e escopo
@@ -67,7 +67,8 @@ O `README.md` da raiz foi organizado assim:
 
 | Arquivo | Mudança |
 | --- | --- |
-| `README.md` | Novo no commit `cfaf2fb`; ampliado (não commitado) com a integração das sessões de IA |
+| `README.md` | Novo no commit `cfaf2fb`; ampliado em `69496e1`; seções "Instalação rápida" e "Instalação por um agente de IA" e comando do Codex corrigido (não commitados) |
+| `scripts/instalar-contexto.sh` | Novo (não commitado): script Bash idempotente que executa e confere os passos 1 a 5, avisa sobre os passos 6 a 8 e, com `--codex`, registra o MCP no Codex |
 | `documentacoes/transversal/2026-10-25-readme-instalacao-contexto.md` | Este documento (fora do patch) |
 | `documentacoes/transversal/2026-10-25-readme-instalacao-contexto-diffs.md` | Novo: diffs reais da tarefa (fora do patch) |
 
@@ -104,6 +105,20 @@ Não houve mudanças em testes, configurações ou migrações.
   a partir do Git 2.36. A documentação do Contexto pede `git --version`, mas não informa
   essa versão mínima. O `setup` falha em `discover()` antes de qualquer gravação, então não
   deixa estado parcial.
+- **Script em vez de só um prompt para o agente.** Um prompt sozinho seria interpretado de
+  forma diferente por cada agente. O script é determinístico, pode ser testado e também
+  serve para quem instala à mão. O prompt do README só manda o agente rodar o script e
+  corrigir os `[erro]`, pedindo autorização para `sudo`, pacotes, troca de branch e
+  arquivos versionados.
+- **Limites do script.** Ele não usa `sudo`, não instala Node nem Git, não troca de branch
+  e não edita arquivos versionados. Essas ações mudam o sistema ou o repositório e ficam
+  com o usuário ou com um agente autorizado. O `--codex` é opcional porque altera a
+  configuração global do usuário.
+- **Saída guardada antes do `grep`.** A função `expect` guarda a saída antes de conferir.
+  Com `set -o pipefail`, um `comando | grep -q` pode falhar sem motivo real quando o `grep`
+  encerra o pipe antes do fim.
+- **Nome do servidor no Codex:** `contexto-<pasta>`, para permitir um servidor por
+  worktree.
 - **`ensure` explícito no passo 4.** O hook ignora o checkout principal, mesmo fora da
   `main`, então sem `ensure` a pasta `.contexto/` não seria criada.
 
@@ -157,6 +172,31 @@ um `echo` e informei uma identidade Git temporária no `commit`:
 A correção do Git na VPS foi feita pelo usuário, que confirmou que funcionou. Não tenho
 acesso à VPS e não executei os comandos de `apt-get` do passo 1.
 
+**Parte 4 (comando do Codex).** Rodei o comando novo com um `CODEX_HOME` temporário. Ele
+gravou `/usr/local/bin/node` e os caminhos reais, e o `initialize` respondeu
+`contexto-local 0.2.0`. Na VPS, o usuário rodou a variante com `$HOME` e conferiu
+`/usr/bin/node` v22.23.3, os caminhos `/home/vinicius/...` e o `initialize` respondendo
+`contexto-local 0.2.0`.
+
+**Parte 5 (script e agente).** Testei em clones descartáveis do `nucleos`, sem a pasta
+`contexto` ao lado:
+
+| Cenário | Resultado real |
+| --- | --- |
+| Primeira execução na `developer` | Clonou o Contexto do GitHub. `[ok]` em pré-requisitos, clone, registro, preparação e busca/MCP; `[aviso]` sobre `.mcp.json`; `Instalacao concluida.`, exit 0 |
+| Segunda e terceira execuções | Mesmo resultado, com `Contexto ja presente`; exit 0 |
+| `--codex` duas vezes (`CODEX_HOME` temporário) | `Servidor 'contexto-nucleos' registrado no Codex` e depois `Codex ja tem o servidor 'contexto-nucleos'` |
+| Execução a partir de `/` | Encontrou o repositório e a ferramenta pelos caminhos certos |
+| Na `main` | `[erro] Voce esta em 'main'...` e o script parou |
+| `git --version` simulado como 2.34.1 | `[erro] git version 2.34.1 e antigo. Precisa ser 2.36 ou maior` |
+| `CONTEXTO_DIR` apontando para pasta vazia | `[erro] ... existe, mas nao contem contexto.mjs`, sem apagar nada |
+| Com `.mcp.json` no clone | `[ok] .mcp.json do Claude Code presente` e `[ok] Claude Code conectado ao Contexto` |
+| `bash -n scripts/instalar-contexto.sh` | Sem erros de sintaxe |
+| `claude -p "<prompt do README>" --model haiku --allowedTools "Bash(bash scripts/instalar-contexto.sh*)" Read` | O agente rodou o script, mostrou `Instalacao concluida.` e explicou os avisos; `../contexto` e `.contexto` criados |
+
+O `shellcheck` não está instalado nesta máquina e não foi executado. O prompt do Codex não
+foi testado numa sessão real.
+
 **Limitação:** não executei uma sessão real do Codex chamando as ferramentas. Isso exigiria
 alterar a configuração global do usuário. Foram verificados só a sintaxe e o registro do
 comando, numa configuração isolada.
@@ -185,16 +225,22 @@ Não há build, testes, lint ou formatador aplicáveis a um arquivo Markdown nes
 
 - `cfaf2fb32dfdf1685c8cdee380d832d3d5e1f863`, `readme contexto`, autor vinicius bernucci.
   Contém a primeira versão do `README.md` (blob `2e35451`) e este documento.
-- Nenhum commit criado pelo Claude nesta tarefa. As ampliações do `README.md` (partes 2 e
-  3) estão unstaged; não há diff staged.
+- `69496e186236cc25b2281b142490a072f7a11dfe`, `readme`, autor vinicius bernucci. Contém as
+  partes 2 e 3 do `README.md` e os documentos desta entrega.
+- Nenhum commit criado pelo Claude nesta tarefa. Estão pendentes: o novo
+  `scripts/instalar-contexto.sh` (não rastreado), as seções de instalação rápida e por
+  agente no `README.md` (unstaged) e a correção do comando do Codex no `README.md`: o exemplo com `/CAMINHO/ABSOLUTO` foi gravado literalmente na
+  VPS, e o comando novo usa `$(command -v node)`, `$(cd ../contexto && pwd)` e `$(pwd)`.
+  Testado com `CODEX_HOME` temporário: gravou caminhos reais, e o `initialize` respondeu
+  `contexto-local 0.2.0`. Não há diff staged.
 
 Os patches completos estão em
 [2026-10-25-readme-instalacao-contexto-diffs.md](2026-10-25-readme-instalacao-contexto-diffs.md).
 
 ## Lessons
 
-Nenhuma lesson criada ou atualizada. A entrega é só documentação operacional de uma
-ferramenta Node.js e de configuração de clientes de IA. Ela não introduz, altera nem
+Nenhuma lesson criada ou atualizada. A entrega é documentação operacional de uma
+ferramenta Node.js, configuração de clientes de IA e um script Bash de instalação. Ela não introduz, altera nem
 exercita conceito de C#/.NET, e criar uma lesson aqui seria artificial, como o `CLAUDE.md`
 alerta. `lessons/` continua vazia, sem `README.md` de índice, e nenhum link foi afetado.
 

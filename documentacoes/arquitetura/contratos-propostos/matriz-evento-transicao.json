@@ -1,0 +1,274 @@
+{
+  "_status": "PROPOSTO - ADR-026. Estados do tenant sao propostas a alinhar com EP-02/EP-09.",
+  "estados": [
+    "NONE",
+    "PROVISIONING",
+    "ACTIVE",
+    "GRACE",
+    "SUSPENDED",
+    "CANCELED_RETAINED",
+    "FAILED_RETRYABLE"
+  ],
+  "estados_que_apagam_dados": [],
+  "transicoes": [
+    {
+      "evento": "subscription.created",
+      "de": [
+        "NONE",
+        "PROVISIONING",
+        "ACTIVE",
+        "GRACE",
+        "SUSPENDED",
+        "CANCELED_RETAINED",
+        "FAILED_RETRYABLE"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Registrar assinatura pendente e vinculo provider_subscription_id; nao muda estado (em NONE aguarda pagamento; nos demais e duplicata/idempotente)."
+    },
+    {
+      "evento": "subscription.activated",
+      "de": [
+        "NONE"
+      ],
+      "para": "PROVISIONING",
+      "acao": "Iniciar provisionamento (ADR consolidado, secao 11, passo 2)."
+    },
+    {
+      "evento": "subscription.activated",
+      "de": [
+        "GRACE",
+        "SUSPENDED"
+      ],
+      "para": "ACTIVE",
+      "acao": "Reativar runtime e tokens; dados intactos."
+    },
+    {
+      "evento": "subscription.activated",
+      "de": [
+        "ACTIVE",
+        "PROVISIONING",
+        "FAILED_RETRYABLE",
+        "CANCELED_RETAINED"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Idempotente: registrar e ignorar. Em CANCELED_RETAINED nao reativa sozinho (decisao humana/nova assinatura)."
+    },
+    {
+      "evento": "payment.succeeded",
+      "de": [
+        "ACTIVE"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Estender periodo vigente."
+    },
+    {
+      "evento": "payment.succeeded",
+      "de": [
+        "GRACE",
+        "SUSPENDED"
+      ],
+      "para": "ACTIVE",
+      "acao": "Encerrar carencia/suspensao; reativar runtime; dados intactos."
+    },
+    {
+      "evento": "payment.succeeded",
+      "de": [
+        "CANCELED_RETAINED"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Nao reativa sozinho; sinalizar para decisao humana/nova assinatura."
+    },
+    {
+      "evento": "payment.succeeded",
+      "de": [
+        "NONE",
+        "PROVISIONING",
+        "FAILED_RETRYABLE"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Registrar; provisionamento segue seu proprio fluxo."
+    },
+    {
+      "evento": "payment.failed",
+      "de": [
+        "ACTIVE"
+      ],
+      "para": "GRACE",
+      "acao": "Abrir carencia (prazo = parametro a decidir), notificar o responsavel; runtime continua operando."
+    },
+    {
+      "evento": "payment.failed",
+      "de": [
+        "GRACE"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Incrementar tentativas; reavisar."
+    },
+    {
+      "evento": "payment.failed",
+      "de": [
+        "NONE",
+        "PROVISIONING",
+        "SUSPENDED",
+        "CANCELED_RETAINED",
+        "FAILED_RETRYABLE"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Registrar. Nunca remove dados."
+    },
+    {
+      "evento": "payment.action_required",
+      "de": [
+        "NONE",
+        "PROVISIONING",
+        "ACTIVE",
+        "GRACE",
+        "SUSPENDED",
+        "FAILED_RETRYABLE",
+        "CANCELED_RETAINED"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Notificar o responsavel (autenticacao do pagamento pendente)."
+    },
+    {
+      "evento": "subscription.past_due",
+      "de": [
+        "ACTIVE"
+      ],
+      "para": "GRACE",
+      "acao": "Igual a payment.failed em ACTIVE."
+    },
+    {
+      "evento": "subscription.past_due",
+      "de": [
+        "GRACE",
+        "SUSPENDED",
+        "NONE",
+        "PROVISIONING",
+        "FAILED_RETRYABLE",
+        "CANCELED_RETAINED"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Registrar."
+    },
+    {
+      "evento": "subscription.suspended_by_provider",
+      "de": [
+        "ACTIVE",
+        "GRACE"
+      ],
+      "para": "SUSPENDED",
+      "acao": "Suspender runtime e revogar tokens; reter bancos, objetos e backups; nada e apagado."
+    },
+    {
+      "evento": "subscription.suspended_by_provider",
+      "de": [
+        "SUSPENDED",
+        "NONE",
+        "PROVISIONING",
+        "CANCELED_RETAINED",
+        "FAILED_RETRYABLE"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Registrar."
+    },
+    {
+      "evento": "subscription.resumed",
+      "de": [
+        "SUSPENDED",
+        "GRACE"
+      ],
+      "para": "ACTIVE",
+      "acao": "Reativar runtime; dados intactos."
+    },
+    {
+      "evento": "subscription.resumed",
+      "de": [
+        "NONE",
+        "PROVISIONING",
+        "ACTIVE",
+        "CANCELED_RETAINED",
+        "FAILED_RETRYABLE"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Registrar."
+    },
+    {
+      "evento": "subscription.plan_changed",
+      "de": [
+        "ACTIVE",
+        "GRACE",
+        "SUSPENDED"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Atualizar plano/cotas desejadas; reconciliar runtime."
+    },
+    {
+      "evento": "subscription.plan_changed",
+      "de": [
+        "NONE",
+        "PROVISIONING",
+        "CANCELED_RETAINED",
+        "FAILED_RETRYABLE"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Registrar."
+    },
+    {
+      "evento": "subscription.canceled",
+      "de": [
+        "ACTIVE",
+        "GRACE",
+        "SUSPENDED"
+      ],
+      "para": "CANCELED_RETAINED",
+      "acao": "Iniciar offboarding: suspender, iniciar relogio de retencao contratual; NAO apagar. Exclusao so por processo de offboarding explicito apos o prazo, fora deste contrato."
+    },
+    {
+      "evento": "subscription.canceled",
+      "de": [
+        "NONE",
+        "PROVISIONING",
+        "FAILED_RETRYABLE"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Registrar; cancelar provisionamento pendente sem apagar artefatos ja criados sem revisao."
+    },
+    {
+      "evento": "subscription.canceled",
+      "de": [
+        "CANCELED_RETAINED"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Idempotente."
+    },
+    {
+      "evento": "payment.refunded",
+      "de": [
+        "NONE",
+        "PROVISIONING",
+        "ACTIVE",
+        "GRACE",
+        "SUSPENDED",
+        "CANCELED_RETAINED",
+        "FAILED_RETRYABLE"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Registrar e abrir revisao humana; reembolso sozinho nao muda estado nem apaga dados."
+    },
+    {
+      "evento": "payment.disputed",
+      "de": [
+        "NONE",
+        "PROVISIONING",
+        "ACTIVE",
+        "GRACE",
+        "SUSPENDED",
+        "CANCELED_RETAINED",
+        "FAILED_RETRYABLE"
+      ],
+      "para": "UNCHANGED",
+      "acao": "Registrar e abrir revisao humana (decide suspensao); nunca apaga dados."
+    }
+  ]
+}
