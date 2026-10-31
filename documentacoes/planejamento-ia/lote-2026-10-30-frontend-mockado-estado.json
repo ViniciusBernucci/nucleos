@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "lote": "lote-2026-10-30-frontend-mockado",
+  "timezone": "America/Sao_Paulo",
+  "manifest": "documentacoes/planejamento-ia/lote-2026-10-30-frontend-mockado.md",
+  "repository": {
+    "name": "nucleos",
+    "root": "/home/vinicius/nucleos",
+    "baseRef": "revisao/2026-10-25-ep00-ep01-fundacao",
+    "baseSha": "f322f4b1698f94ae276fdb8838137cd6b7e9cef8"
+  },
+  "reviewBranch": "revisao/2026-10-30-frontend-mockado",
+  "publish": "manual",
+  "authorizedToExecute": true,
+  "tasks": [
+    {
+      "key": "LOC-WEB-001",
+      "externalId": null,
+      "profile": "padrao",
+      "dependsOn": [],
+      "status": "INTEGRADA_APROVADA",
+      "spec": "documentacoes/planejamento-ia/lote-2026-10-30-frontend-mockado-web-001.md",
+      "branch": "tarefa/loc-web-001",
+      "worktree": "/home/vinicius/nucleos-worktrees/tarefa/loc-web-001",
+      "worktreeReceipt": {
+        "prepared": true,
+        "root": "/home/vinicius/nucleos-worktrees/tarefa/loc-web-001",
+        "project": "nucleos-1a54142d7aad",
+        "isolatedDatabase": "/home/vinicius/nucleos-worktrees/tarefa/loc-web-001/.contexto/context.sqlite",
+        "baseSha": "f322f4b1698f94ae276fdb8838137cd6b7e9cef8"
+      },
+      "reviewBranch": "revisao/2026-10-30-frontend-mockado",
+      "criteria": [
+        "WEB-MOCK-AC-01",
+        "WEB-MOCK-AC-02",
+        "WEB-MOCK-AC-03",
+        "WEB-MOCK-AC-04",
+        "WEB-MOCK-AC-05",
+        "WEB-MOCK-AC-06",
+        "WEB-MOCK-AC-07"
+      ],
+      "phases": {
+        "implementacao": "ok",
+        "review": "ok",
+        "auditoria": "ok/NA_SEM_ACHADOS",
+        "qa": "dispensado_pelo_usuario/COBERTO_NO_REVIEW",
+        "integracao": "ok"
+      },
+      "reviewReport": "documentacoes/reviews/2026-10-30-review-loc-web-001.md",
+      "commits": [
+        "4519ed595a1a2ed6bb5d76872b46c62534e864dc",
+        "9578d64",
+        "5d42ca4",
+        "28afdfb",
+        "ecfce74"
+      ],
+      "headCommit": "ecfce74",
+      "correctionRoundsUsed": 0,
+      "qaRoundsUsed": 0
+    }
+  ]
+}
