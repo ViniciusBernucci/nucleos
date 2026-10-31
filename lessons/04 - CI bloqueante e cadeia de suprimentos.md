@@ -1,6 +1,6 @@
 # 04 - CI bloqueante e cadeia de suprimentos
 
-Criada em 2026-10-26. Ultima atualizacao: 2026-10-26 (renumerada de 02 para 04). Exemplos testados com Node 24.22.1 (TypeScript executado por remocao de tipos nativa), TypeScript 5.9.3 (tipos conferidos pelo `tsc` do repositorio) e Python 3.13 (somente comandos `uv`); YAML do GitHub Actions validado com `actionlint` 1.7.12.
+Criada em 2026-10-26. Ultima atualizacao: 2026-10-31 (follow-up do job `security`: override transitivo de `minimatch` para resolver GHSA-g3hv-75wg-m249). Exemplos testados com Node 24.22.1 (TypeScript executado por remocao de tipos nativa), TypeScript 5.9.3 (tipos conferidos pelo `tsc` do repositorio) e Python 3.13 (somente comandos `uv`); YAML do GitHub Actions validado com `actionlint` 1.7.12.
 
 ## Objetivo, pre-requisitos e posicao
 
@@ -75,6 +75,18 @@ A versao completa (permissoes, `pull_request_target`, segredos, injecao, `curl |
 - Excecao de vulnerabilidade sem prazo vira divida permanente: exija id, motivo e `ignoreUntil` (`osv-scanner.toml`).
 - Nao se aplica: pipelines de deploy com credenciais — la prefira OIDC de curta duracao em vez de segredo de longa duracao.
 
+## Exemplo real de manutencao do gate (2026-10-31)
+
+No follow-up da entrega FND-005, o job `security` falhou por CVE transitiva em `minimatch` detectada no lockfile (`GHSA-g3hv-75wg-m249`, `osv-scanner`). Como os pacotes raiz do monorepo nao dependiam diretamente de `minimatch`, a correcao minima foi no nivel do workspace:
+
+```yaml
+overrides:
+  multer: 2.5.0
+  minimatch: 11.0.1
+```
+
+Modelo mental: lockfile e parte da superficie de ataque. Mesmo com dependencia transitiva, a mitigacao deve ser reproduzivel (override versionado + lockfile regenerado) e validada pelos mesmos gates do CI (`pnpm audit` e `osv-scanner`).
+
 ## Verificacao e exercicios
 
 Verificacao (na raiz do repositorio, com `actionlint` instalado): `make lint-workflows && make ci-regressao`.
@@ -85,4 +97,4 @@ Verificacao (na raiz do repositorio, com `actionlint` instalado): `make lint-wor
 
 ## Ligacao com a entrega real
 
-Documento da entrega: [FND-005 — CI bloqueante](../documentacoes/engenharia/2026-10-26-fnd-005-ci-bloqueante.md).
+Documentos da entrega: [FND-005 — CI bloqueante](../documentacoes/engenharia/2026-10-26-fnd-005-ci-bloqueante.md) e [Fix do job security (minimatch)](../documentacoes/engenharia/2026-10-31-fix-security-minimatch.md).
