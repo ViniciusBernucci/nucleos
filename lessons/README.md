@@ -1,6 +1,6 @@
 # Trilha de lessons do Nucleos
 
-Criada em 2026-10-25. Ultima atualizacao: 2026-10-30 (lesson 14 criada para LOC-WEB-001; lessons 02, 03 e 05 criadas anteriormente; 04 e 06 renumeradas).
+Criada em 2026-10-25. Ultima atualizacao: 2026-10-31 (lesson 04 atualizada com o follow-up do job `security` sobre override transitivo de dependencia vulneravel).
 
 `lessons/` e uma trilha progressiva e didatica da stack do projeto, nao um changelog.
 A stack segue o [ADR de arquitetura do MVP](../documentacoes/transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md):
