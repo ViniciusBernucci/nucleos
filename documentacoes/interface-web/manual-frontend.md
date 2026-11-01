@@ -176,11 +176,25 @@ Toda area que depende de dados trata, explicitamente:
 - [ ] `pnpm --filter @nucleos/web lint` e `build` sem erros.
 - [ ] Documento em `documentacoes/<dominio>/` e lessons atualizadas, conforme `CLAUDE.md`.
 
-## 11. Estado atual do front end
+## 11. Menu e estrutura do app
 
-Em 2026-11-01 o front end foi reiniciado (sem menus, paginas, dashboard e mocks) e, a pedido,
-as rotas `/login` e `/orgs` foram restauradas **como excecao legada**: continuam renderizando
-o shell de demonstracao (`DashboardClientShell`, menu lateral e paineis) com os dados
-mockados de `lib/mock-*.ts`. A regra de "sem dados mockados" vale para toda pagina nova; essas
-duas rotas serao substituidas por paginas reais conforme este manual. `/` segue vazia,
-`/platform` nao existe e `/healthz` permanece.
+As paginas do app ficam no grupo de rotas `app/(app)/`, cujo `layout.tsx` aplica o
+`AppShell` (`app/components/AppShell.tsx`): menu lateral e barra superior com o seletor de
+tema claro/escuro (`ThemeToggle`). Para adicionar uma pagina ao menu:
+
+1. Crie `app/(app)/<rota>/page.tsx` seguindo a secao 4.
+2. Adicione um `<NavLink href="/<rota>" code="XX">Nome</NavLink>` no `AppShell`, no grupo
+   adequado (`code` e a sigla de 2 letras do icone).
+3. O item ativo e marcado automaticamente com `aria-current="page"`.
+
+Itens atuais: **Painel principal** (`/`) e, no grupo Gestao, **Setores** (`/setores`).
+Ambas as paginas mostram estado vazio (sem fonte de dados).
+
+## 12. Estado atual do front end
+
+Em 2026-11-01 o front end foi reiniciado (sem paginas de negocio, dashboard e mocks) e, a
+pedido, as rotas `/login` e `/orgs` foram restauradas como **excecao legada**: ficam fora do
+grupo `(app)`, com o shell de demonstracao proprio (`DashboardClientShell`) e os dados
+mockados de `lib/mock-*.ts`. A regra "sem dados mockados" vale para toda pagina nova; essas
+duas rotas serao substituidas por paginas reais. `/platform` nao existe e `/healthz`
+permanece.

@@ -156,3 +156,17 @@ registrada no manual (secao 11). `/platform` continua removida.
 Validacao: `build` (rotas `/`, `/login`, `/orgs`, `/healthz`), `lint` (`tsc --noEmit`) e
 `test` (14 de 14 aprovados). Nao executados: `make lint` completo e verificacao visual.
 Commits: o commit `1655d2a` fez a limpeza; a restauracao esta no commit seguinte da `developer`.
+
+## Atualizacao: menu, barra superior e pagina Setores
+
+- Criado o grupo de rotas `apps/web/app/(app)/` com `layout.tsx` que aplica o novo
+  `components/AppShell.tsx` (menu lateral + barra superior com `ThemeToggle` claro/escuro) e
+  `components/NavLink.tsx` (client; marca o item ativo com `aria-current`).
+- Menu: **Painel principal** (`/`, movido para `(app)/page.tsx`) e, no grupo Gestao,
+  **Setores** (nova pagina `(app)/setores/page.tsx`, estado vazio "Nenhum setor cadastrado").
+- `/login` e `/orgs` ficaram fora do grupo, com o shell legado.
+- Manual atualizado (secoes 11 e 12) com o passo a passo para incluir paginas no menu.
+- Validacao: `build` (rotas `/`, `/setores`, `/login`, `/orgs`, `/healthz`), `tsc --noEmit` e
+  14 de 14 testes. Nao executados: `make lint` completo e verificacao visual no navegador.
+- Lessons: nenhuma nova; conceitos (layout aninhado e Client Component minimo) nao exigem
+  lesson propria nesta entrega.
