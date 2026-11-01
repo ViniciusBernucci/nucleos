@@ -147,3 +147,7 @@ Commits da tarefa: `8e5194d`, `93c7049`, `6269603`, `d259238` e o commit de docu
 ## Atualização na integração (2026-10-26)
 
 Conflitos resolvidos pelo coordenador: `Makefile` (união de `lint-deploy`/`test-ambientes` e `contracts*`), `pyproject.toml` (membros `config-py` e `contracts-py`), bloco "Validação" de `CLAUDE.md`/`AGENTS.md`/`.agents/rules/project-instructions.md` (união, CRLF preservado) e `lessons/README.md`. As lessons desta tarefa foram renumeradas para 12 (configuração) e 13 (segredos). `pnpm-lock.yaml` e `uv.lock` foram regenerados; o pin de `pydantic` em `contracts-py` foi alinhado a 2.14.1 (ver registro da FND-003). Após a integração: `make setup`, `lint`, `test`, `build`, `contracts-check`, `ci-regressao` (offline), `lint-workflows` e `test-ambientes` passaram, sem containers remanescentes.
+
+> Atualizacao 2026-11-01: o MVP aceita segredos em .env/ambiente. A exclusividade por
+> arquivo abaixo descreve o perfil endurecido ou a decisao historica, nao uma restricao
+> global dos loaders. Veja [ADR-020](../arquitetura/adr/0020-gestao-de-segredos-do-mvp.md).

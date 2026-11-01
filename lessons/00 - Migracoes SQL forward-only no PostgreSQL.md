@@ -1,6 +1,6 @@
 # Migracoes SQL forward-only no PostgreSQL (multi-database)
 
-Criada em 2026-10-25. Ultima atualizacao: 2026-10-25 (correcao rodada 3: fim do comentario -- em \r e dollar-quote sem limite de tag; rodada 2: lint por tokenizador e defesa xact_start). Exemplos: Node 24.22.1, `pg` 8.23.1, Python 3.13 e `psycopg` 3.3.4, PostgreSQL 16 com pgvector 0.8.7.
+Criada em 2026-10-25. Ultima atualizacao: 2026-11-01 (secao "Banco unico com schemas por assunto"); antes, 2026-10-25 (correcao rodada 3: fim do comentario -- em \r e dollar-quote sem limite de tag; rodada 2: lint por tokenizador e defesa xact_start). Exemplos: Node 24.22.1, `pg` 8.23.1, Python 3.13 e `psycopg` 3.3.4, PostgreSQL 16 com pgvector 0.8.7.
 
 ## Objetivo, pre-requisitos e posicao na trilha
 
@@ -66,6 +66,32 @@ Saida esperada: `[ { version: '0001', name: 'exemplo' } ]`. O exemplo ignora o q
 ## Padrao do projeto (da PoC)
 
 Veja `migrateTenant` e `migrateBatch` em [`runner.mjs`](../documentacoes/arquitetura/poc/dec-003/runner.mjs): `pg_try_advisory_lock` por database, uma conexao curta por tenant, checksum SHA-256, lote fail-fast e retomada pelo mesmo comando. `assertTransactional` rejeita, antes de executar, migrations com `BEGIN`/`COMMIT`/`END`/`ROLLBACK`/`SAVEPOINT`, `CONCURRENTLY` ou `VACUUM`: um `COMMIT` dentro do arquivo encerraria a transacao do runner e deixaria a migration meio aplicada e sem registro (o tenant ficaria preso). Ele usa `stripSql`, um tokenizador de uma passada: uma regex em cadeia que remove comentarios antes dos literais erra, porque `SELECT '-- x'; COMMIT;` perderia o `COMMIT` junto com um falso comentario. O tokenizador varre da esquerda para a direita e o primeiro construto que abre manda: `--` ate o fim da linha, `/* */` aninhado (como o PostgreSQL), `'...'` (com `''`; `E'...'` tambem com `\`), `"..."` e `$tag$...$tag$` (so fora de identificador; `$1` e parametro). Construto nao terminado e rejeitado (fail-closed). Limites: assume `standard_conforming_strings=on`; nao enxerga SQL dinamico (`DO`/`EXECUTE`, `set_config`); coluna chamada `vacuum`/`concurrently` da falso positivo. Defesa em profundidade: o runner compara `xact_start` (`pg_stat_activity`) antes e depois do SQL e, se mudou, nao registra a versao; isso so detecta (o `COMMIT` interno ja ocorreu), a prevencao e o lint mais a revisao. Identificadores (nomes de banco) so por allowlist + `escapeIdentifier`; valores sempre por parametros (`$1`). No Python use `psycopg.sql.Identifier` para identificadores. Decisao e evidencias: [ADR-017](../documentacoes/arquitetura/adr/0017-acesso-a-dados-e-migrations-multi-database.md) e [entrega DEC-003](../documentacoes/dados/2026-10-25-dec-003-acesso-a-dados-e-migrations.md).
+
+## Banco unico com schemas por assunto (decisao de 2026-11-01)
+
+Hoje o projeto **nao** cria um banco por tenant nem por tarefa: ha **um unico banco do Nucleos** no Docker, e
+cada assunto ganha um **schema** com suas tabelas (ex.: `financeiro.vendas`). A ideia das migrations e a
+mesma desta lesson; muda o escopo do diario. A API usa `public.api_schema_migrations` (versao, nome, checksum)
+e o runner (`apps/api/src/migrar.ts`) segue o contrato: advisory lock, checksum das ja aplicadas e uma
+transacao por arquivo. Referencia viva (mapa de schemas, como migrar): [banco-unico-nucleos.md](../documentacoes/dados/banco-unico-nucleos.md).
+Aplicacao real: [Painel de vendas Hotmart](../documentacoes/financeiro/2026-11-01-painel-de-vendas-hotmart.md).
+
+Detalhes que valem a pena aprender com essa entrega:
+
+- **Schema por assunto:** `CREATE SCHEMA IF NOT EXISTS financeiro;` no inicio da migration e tabelas sempre
+  qualificadas (`financeiro.vendas`). Isso separa assuntos sem multiplicar bancos.
+- **Nova migration, nunca edicao:** mudar um arquivo ja aplicado faz o checksum acusar
+  (`migration ... foi alterada apos aplicada`).
+- **Senha por entrada padrao:** `printf '%s' "$senha" | node dist/migrar.js --senha-stdin`. A senha nao
+  passa por variavel de ambiente, argumento de processo (visivel em `ps`) nem arquivo temporario.
+- **`pg.Pool` com `connectionString` + `password`:** a URL (sem senha) **sobrescreve** a senha informada e
+  a autenticacao SCRAM falha com `client password must be a string`. Monte por componentes
+  (`apps/api/src/banco.ts`).
+- **Teste de integracao com banco temporario:** o teste cria `nucleos_teste_<hex>` num servidor local,
+  aplica as migrations e o remove. E isolamento de teste, nao um banco de funcionalidade.
+
+Quando **nao** se aplica: se um dia o isolamento por tenant exigir banco proprio, volta valer o desenho
+multi-database descrito acima (decisao em ADR proprio).
 
 ## Erros comuns e quando nao se aplica
 

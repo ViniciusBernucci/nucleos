@@ -14,9 +14,22 @@ export default function FinanceiroPage() {
       <header className="page-header">
         <h1>Financeiro</h1>
       </header>
-      <div className="state-box" role="status">
-        Nenhum conteúdo disponível ainda.
-      </div>
+      <section aria-labelledby="financeiro-paineis">
+        <h2 id="financeiro-paineis" className="visually-hidden">
+          Painéis do setor
+        </h2>
+        <ul className="card-grid">
+          <li>
+            <Link href="/setores/financeiro/vendas" className="link-card">
+              <span className="link-card__code" aria-hidden="true">
+                VD
+              </span>
+              <span className="link-card__title">Painel de vendas</span>
+              <span className="link-card__text">Receita, ticket médio e reembolsos da Hotmart</span>
+            </Link>
+          </li>
+        </ul>
+      </section>
     </main>
   );
 }

@@ -1,6 +1,6 @@
 # Trilha de lessons do Nucleos
 
-Criada em 2026-10-25. Ultima atualizacao: 2026-11-01 (lesson 14 marcada como conceitual apos a remocao dos mocks do front end).
+Criada em 2026-10-25. Ultima atualizacao: 2026-11-01 (lesson 12 com diagnostico de conexao e ciclo de vida do ambiente; lessons 16 e 17 com token Basic e atualizacao por Server Action; lessons 12 e 13 revisadas para .env no MVP; lessons 16 e 17 do painel de vendas; lesson 00 atualizada com o banco unico; antes, lesson 14 marcada como conceitual apos a remocao dos mocks do front end).
 
 `lessons/` e uma trilha progressiva e didatica da stack do projeto, nao um changelog.
 A stack segue o [ADR de arquitetura do MVP](../documentacoes/transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md):
@@ -43,7 +43,7 @@ numerado quando uma entrega o exercitar):
 
 A numeracao segue dependencia de aprendizagem: qualidade estatica (02) e Compose (03) antes do CI (04), que repete esses alvos; logs/redacao (05) antes do isolamento de telemetria (06), que assume dado ja redigido. Em 2026-10-26 as lessons de CI (era 02) e telemetria (era 03) foram renumeradas para 04 e 06.
 
-- [00 - Migracoes SQL forward-only no PostgreSQL](00%20-%20Migracoes%20SQL%20forward-only%20no%20PostgreSQL.md) (bloco 5; entrega DEC-003).
+- [00 - Migracoes SQL forward-only no PostgreSQL](00%20-%20Migracoes%20SQL%20forward-only%20no%20PostgreSQL.md) (bloco 5; entrega DEC-003; atualizada em 2026-11-01 com o banco unico e schemas por assunto).
 - [01 - Sessao opaca e revogacao](01%20-%20Sessao%20opaca%20e%20revogacao.md) (bloco 7, seguranca; entrega DEC-002, ADR-016 Proposto).
 - [02 - Qualidade estatica em TypeScript e Python](02%20-%20Qualidade%20estatica%20em%20TypeScript%20e%20Python.md) (blocos 1, 3 e 7; entrega FND-002). Pre-requisitos: TypeScript e Python basicos.
 - [03 - Docker Compose para ambiente local](03%20-%20Docker%20Compose%20para%20ambiente%20local.md) (bloco 4; entrega FND-004). Pre-requisitos: Docker basico e a lesson 02.
@@ -59,3 +59,5 @@ A numeracao segue dependencia de aprendizagem: qualidade estatica (02) e Compose
 - [13 - Segredos por arquivo e verificacao de vazamento](13%20-%20Segredos%20por%20arquivo%20e%20verificacao%20de%20vazamento.md) (blocos 4 e 7, Docker e seguranca; entrega FND-006; numeracao provisoria).
 - [14 - Estado deterministico de UI e fronteira de mocks no Next.js](14%20-%20Estado%20deterministico%20de%20UI%20e%20fronteira%20de%20mocks%20no%20Next.js.md) (blocos 6 e 8, Next.js e testes; entrega LOC-WEB-001; codigo mockado removido em 2026-11-01 e mantido so em /login e /orgs como excecao legada; numeracao provisoria).
 - [15 - Temas claro e escuro com variaveis CSS no Next.js](15%20-%20Temas%20claro%20e%20escuro%20com%20variaveis%20CSS%20no%20Next.js.md) (blocos 6 e 8, Next.js e testes; entrega interface-web 2026-11-01; numeracao provisoria). Pre-requisitos: lessons 02 e 14.
+- [16 - Sincronizacao idempotente com API externa](16%20-%20Sincronizacao%20idempotente%20com%20API%20externa.md) (blocos 5 e 7, PostgreSQL e seguranca; entrega [Painel de vendas Hotmart](../documentacoes/financeiro/2026-11-01-painel-de-vendas-hotmart.md), 2026-11-01). Pre-requisitos: lessons 00, 12 e 13.
+- [17 - Painel de dados com Server Components no Next.js](17%20-%20Painel%20de%20dados%20com%20Server%20Components%20no%20Next.js.md) (bloco 6, Next.js; entrega [Painel de vendas Hotmart](../documentacoes/financeiro/2026-11-01-painel-de-vendas-hotmart.md), 2026-11-01). Pre-requisitos: lessons 14 e 15.

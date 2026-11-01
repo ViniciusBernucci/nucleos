@@ -200,84 +200,84 @@
    "env": {
     "DB_PASS": "valor"
    },
-   "aceita": false
+   "aceita": true
   },
   {
    "caso": "nome de segredo SECRET_KEY",
    "env": {
     "SECRET_KEY": "valor"
    },
-   "aceita": false
+   "aceita": true
   },
   {
    "caso": "nome de segredo JWT_SECRET_KEY",
    "env": {
     "JWT_SECRET_KEY": "valor"
    },
-   "aceita": false
+   "aceita": true
   },
   {
    "caso": "nome de segredo AWS_SECRET_ACCESS_KEY",
    "env": {
     "AWS_SECRET_ACCESS_KEY": "valor"
    },
-   "aceita": false
+   "aceita": true
   },
   {
    "caso": "nome de segredo ACCESS_KEY",
    "env": {
     "ACCESS_KEY": "valor"
    },
-   "aceita": false
+   "aceita": true
   },
   {
    "caso": "nome de segredo API_TOKEN",
    "env": {
     "API_TOKEN": "valor"
    },
-   "aceita": false
+   "aceita": true
   },
   {
    "caso": "nome de segredo DB_PASSWORD",
    "env": {
     "DB_PASSWORD": "valor"
    },
-   "aceita": false
+   "aceita": true
   },
   {
    "caso": "nome de segredo STRIPE_SECRET",
    "env": {
     "STRIPE_SECRET": "valor"
    },
-   "aceita": false
+   "aceita": true
   },
   {
    "caso": "nome de segredo DB_DSN",
    "env": {
     "DB_DSN": "valor"
    },
-   "aceita": false
+   "aceita": true
   },
   {
    "caso": "nome de segredo DBPASSWORD",
    "env": {
     "DBPASSWORD": "valor"
    },
-   "aceita": false
+   "aceita": true
   },
   {
    "caso": "nome de segredo API_KEY",
    "env": {
     "API_KEY": "valor"
    },
-   "aceita": false
+   "aceita": true
   },
   {
    "caso": "nome de segredo X_PWD",
    "env": {
     "X_PWD": "valor"
    },
-   "aceita": false
+   "aceita": true
   },
   {
    "caso": "nome legitimo SSH_KEY_PATH",
@@ -306,6 +306,23 @@
     "TOKENIZER_MODE": "x"
    },
    "aceita": true
+  },
+  {
+   "caso": "senha direta em producao",
+   "env": {
+    "APP_ENV": "production",
+    "DATABASE_URL": "postgres://u@h/db",
+    "DATABASE_PASSWORD": "SENT"
+   },
+   "aceita": true
+  },
+  {
+   "caso": "fontes conflitantes",
+   "env": {
+    "DATABASE_PASSWORD": "SENT",
+    "DATABASE_PASSWORD_FILE": "/unused"
+   },
+   "aceita": false
   }
  ]
 }

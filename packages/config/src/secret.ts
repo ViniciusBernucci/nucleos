@@ -4,7 +4,7 @@ import { closeSync, constants, fstatSync, openSync, readSync } from "node:fs";
 export const MAX_SECRET_BYTES = 16 * 1024;
 
 /**
- * Segredo lido de arquivo. Nunca imprime o valor: `toString`, `toJSON` e `inspect` devolvem
+ * Segredo do ambiente ou arquivo. Nunca imprime o valor: `toString`, `toJSON` e `inspect` devolvem
  * `[REDACTED]`. O valor so sai por `reveal()`, chamado no ponto de uso (ex.: abrir conexao).
  */
 export class Secret {

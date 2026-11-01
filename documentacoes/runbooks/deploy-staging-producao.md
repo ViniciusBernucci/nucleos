@@ -65,3 +65,7 @@ Limite: migracoes de banco sao **forward-only** (lesson 00): o rollback de image
 ## Responsaveis
 
 Operador do host (a definir ao declarar o ambiente); aprovacao do deploy de producao pelo usuario.
+
+> Atualizacao 2026-11-01: o MVP aceita segredos em .env/ambiente. A exclusividade por
+> arquivo abaixo descreve o perfil endurecido ou a decisao historica, nao uma restricao
+> global dos loaders. Veja [ADR-020](../arquitetura/adr/0020-gestao-de-segredos-do-mvp.md).

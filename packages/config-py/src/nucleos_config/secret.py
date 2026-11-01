@@ -1,4 +1,4 @@
-"""Leitura de segredos por arquivo (ADR-020, item 1): nunca por variavel de ambiente."""
+"""Leitura de segredos por arquivo (ADR-020, item 1): alternativa ao ambiente no MVP."""
 
 from __future__ import annotations
 

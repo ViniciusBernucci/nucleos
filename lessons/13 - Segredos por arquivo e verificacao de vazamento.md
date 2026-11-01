@@ -1,16 +1,16 @@
 # 13 - Segredos por arquivo e verificacao de vazamento
 
-Criada em 2026-10-26. Ultima atualizacao: 2026-10-26. Numeracao PROVISORIA (o coordenador reconcilia a posicao na trilha). Exemplos executados com Docker 29.8.1 / Compose 5.5.1, Node 24.22.1, TypeScript 5.9.3 e Python 3.13.
+Criada em 2026-10-26. Ultima atualizacao: 2026-11-01. Numeracao PROVISORIA (o coordenador reconcilia a posicao na trilha). Exemplos executados com Docker 29.8.1 / Compose 5.5.1, Node 24.22.1, TypeScript 5.9.3 e Python 3.13.
 
 ## Objetivo, pre-requisitos e posicao
 
-Entregar um segredo a um container **sem** que ele apareca em `docker inspect`, variaveis de ambiente, argumentos de processo, logs ou imagem, e **provar** isso com um teste. Pre-requisitos: [12 - Configuracao tipada com falha rapida](12%20-%20Configuracao%20tipada%20com%20falha%20rapida.md), nocoes de Docker/Compose e de permissoes Unix. Posicao: bloco 7 (seguranca) e bloco 4 (Docker).
+Estudar o transporte opcional por arquivo para entregar um segredo a um container **sem** que ele apareca em `docker inspect`, variaveis de ambiente, argumentos de processo, logs ou imagem, e **provar** isso com um teste. Pre-requisitos: [12 - Configuracao tipada com falha rapida](12%20-%20Configuracao%20tipada%20com%20falha%20rapida.md), nocoes de Docker/Compose e de permissoes Unix. Posicao: bloco 7 (seguranca) e bloco 4 (Docker).
 
 ## Modelo mental
 
 - Variavel de ambiente **nao e cofre**: aparece em `docker inspect`, em `/proc/<pid>/environ` e herda para processos filhos. Argumentos aparecem em `/proc/<pid>/cmdline`.
 - Arquivo `0400` montado em `/run/secrets/<nome>` so e legivel pelo dono. A configuracao guarda apenas o **caminho** (`DATABASE_PASSWORD_FILE`).
-- Camadas: (1) o esquema recusa segredo no ambiente; (2) o leitor recusa arquivo com permissao aberta, link simbolico, vazio ou de outro dono; (3) o Compose so referencia o caminho do arquivo; (4) um teste procura um **valor sentinela** em todos os canais, com um **controle negativo** (passar o mesmo valor por `-e` precisa ser detectado, senao o teste nao prova nada).
+- Camadas: (1) o perfil de deploy endurecido recusa segredo no ambiente; (2) o leitor recusa arquivo com permissao aberta, link simbolico, vazio ou de outro dono; (3) o Compose so referencia o caminho do arquivo; (4) um teste procura um **valor sentinela** em todos os canais, com um **controle negativo** (passar o mesmo valor por `-e` precisa ser detectado, senao o teste nao prova nada).
 - Hardening do container: `read_only`, `cap_drop: [ALL]`, `no-new-privileges`, usuario nao-root, limites de CPU/memoria/PIDs, portas so em `127.0.0.1`, imagem por **digest**.
 
 ## Do minimo ao padrao do projeto
@@ -77,3 +77,17 @@ Overlays `compose.staging.yml`/`compose.prod.yml`, `scripts/deploy.sh` (deploy/r
 - Exercicio 1: troque `POSTGRES_PASSWORD_FILE` por `POSTGRES_PASSWORD` no overlay e veja `make lint-deploy` falhar.
 - Exercicio 2: por que o teste inclui o controle negativo com `-e`?
 - Pergunta: qual canal de vazamento a varredura nao cobre e como cobri-lo?
+
+## Escolha do MVP: .env e uma alternativa mais simples
+
+Desde 2026-11-01, o padrao operacional do MVP e .env na raiz. Arquivos *_FILE sao
+opcionais; os exemplos de ausencia em inspect acima continuam validos apenas nesse modo.
+O loader nao bloqueia mais nomes de segredo no ambiente. O wrapper Secret protege
+serializacao acidental, mas nao oculta process.env de administradores ou processos filhos.
+Nao use .env quando o requisito exigir ausencia no ambiente: prefira o transporte por
+arquivo demonstrado nesta lesson. Nunca versione valores reais em nenhum dos modos.
+
+No modo .env, teste que a credencial chega ao ponto de uso e que erros/logs/JSON nao a
+revelam. Ao rotacionar, atualize a credencial no destino e reinicie os consumidores.
+Exercicio: compare os riscos de docker inspect nos dois transportes.
+Decisao e verificacoes: [entrega](../documentacoes/transversal/2026-11-01-configuracao-env-mvp.md).

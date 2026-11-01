@@ -107,8 +107,8 @@ describe("api recusa subir com configuracao invalida (AC-1)", { skip: !dockerOk(
   test("porta/duracao/URL invalidas", () => {
     check(runApi({ PORT: `x${SENT}`, REQUEST_TIMEOUT: SENT, DATABASE_URL: `postgres://u:${SENT}@h/db` }), ["PORT", "REQUEST_TIMEOUT", "DATABASE_URL"]);
   });
-  test("staging sem banco/segredo", () => check(runApi({ APP_ENV: "staging" }), ["DATABASE_URL", "DATABASE_PASSWORD_FILE"]));
-  test("segredo por variavel de ambiente", () => check(runApi({ DATABASE_PASSWORD: SENT }), ["DATABASE_PASSWORD"]));
+  test("staging sem banco/segredo", () => check(runApi({ APP_ENV: "staging" }), ["DATABASE_URL", "DATABASE_PASSWORD"]));
+  test("fontes de segredo conflitantes", () => check(runApi({ DATABASE_PASSWORD: SENT, DATABASE_PASSWORD_FILE: "/unused" }), ["DATABASE_PASSWORD"]));
   test("arquivo de segredo com permissao aberta", () => {
     const f = join(dir, "pw"); writeFileSync(f, `${SENT}\n`); chmodSync(f, 0o644);
     check(runApi({ DATABASE_PASSWORD_FILE: "/run/pw" }, ["-v", `${f}:/run/pw:ro`]), ["DATABASE_PASSWORD_FILE", "permissoes"]);

@@ -13,3 +13,7 @@ Compose de desenvolvimento (FND-004): `compose.dev.yml`, scripts em `scripts/`. 
 
 - `compose.deploy.yml` (base) + `compose.staging.yml` / `compose.prod.yml` (overlays): imagens por digest, segredos so por arquivo (`*_FILE`), hardening e limites. `scripts/deploy.sh` faz deploy/rollback por digest; `scripts/verificar-deploy.mjs` (`make lint`) valida a politica; `make test-ambientes` ensaia em containers efemeros.
 - Runbook: `documentacoes/runbooks/deploy-staging-producao.md`. Documento da entrega: `documentacoes/infraestrutura/2026-10-26-fnd-006-configuracao-tipada-e-ambientes.md`.
+
+> Atualizacao 2026-11-01: o MVP aceita segredos em .env/ambiente. A exclusividade por
+> arquivo abaixo descreve o perfil endurecido ou a decisao historica, nao uma restricao
+> global dos loaders. Veja [ADR-020](../../documentacoes/arquitetura/adr/0020-gestao-de-segredos-do-mvp.md).

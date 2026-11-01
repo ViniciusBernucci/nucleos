@@ -5,7 +5,30 @@
 - **Decisores:** usuário (pendente)
 - **Origem:** [ENT-DEC-006](../../backlog/EP-00-decisoes-pocs-e-threat-model/tickets.md#ent-dec-006); [ADR consolidado, seção 10](../../transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md)
 
-## Contexto
+## Revisao aceita em 2026-11-01: configuracao tradicional do MVP
+
+Por pedido explicito do usuario, **segredos por variaveis de ambiente e .env sao permitidos
+e constituem a configuracao padrao do MVP**, inclusive banco e integracao Hotmart. Esta
+revisao substitui a obrigatoriedade de entrega exclusivamente por arquivo descrita abaixo.
+O restante do documento preserva a decisao e a evidencia historicas do broker/PoC.
+
+- API e servidor web carregam o .env da raiz, sem sobrescrever o ambiente exportado.
+- DATABASE_PASSWORD, HOTMART_CLIENT_ID, HOTMART_CLIENT_SECRET e VENDAS_API_KEY sao aceitos.
+- Arquivos *_FILE continuam opcionais e com as mesmas validacoes; fontes duplicadas falham.
+- Valores permanecem protegidos por Secret/SecretStr e nao entram em erros ou logs.
+- .env nunca e versionado ou incorporado em imagens. Rotacao por ambiente exige reinicio.
+- Aceita-se a exposicao do ambiente a administradores, processos autorizados e docker inspect.
+  A garantia de ausencia nesses canais so vale para o transporte opcional por arquivo.
+- Os overlays de deploy endurecidos e o broker de tenants preservam transporte por arquivo;
+  o pedido nao altera isolamento de tenants nem publica um ambiente de producao.
+- Configuracao Python aceita DATABASE_PASSWORD no mapa de ambiente fornecido; o carregador
+  continua explicito e nao procura .env automaticamente.
+
+Implementacao, validacoes e rollback: [entrega](../../transversal/2026-11-01-configuracao-env-mvp.md).
+
+## Decisao historica de 2026-10-25 (transporte por arquivo)
+
+### Contexto
 
 O MVP roda em uma VPS com Docker Compose (ADR-010), runtime dedicado por tenant (ADR-002) e database por tenant (ADR-003). Há três classes de segredo: (a) da plataforma, (b) credenciais por tenant geradas pelo provisioner, (c) credenciais de integração fornecidas pelo cliente. Segredos não podem aparecer em `docker inspect`, variáveis de ambiente, logs nem imagens; a rotação e a revogação devem ser por tenant, sem reiniciar os demais. Orçamento de RAM e de operação é mínimo (sem HA no MVP).
 

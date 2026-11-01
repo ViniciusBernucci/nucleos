@@ -337,3 +337,30 @@ worktrees ao lado de `nucleos`.
 
 Para configurações avançadas, como escolher as pastas indexadas ou usar MCP, veja o
 [guia completo do Contexto](https://github.com/ViniciusBernucci/contexto/blob/main/INSTALL.md).
+
+## Configuracao do MVP com .env
+
+Copie [.env.example](.env.example) para `.env` na raiz e preencha `DATABASE_PASSWORD`,
+`HOTMART_CLIENT_ID`, `HOTMART_CLIENT_SECRET` e `VENDAS_API_KEY`. A API e o servidor
+Next.js carregam esse arquivo; variaveis ja exportadas tem precedencia. Reinicie os processos
+apos editar. A URL do banco fica em `DATABASE_URL`, sem senha embutida. No desenvolvimento
+fora do Docker, o Postgres do Compose fica em `127.0.0.1:15432`; use a senha ja criada
+em `infrastructure/docker/.env.local`. O preenchimento do .env nao modifica o banco.
+
+Hotmart sem as duas credenciais fica desativada; uma credencial isolada e erro. A chave de
+vendas deve ser a mesma no servidor web e na API, nunca `NEXT_PUBLIC_*` nem `nextConfig.env`.
+`*_FILE` permanece opcional; configurar as duas fontes para a mesma credencial e erro.
+Os overlays endurecidos de staging/producao continuam com transporte por arquivo.
+Em Docker dev, sobrescreva `DATABASE_URL` com o host interno `postgres:5432` e
+`VENDAS_API_URL` com `http://api:3001` (o .env de execucao no host usa loopback).
+
+O .env real e ignorado pelo Git e pelo build Docker. Nao publique seus valores em logs,
+capturas de ambiente ou `docker inspect`: o ambiente pode ser lido por administradores.
+Veja a [decisao atual](documentacoes/arquitetura/adr/0020-gestao-de-segredos-do-mvp.md)
+e o [registro da mudanca](documentacoes/transversal/2026-11-01-configuracao-env-mvp.md).
+
+O painel de vendas oferece **Atualizar agora**: dispara uma sincronizacao imediata e
+recarrega os dados ao concluir. HOTMART_CLIENT_TOKEN aceita o token Basic fornecido pela
+Hotmart (preferencialmente sem o prefixo Basic); se ausente, mantem a derivacao anterior.
+As URLs externas continuam no cliente da integracao. VENDAS_API_URL aponta apenas para
+a API interna do NUCLEOS. Veja a [entrega](documentacoes/financeiro/2026-11-01-atualizacao-manual-hotmart.md).

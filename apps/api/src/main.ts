@@ -1,14 +1,19 @@
 import "reflect-metadata";
-import { ConfigError, loadApiConfig } from "@nucleos/config";
+import { ConfigError, loadApiConfig, loadVendasConfig } from "@nucleos/config";
 import { NestFactory } from "@nestjs/core";
+import { Pool } from "pg";
 import { AppModule } from "./app.module.js";
+import { opcoesPool } from "./banco.js";
 import { createApiObservability, observabilityMiddleware } from "./observability.js";
+import { VendasModule } from "./vendas/vendas.module.js";
 
 // Falha rapida (FND-006): configuracao ausente/invalida impede a subida; a mensagem so lista
 // nomes de variaveis e motivos, nunca valores.
 let config;
+let vendasConfig;
 try {
   config = loadApiConfig();
+  vendasConfig = loadVendasConfig();
 } catch (e) {
   if (e instanceof ConfigError) {
     console.error(`api: ${e.message}`);
@@ -17,7 +22,26 @@ try {
   throw e;
 }
 
-const app = await NestFactory.create(AppModule);
+const log = (mensagem: string): void => {
+  console.log(mensagem);
+};
+
+// O painel de vendas depende do banco; sem DATABASE_URL (local/ci) o modulo fica desligado.
+const pool =
+  config.databaseUrl === undefined
+    ? undefined
+    : new Pool(opcoesPool(config.databaseUrl, config.databasePassword?.reveal(), 5));
+pool?.on("error", () => {
+  log("api: erro em conexao ociosa do banco");
+});
+if (pool === undefined) log("api: DATABASE_URL ausente; painel de vendas desativado");
+
+const app = await NestFactory.create(
+  AppModule.comModulos(
+    pool === undefined ? [] : [VendasModule.registrar({ config: vendasConfig, pool, log })],
+  ),
+);
+app.enableShutdownHooks();
 app.use(observabilityMiddleware(createApiObservability(config)));
 await app.listen(config.port, config.host);
 console.log(`api em http://${config.host}:${String(config.port)} (${config.appEnv})`);
