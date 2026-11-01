@@ -9,8 +9,8 @@
     "pnpm": ">=12.15.0 <13"
   },
   "scripts": {
-    "start": "pnpm --filter @nucleos/web exec next start -H 127.0.0.1 -p 3000",
-    "dev": "pnpm --filter @nucleos/web exec next dev -H 127.0.0.1 -p 3000",
+    "start": "npm --prefix apps/web run start -- -p 3000",
+    "dev": "npm --prefix apps/web run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
