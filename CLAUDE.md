@@ -5,11 +5,53 @@ todas as sessoes e em todos os subagentes. Instrucoes mais especificas podem
 complementa-las, mas nao podem dispensar a documentacao obrigatoria nem a base
 didatica descritas aqui.
 
+
+## Fluxo enxuto padrao
+
+Novos lotes: planejador-de-lote + grill-me na mesma sessao; o planejador termina no
+pacote e o usuario inicia context run. Uma worktree por lote, unidades sequenciais,
+checks, uma revisao corretiva de impactos medios/altos/criticos, checks integrados e
+entrega deterministica em revisao/. Sem auditor, review-loop ou QA de tela por IA.
+Os testes de tela sao MANUAIS ao final, com roteiro; DONE tecnico nao e aceite visual.
+O run autoriza commits/branch locais explicitamente propostos no manifesto; nao autoriza
+push, PR, publicacao ou merge em main/master. Fora disso, sem commits sem pedido explicito.
+No planejamento/despacho enxutos, nao preparar/indexar o Node legado. Preservar regras
+de negocio/banco, seguranca, documentacao/lessons, limites, telemetria e retomada.
+Esta politica substitui apenas o encadeamento/gates legados abaixo. Um ciclo de correcao
+e testes; bloqueios reais sao registrados. Runs antigos conservam seu snapshot.
+
+## Despacho pelo Context Compiler Go
+
+Quando o prompt contiver CONTEXTO_EXECUTION=step, esta secao rege a coordenacao da
+etapa. Preserve todas as demais regras de negocio, banco, seguranca, autorizacao,
+documentacao e lessons deste arquivo. O runtime Go executa o YAML; nao chame
+orquestrador-fluxo-ia nem encadeie skills. Execute somente o brief do step.
+O planejamento externo continua com planejador-de-lote. Fora do despacho Go,
+o fluxo direto/legado abaixo continua disponivel quando solicitado.
+
+Nao rode index/ensure/preparar-contexto, flow ou process/handoff/checkpoint do
+Contexto Node legado durante o despacho Go. A worktree e o estado pertencem ao
+runtime Go. O SQLite local de telemetria nao substitui o PostgreSQL da aplicacao.
+CONTEXTO_CLI de uma instalacao Node nao deve ser reutilizado como binario Go.
+
+Use as regras obrigatorias e fontes incluidas no pacote. Referencias available sao
+para consulta sob demanda; leia apenas trechos pertinentes. Nao carregue catalogos
+de skills, lockfiles, logs ou diffs inteiros. Se faltar requisito essencial ou
+houver conflito entre plano congelado e regra vigente, devolva BLOCKED com a
+divergencia. Nao escolha outra arquitetura/banco silenciosamente.
+
+Nao execute outras IAs/subagentes sem autorizacao explicita do despacho. Registre
+progresso e pendencias em arquivo local. Em retomada, preserve a worktree e confira
+o trabalho existente antes de continuar; nao recomece nem apague o que ja foi feito.
+Pausa/orcamento nao equivalem a QA aprovado.
+
+Retorne status, summary e artifacts com caminhos relativos. O Go calcula SHA-256:
+nao transcreva hashes. Falha de finalizacao pode ser revalidada com recover sem IA,
+sem dispensar os checks e a revisao previstos no snapshot; testes de tela do fluxo enxuto ficam manuais. Nao altere snapshot/estado manualmente.
+
 ## Forma de trabalho
 
-- Antes de alterar codigo, leia a estrutura do repositorio, os arquivos
-  `package.json`, `pnpm-workspace.yaml`, `tsconfig*.json`, `pyproject.toml`, `uv.lock`, o README e os testes
-  relacionados.
+- Antes de alterar codigo, identifique a estrutura e leia README, configuracoes e testes pertinentes a camada/ticket. Consulte package.json, pnpm-workspace.yaml, tsconfig e pyproject.toml quando relevantes. Em uv.lock/pnpm-lock.yaml, procure apenas dependencias/versoes relacionadas; nao carregue lockfiles inteiros na conversa.
 - Preserve arquitetura, limites de dominio, convencoes e estilo existentes.
   Evite refatoracoes sem relacao com a tarefa.
 - Em TypeScript/Python, respeite a stack do ADR de 2026-10-25 (TypeScript com NestJS e Next.js; Python
@@ -197,6 +239,9 @@ estas regras e as secoes anteriores deste arquivo.
   containers efemeros em `127.0.0.1`; ainda nao roda no CI. Nao ha ambiente de staging declarado:
   deploy real fica BLOCKED (ver `documentacoes/runbooks/deploy-staging-producao.md`).
   Entrega somente de documentacao registra NA com justificativa.
+- **Banco unico:** o Nucleos tem UM unico banco PostgreSQL no Docker; cada assunto e resolvido com
+  schemas e tabelas dentro dele, nunca com banco ou container novo por tarefa. Referencia, mapa de
+  schemas e como migrar: `documentacoes/dados/banco-unico-nucleos.md` (atualize o mapa ao criar tabelas).
 - **Dados:** nao ha banco nem servico de producao declarado. Nenhum teste ou script acessa
   banco ou servico real sem um ambiente isolado declarado nesta secao. Ambiente isolado de PoC
   declarado: containers descartaveis (Docker/Compose) publicados somente em `127.0.0.1`, sem
