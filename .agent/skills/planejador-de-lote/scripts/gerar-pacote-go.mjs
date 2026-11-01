@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Empacota o planejamento e usa o compilador real como validador. Nunca executa o plano.
 import fs from 'node:fs';
+import { buildLeanFlow } from './fluxo-enxuto.mjs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -63,9 +64,11 @@ export function generateBundle({ input, manifest, compiler = process.env.CONTEXT
       execFileSync('git', ['-C', project, 'rev-parse', '--verify', 'HEAD'], { stdio: 'ignore', windowsHide: true });
     } catch (error) { throw new Error(`Worktree exige projeto Git com commit base verificado: ${error.message}`); }
   }
-  requireValue(object(draft.workflow) && Array.isArray(draft.workflow.steps), 'Workflow completo ausente');
+  requireValue(draft.flow_profile === undefined || ['enxuto-v1', 'custom'].includes(draft.flow_profile), 'flow_profile inválido');
   requireValue(object(draft.bindings), 'Catálogo bindings completo ausente');
   const bindings = structuredClone(draft.bindings);
+  if ((draft.flow_profile ?? 'enxuto-v1') === 'enxuto-v1') draft.workflow = buildLeanFlow(draft, bindings);
+  requireValue(object(draft.workflow) && Array.isArray(draft.workflow.steps), 'Workflow completo ausente');
   bindings.max_concurrency ??= 1;
   if (Object.hasOwn(bindings.values ?? {}, 'task.final_risk_level')) {
     const risk = bindings.values['task.final_risk_level'];
@@ -80,6 +83,39 @@ export function generateBundle({ input, manifest, compiler = process.env.CONTEXT
   for (const [ref, executor] of Object.entries(bindings.executors ?? {})) {
     requireValue(object(executor), `Executor inválido: ${ref}`);
     if (executor.command !== undefined) argv(executor.command, `Executor ${ref}`);
+  }
+  bindings.execution ??= {};
+  bindings.execution.profile ??= 'compiled';
+  requireValue(object(bindings.step_contexts), 'bindings.step_contexts obrigatório para cada etapa skill');
+  const skillIDs = new Set(draft.workflow.steps.filter(s => s.type === 'skill').map(s => s.id));
+  for (const id of Object.keys(bindings.step_contexts)) requireValue(skillIDs.has(id), 'step_contexts desconhecido: ' + id);
+  for (const id of skillIDs) {
+    const brief = bindings.step_contexts[id];
+    requireValue(object(brief) && typeof brief.ticket_id === 'string' && brief.ticket_id.trim() &&
+      typeof brief.objective === 'string' && brief.objective.trim(), id + ': ticket_id e objective obrigatórios');
+    for (const name of ['scope', 'acceptance']) requireValue(Array.isArray(brief[name]) && brief[name].length &&
+      brief[name].every(x => typeof x === 'string' && x.trim()), id + ': ' + name + ' obrigatório');
+    for (const tier of ['required', 'initial', 'available']) {
+      requireValue(brief[tier] === undefined || Array.isArray(brief[tier]), id + ': ' + tier + ' deve ser lista');
+      for (const ref of brief[tier] ?? []) {
+        requireValue(object(ref) && typeof ref.path === 'string' && ref.path.trim() &&
+          !path.isAbsolute(ref.path), id + ': referência deve ser relativa ao projeto');
+        const resolved = path.resolve(project, ref.path);
+        const relative = path.relative(project, resolved);
+        requireValue(relative && !relative.startsWith('..') && !path.isAbsolute(relative), id + ': referência fora do projeto');
+        requireValue(!ref.path.replaceAll('\\', '/').split('/').some(x => x === '.git' || x === '.env' ||
+          x.startsWith('.env.') || x.endsWith('.pem') || x.endsWith('.key')), id + ': referência de segredo proibida');
+        if (fs.existsSync(resolved)) {
+          const realRelative = path.relative(project, fs.realpathSync.native(resolved));
+          requireValue(realRelative && !realRelative.startsWith('..') && !path.isAbsolute(realRelative), id + ': link fora do projeto');
+          requireValue(fs.statSync(resolved).isFile(), id + ': referência não é arquivo');
+        } else requireValue(tier !== 'required', id + ': referência required não existe');
+        ref.path = relative.split(path.sep).join('/');
+        requireValue((ref.start_line === undefined || Number.isInteger(ref.start_line) && ref.start_line >= 1) &&
+          (ref.end_line === undefined || Number.isInteger(ref.end_line) && ref.end_line >= (ref.start_line ?? 1)),
+          id + ': faixa de linhas inválida');
+      }
+    }
   }
   const ids = new Set(draft.workflow.steps.map(step => step.id));
   for (const step of draft.workflow.steps) {
@@ -101,7 +137,7 @@ export function generateBundle({ input, manifest, compiler = process.env.CONTEXT
   const outputDir = path.dirname(target);
   const targets = names.map(name => path.join(outputDir, name));
   for (const destination of targets) requireValue(!fs.existsSync(destination), `Arquivo existente preservado: ${destination}`);
-  const header = ['---', 'contexto:', '  schema_version: 1', `  project_root: ${JSON.stringify(project)}`, `  workflow: ${JSON.stringify(names[1])}`, `  bindings: ${JSON.stringify(names[2])}`, '  status: ready', `  isolation: ${isolation}`, '---', '', `# ${draft.title.trim()}`, '', body.trim(), ''].join('\n');
+  const header = ['---', 'contexto:', '  schema_version: 1', `  project_root: ${JSON.stringify(project)}`, `  workflow: ${JSON.stringify(names[1])}`, `  bindings: ${JSON.stringify(names[2])}`, '  status: ready', `  isolation: ${isolation}`, '---', '', `# ${draft.title.trim()}`, '', (draft.flow_profile === 'custom' ? '' : 'Fluxo enxuto: ao executar run, você autoriza implementação, checks, revisão corretiva e commits/branch locais previstos. Sem checkpoints humanos intermediários; testes de tela serão manuais ao final. Não autoriza push, PR nem merge em main/master.'), '', body.trim(), ''].join('\n');
   const contents = [header, `${yaml(draft.workflow)}\n`, `${yaml(bindings)}\n`];
   fs.mkdirSync(outputDir, { recursive: true });
   const staging = fs.mkdtempSync(path.join(outputDir, '.contexto-packet-'));

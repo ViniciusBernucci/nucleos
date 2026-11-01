@@ -3,6 +3,9 @@ name: auditor-de-review
 description: Audita achados de code review contra código, especificação e regras de negócio; decide APLICAR, ADIAR ou REJEITAR com evidência. Use no ciclo do orquestrador ou para auditar um relatório; não implementa nem substitui QA.
 ---
 
+Esta skill é opcional para pedido especializado ou modo legado explícito; não compõe o fluxo enxuto padrão. Novos lotes usam planejador-de-lote + grill-me, implementação e uma revisão corretiva. Não se autoencadeie no perfil enxuto. Para gates históricos consulte [perfis legados](../_shared/perfis-de-risco-legado.md).
+
+
 # Auditor de review
 
 Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Audite os achados e devolva as decisões por ID; não dispare a etapa de correção.

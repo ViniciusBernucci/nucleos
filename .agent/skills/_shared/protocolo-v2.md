@@ -1,5 +1,7 @@
 # Protocolo V2 — execução e contexto integrados
 
+O padrão para novos lotes é o [fluxo enxuto](fluxo-enxuto.md). Durante seu planejamento e despacho Go, não execute preparação/indexação/process/flow do Node legado nem acrescente gates/auditores/QA. As instruções operacionais Node abaixo só se aplicam ao modo legado explícito; regras de negócio e segurança do projeto permanecem vigentes.
+
 Consulte apenas a seção da próxima ação. `contexto/contexto.mjs --help` lista comandos; os testes em `contexto/tests/` fornecem exemplos executáveis completos. Este protocolo complementa risco, regras locais e proteções de banco; não concede publicação externa.
 
 ## Inicialização automática

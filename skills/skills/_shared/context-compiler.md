@@ -1,41 +1,45 @@
 # Execução de uma etapa pelo Context Compiler Go
 
-Este contrato se aplica quando o despacho contém `CONTEXTO_EXECUTION=step`, com run, step,
-skill congelada, workdir, plano aprovado e handoff das dependências. Nas chamadas diretas,
-preserve o papel da skill e as regras locais. Não mantenha uma segunda cópia da skill.
+Aplica-se somente a despachos com CONTEXTO_EXECUTION=step. O runtime Go controla
+sequência, dependências, gates, concorrência, estado, limites, logs e retomada.
+Na chamada direta da skill, preserve seu papel e as regras locais.
 
-O runtime controla sequência, dependências, concorrência, claims, esperas, retries, gates e
-persistência. Execute somente a etapa recebida. Não chame outras skills para avançar o
-workflow; não invoque `orquestrador-fluxo-ia`, `flow claim/next/event`, nem os registros do
-runtime Node legado. As orientações de encadeamento existentes nesta skill pertencem ao
-uso direto/legado e não transferem a coordenação de volta ao agente durante um despacho Go.
+Execute somente o step/ticket recebido na worktree indicada. Não encadeie skills,
+orquestrador-fluxo-ia, outros CLIs de IA nem flow claim/next/event. Não rode preparação,
+indexação, process/handoff/checkpoint do Contexto Node legado nesse modo. Instruções
+legadas de encadeamento não transferem a coordenação ao agente. Não faça commits
+sem autorização explícita do projeto/usuário.
 
-Use a worktree fornecida. Consulte as regras do projeto e as referências especializadas
-necessárias, sem refazer entrevista ou planejamento aprovados. Retorne bloqueio se faltar
-informação essencial, autorização, ferramenta ou evidência. Não inicie review, auditoria,
-QA, correção ou fechamento que pertençam a outra etapa. Revisão continua independente da
-implementação; o workflow configura review por risco e QA obrigatório em R3/R4.
+## Contexto proporcional
 
-Produza os artefatos da etapa e retorne somente este JSON, sem cercas Markdown:
+Comece pelo brief aprovado, regras obrigatórias e fontes incluídas. Preserve regras de
+negócio, segurança, dados, documentação e independência de revisão/QA. Não releia regras
+já incluídas sem motivo. Referências available são índice para consulta sob demanda,
+não uma lista de leitura. Abra arquivos/faixas pertinentes a uma dependência concreta.
+Não despeje lockfiles, catálogos, logs, histórico, diffs ou documentação inteira no contexto.
+Não refaça planejamento, outros tickets ou etapas. Lacuna essencial, conflito ou gate
+sem evidência exige BLOCKED com causa precisa. Não investigue indefinidamente.
+Registre progresso e pendências no artefato local. Subagentes exigem autorização explícita
+no despacho e capacidade do executor.
 
-```json
-{
-  "status": "PASS",
-  "summary": "O que foi executado e quais evidências comprovam o resultado.",
-  "artifacts": [
-    {"path": "docs/relatorio-da-etapa.md", "sha256": "SHA256_REAL_DO_ARQUIVO"}
-  ]
-}
-```
+## Resultado
 
-`status` aceita `PASS`, `FAIL` e `BLOCKED`. `PASS` exige pelo menos um arquivo existente na
-worktree e seu hash SHA-256 real. Use caminhos relativos à worktree. Artefatos externos
-devem ser referenciados no relatório local, sem copiar segredos. O processo terminar com
-exit code zero não comprova a execução. Testes exigidos não executados, permissões negadas
-ou resultados inconclusivos não são `PASS`. O runtime valida o contrato e os hashes, grava
-o resultado e decide o próximo passo. Não invente métricas de consumo.
+Retorne somente JSON, sem cercas Markdown:
+{"status":"PASS","summary":"Trabalho e verificações reais, limitações.","artifacts":[{"path":"docs/relatorio-da-etapa.md"}]}
 
-Uma skill executora pode recomendar uma próxima ação no relatório; essa recomendação não
-autoriza executá-la. Se o YAML precisar de outra etapa ou de um ciclo de correção, informe
-a lacuna para alteração explícita da configuração. A execução em andamento usa o snapshot
-com o qual começou.
+Status: PASS, FAIL ou BLOCKED. Caminhos relativos à worktree; PASS exige arquivo existente
+e evidência real. Informe caminhos: o runtime calcula SHA-256 a partir dos bytes. Não
+calcule/transcreva hashes na resposta. Hash legado fornecido continua sujeito a validação.
+Exit code zero não comprova critérios, testes ou QA. Não copie segredos nem invente métricas.
+
+## Interrupção
+
+Pausa, timeout ou orçamento preservam worktree e checkpoint. Na retomada, inspecione o
+trabalho existente e implemente somente o que falta. Arquivo alterado não significa critério
+concluído. Não apague nem recomece automaticamente. O runtime fornece contexto compacto
+e registra o ID nativo, sem reenviar a conversa inteira.
+Falha exclusivamente na finalização dos artefatos é tratada por recover, sem chamar IA
+ou repetir implementação. Isso não dispensa os checks e a revisão previstos no snapshot. No fluxo enxuto, testes de tela são manuais e ficam pendentes.
+Não contorne bloqueios nem altere o snapshot. Recomendar próxima ação não autoriza executá-la.
+
+Em flow.profile=enxuto-v1, aplica-se o [fluxo enxuto](fluxo-enxuto.md). A revisão corretiva autorizada pode editar e testar dentro do próprio step, sem auditor intermediário. Não importar gates do Node legado. Não faça commits/merges pela IA: o comando determinístico de entrega faz as ações locais autorizadas no manifesto. DONE técnico não aprova testes manuais de tela.

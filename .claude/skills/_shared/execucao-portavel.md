@@ -1,5 +1,7 @@
 # Execução portátil — Claude, Antigravity e Codex
 
+O padrão para novos lotes é o [fluxo enxuto](fluxo-enxuto.md). Durante seu planejamento e despacho Go, não execute preparação/indexação/process/flow do Node legado nem acrescente gates/auditores/QA. As instruções operacionais Node abaixo só se aplicam ao modo legado explícito; regras de negócio e segurança do projeto permanecem vigentes.
+
 Leia perfil-projeto.md. As convenções de fonte/espelhos abaixo são do preset Intranet; em outro projeto use a instalação real das skills e regras locais.
 
 - Fonte de manutenção local: {FONTE_CLAUDE}/skills (diretório real das regras centrais). Não há cópias nos repositórios: ~/.claude/skills (Claude) e ~/.agents/skills (Codex e Antigravity) contêm links para a fonte, conferidos por planejador-de-lote/scripts/sincronizar-fluxo.mjs. Edite só a fonte. Se encontrar cópia antiga de uma skill do fluxo num repositório, ela é resíduo: use a fonte pelo caminho absoluto.

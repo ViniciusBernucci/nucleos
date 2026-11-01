@@ -1,5 +1,9 @@
 # Observabilidade e handoff entre skills
 
+O padrão para novos lotes é o [fluxo enxuto](fluxo-enxuto.md). Durante seu planejamento e despacho Go, não execute preparação/indexação/process/flow do Node legado nem acrescente gates/auditores/QA. As instruções operacionais Node abaixo só se aplicam ao modo legado explícito; regras de negócio e segurança do projeto permanecem vigentes.
+
+Em CONTEXTO_EXECUTION=step, siga [Context Compiler Go](context-compiler.md): o runtime já registra sessão, métricas, logs e checkpoint. Não execute Node process/handoff/checkpoint nem importe os mesmos tokens novamente. As instruções Node abaixo pertencem ao modo direto/legado.
+
 `quality-report` inclui achados novos/resolvidos, critérios comprovados, pares de SHA e série de requests. A correlação usa projeto, provedor, sessão, skill e agente; sem agente nativo explícito e coincidente, as razões de tokens por achado/critério ficam null. Não some relatórios derivados aos totais nativos. Leituras repetidas são observadas apenas nas chamadas read do Contexto e usam hashes da referência, sem guardar conteúdo.
 
 Todas as skills registram início e fim da execução com `contexto.mjs process --project RAIZ --file EVENTO.json` quando o Contexto estiver preparado. A falta de instrumentação deve ser declarada; não invente duração, tokens ou execução. O evento usa ID estável por transição e os campos `status` (STARTED/PASS/FAIL/BLOCKED/OBSERVED), `at` ISO UTC, `session`, `parent`, `provider` (claude/codex/unknown), `skill`, `role`, `agent`, `batch`, `ticket`, `task`, `stage` e `duration_ms` quando medido. Não grave prompts, comandos completos, credenciais ou respostas no evento.

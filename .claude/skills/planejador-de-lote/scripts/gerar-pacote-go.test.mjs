@@ -19,13 +19,13 @@ function fixture(t) {
   fs.writeFileSync(path.join(root, 'worker.md'), '# Executor de teste\n');
   fs.writeFileSync(path.join(root, 'spec.md'), 'Objetivo: alterar README.\nAC-1: preservar as seções existentes.\nEtapa implementar atende AC-1.\n');
   const draft = {
-    schema_version: 1, status: 'ready', title: 'Lote de teste', project_root: 'projeto com espaços',
+    schema_version: 1, flow_profile: 'custom', status: 'ready', title: 'Lote de teste', project_root: 'projeto com espaços',
     isolation: 'none', body_file: 'spec.md',
     workflow: { schema_version: 1, workflow: { id: 'test/planning', version: 1, trigger: 'manual' }, steps: [
       { id: 'implementar', type: 'skill', skill_ref: 'test/worker@v1', executor_ref: 'codex/subscription' },
       { id: 'checks', type: 'command', depends_on: ['implementar'], command_ref: 'project/checks' },
     ] },
-    bindings: { schema_version: 1, skills: { 'test/worker@v1': 'worker.md' }, executors: { 'codex/subscription': { provider: 'codex' } }, commands: { 'project/checks': ['git', 'diff', '--check'] }, values: {} },
+    bindings: { schema_version: 1, step_contexts: { implementar: { ticket_id: 'T1', objective: 'Alterar README', scope: ['README'], acceptance: ['AC-1 preservar seções'] } }, skills: { 'test/worker@v1': 'worker.md' }, executors: { 'codex/subscription': { provider: 'codex' } }, commands: { 'project/checks': ['git', 'diff', '--check'] }, values: {} },
   };
   const input = path.join(root, 'packet.json');
   const manifest = path.join(root, 'planos', 'lote.md');
@@ -101,4 +101,18 @@ test('worktree verifica Git e um commit base antes de declarar prontidão', { sk
   execFileSync('git', ['add', 'README.md'], { cwd: f.project });
   execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'base'], { cwd: f.project });
   assert.equal(generateBundle({ input: f.input, manifest: f.manifest, compiler }).ready, true);
+});
+
+test('brief ausente não vira pacote executável', t => {
+  const f = fixture(t); delete f.draft.bindings.step_contexts; f.write();
+  assert.throws(() => generateBundle({ input: f.input, manifest: f.manifest }), /step_contexts obrigatório/);
+  assert.equal(fs.existsSync(f.manifest), false);
+});
+test('referência fora do projeto e segredo são recusados', t => {
+  const f = fixture(t);
+  const brief = f.draft.bindings.step_contexts.implementar;
+  brief.required = [{path:'../worker.md'}]; f.write();
+  assert.throws(() => generateBundle({ input:f.input, manifest:f.manifest }), /fora do projeto/);
+  brief.required = [{path:'.env'}]; f.write();
+  assert.throws(() => generateBundle({ input:f.input, manifest:f.manifest }), /segredo/);
 });

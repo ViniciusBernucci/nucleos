@@ -1,47 +1,65 @@
 ---
 name: planejador-de-lote
-description: Planeja uma ou mais demandas com grill-me, tech-lead e worktree-planner e entrega automaticamente manifesto, workflow e catálogo validados para o Context Compiler. Use para iniciar ou revisar um lote; planejamento não inicia implementação.
+description: Planeja um lote com entrevista grill-me e entrega manifesto executável para o Context Compiler, com tarefas proporcionais, checks, revisão corretiva única e roteiro manual de tela. Planejamento termina no plano; o usuário inicia run.
 ---
 
 # Planejador de lote
 
-Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Nesse caso não encadeie grill-me, tech-lead ou worktree-planner: o YAML define essas etapas. Na chamada direta do usuário, preserve o encadeamento de planejamento abaixo.
+## Contrato padrão
 
-## Entrega para o Context Compiler Go
+Use o [fluxo enxuto](../_shared/fluxo-enxuto.md). O usuário participa do planejamento e
+depois inicia context run com o manifesto. Não execute run ao terminar o planejamento.
+No despacho CONTEXTO_EXECUTION=step, execute apenas seu papel e o
+[contrato Go](../_shared/context-compiler.md); não entreviste nem encadeie outras skills.
 
-A chamada normal já exige o pacote completo para o compilador: manifesto Markdown com cabeçalho e especificação essencial, workflow YAML e catálogo bindings YAML. Não espere o usuário pedir esses arquivos nem entregue apenas um plano de texto para ele adaptar. A exceção é o modo legado V2 solicitado explicitamente, que mantém seu contrato próprio.
+1. Confirme projeto, regras, branch/base SHA e ferramentas existentes. Consulte somente
+   fontes relevantes. Reutilize planning-context.json quando vigente; não reexplore todo
+   o repositório nem reutilize caminhos de outro computador.
+2. Chame grill-me na mesma sessão para esclarecer decisões essenciais, permissões,
+   comportamento esperado, critérios observáveis e fora de escopo. Ele devolve ao
+   planejador. Perguntas de produto ficam nesta fase; não as adie para o run.
+3. Com a entrevista, produza você mesmo a especificação e as unidades de execução.
+   Não encadeie tech-lead ou worktree-planner nem abra agentes para repetir o planejamento.
+   Registre origem das decisões, hipóteses e lacunas. Ausência essencial mantém o plano bloqueado.
+4. Agrupe tarefas pequenas/dependentes numa unidade coerente. Cada unidade deve caber
+   nos limites de uma sessão e ter checks reais. O padrão é uma worktree isolada por
+   lote, execução sequencial. Não crie uma worktree por arquivo/ticket nem paralelismo
+   sem benefício comprovado. A ordem de units respeita dependências.
+5. Defina contratos entre unidades, escopo de arquivos, risco 0..4 e aceites. Escolha
+   os checks pertinentes e um conjunto final integrado. Testes de tela serão manuais:
+   prepare cenários e pré-condições, sem etapa de QA de tela por IA.
+6. Prepare um brief consolidado para UMA revisão corretiva independente de impacto
+   crítico/alto/médio. Inclua base SHA/diff, critérios essenciais, contratos e comandos
+   de teste. Não crie auditor, review-loop-driver ou QA independente no fluxo padrão.
+   Dispensa só para todas as unidades R0 e justificativa explícita.
+7. Gere o [pacote completo](references/pacote-context-compiler.md) pelo
+   [helper](scripts/gerar-pacote-go.mjs). Ele monta o DAG enxuto, valida os briefs e usa
+   o compilador real em plan validate e run --dry-run. Publique somente se ambos passarem.
 
-Leia o [contrato de saída e geração automática](references/pacote-context-compiler.md) e use [gerar-pacote-go.mjs](scripts/gerar-pacote-go.mjs) para publicar os três arquivos. O helper verifica projeto/caminhos, gera o cabeçalho e só publica após `plan validate` e `run --dry-run` aprovados pelo compilador real. Você prepara e executa essa geração como parte do planejamento; o usuário recebe o manifesto pronto e o comando de execução.
+## Conteúdo suficiente para executar
 
-Resolva o projeto, executoras, providers, comandos, condições, critérios e dependências com os fatos coletados no planejamento. Preserve a configuração explícita do projeto. Sem catálogo existente, cadastre as executoras verificadas no mesmo acervo desta skill. Não copie caminhos de outro computador, invente comandos ou peça ao usuário que monte o pacote manualmente.
+Um manifesto canônico registra objetivo, exclusões, decisões, base SHA, autorizações,
+unidades e dependências, critérios por ID, contratos, verificações reais e roteiro manual.
+Cada unidade recebe seu brief com ticket_id, objective, scope, acceptance e instructions,
+mais required/initial/available. Instruções devem permitir implementar sem esta conversa;
+não copie a especificação inteira do lote a cada step.
 
-O workflow começa nas etapas executoras e não repete entrevista/planejamento nem usa `orquestrador-fluxo-ia` como coordenador. Dados essenciais ausentes, ferramenta indisponível ou capacidade não suportada deixam a entrega bloqueada, com motivo explícito; nunca declare `ready` por ter apenas escrito os arquivos. Não altere gates para esconder um bloqueio. Planejar não inicia a execução do workflow.
+Regras do projeto e requisitos essenciais são obrigatórios. Available é consulta sob
+demanda; initial pode ser omitido pelo orçamento. Não inclua segredos, lockfiles inteiros,
+catálogos ou documentação sem relação com o papel. Tarefa grande deve ser decomposta
+por comportamento/contrato, preservando critérios e sem fragmentar excessivamente.
 
-## Registro de execução e contexto compacto
+## Entrega e autorização
 
-Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
+A proposta declara commits locais e branch revisao/ como parte da execução, sem push,
+PR, publicação ou merge em main/master. O usuário autoriza essa proposta ao iniciar run;
+não acrescente checkpoints humanos intermediários. Bloqueios reais de requisito, segurança,
+ambiente ou orçamento são registrados precisamente; não invente solução para manter o fluxo.
 
-## Artefatos de planejamento e compatibilidade
+Entregue manifesto, workflow e bindings, validações e comando context run CAMINHO --yes,
+com --with somente se solicitado. Mesmo com plano pronto, não inicie implementação.
+No fim do run, a entrega técnica terá roteiro PENDENTE_DE_TESTES_MANUAIS_DE_TELA;
+isso não significa aceite visual nem aprovação humana.
 
-Persista decisões, origem e referências em `planning-context.json` por lote. No fluxo Go, o contrato executável é o Markdown com cabeçalho, workflow e catálogo descritos acima; não gere um segundo manifesto operacional incompatível. Preserve bases completas, caminhos reais, DAG, critérios por ID e grupos por repositório nos artefatos de planejamento. O manifesto JSON e o [protocolo V2](../_shared/protocolo-v2.md) são exigidos apenas no modo legado V2 explícito. Planeje fontes existentes na base; arquivos novos serão cobertos pelo snapshot Git. Não reexplore o repositório inteiro a cada demanda; atualize fatos apenas quando seus hashes/referências mudarem. Gerar os artefatos não inicia execução.
-
-Entrada do planejamento para Claude, Antigravity e Codex. Leia [configuração por projeto](../_shared/perfil-projeto.md), regras locais e [execução portátil](../_shared/execucao-portavel.md). Carregar uma skill significa ler seu SKILL.md e seguir suas instruções com as ferramentas disponíveis; não depende de um comando exclusivo de um cliente.
-
-Leia [perfis de risco](../_shared/perfis-de-risco.md) e [contexto e automação](../_shared/contexto-e-automacao.md). Classifique cada tarefa como simples/padrao/critico e registre justificativa, critérios e gates aplicáveis. Preserve controles de banco/Git em todos os perfis. Não use o tamanho do diff como classificação de risco.
-
-## Encadeamento
-
-1. Identifique as demandas selecionadas pelo usuário, com IDs/links quando existirem. Consulte fontes conectadas e o código antes de perguntar. ClickUp é opcional; sem vínculo, gere uma chave local estável e registre “não possui ID vinculado”, sem inventar ticket externo.
-2. Carregue **grill-me** para esclarecer objetivo, comportamento atual, regras de negócio, bordas e fora do escopo do lote. Pergunte o que só o usuário pode decidir. Reutilize respostas e fatos documentados entre demandas; registre hipóteses e questões em aberto. Não confunda falta de requisito com permissão para inventá-lo.
-3. Assim que a entrevista permitir critérios observáveis, carregue **tech-lead** automaticamente com todas as respostas. Ele produz tickets e dependências, sem iniciar implementação. Questões essenciais não resolvidas deixam a tarefa BLOQUEADA_NO_PLANEJAMENTO; continue as demais.
-4. Ao concluir os tickets, carregue **worktree-planner** automaticamente para preparar cada feature. Ele usa a especificação já produzida, sem repetir a entrevista, e grava planos, prompts e estados. Não peça ao usuário para invocar essas etapas.
-5. Consolide o manifesto na pasta de planos configurada, com data/fuso do projeto (Intranet: `{FONTE_CLAUDE}/worktrees/AAAA-MM-DD/lote-AAAA-MM-DD-{slug}.md` e America/Sao_Paulo). Use slug estável do lote; em colisão, reutilize só se for retomada do mesmo lote, senão acrescente sufixo. Nunca sobrescreva outro lote do dia.
-6. Monte a entrada do helper com a especificação aprovada, o workflow e o catálogo completos. Gere e valide o pacote automaticamente conforme o contrato de saída. A chamada normal termina com os três arquivos publicados e validados ou um bloqueio preciso, sem exigir um prompt adicional do usuário.
-
-Manifesto: identificador do lote; data/fuso; demandas incluídas/excluídas; referências de especificações/estados; por tarefa: chave, ID externo opcional, camadas, perfil/justificativa, critérios observáveis e seus IDs, dependências e status; grafo sem ciclos; ordem de execução/integração; mapeamento de step para ticket/critério; base ref + SHA por repositório; branch de revisão por grupo; recursos necessários e riscos. Inclua os requisitos essenciais para executar sem a conversa anterior, sem duplicar integralmente documentos auxiliares. Use o prefixo de revisão configurado (default revisao/AAAA-MM-DD-{slug}), com sufixos -2, -3 apenas para grupos incompatíveis. Todos os planos referenciam este mesmo manifesto.
-
-## Conclusão
-
-No fluxo Go, marque PRONTA_PARA_ORQUESTRAR somente a tarefa com critérios essenciais, contratos e planos definidos e pacote publicado com `ready: true` pelo helper após validação real. Não marque especificação como aprovada pelo usuário se apenas foi inferida: registre a origem de cada decisão. Distingua prontidão técnica de autorização para executar.
-
-Entregue os caminhos do manifesto, workflow e catálogo, as validações realizadas, resumo e pendências e o comando `contexto run CAMINHO_ABSOLUTO_DO_MANIFESTO.md`. Use o executável absoluto se estiver fora do PATH e acrescente `--with` somente quando solicitado; por padrão valem os providers por etapa. **Planejar não inicia execução.** Se o usuário já pediu explicitamente planejar e executar, rode o comando com `--yes` após validar o plano, sem chamar uma LLM orquestradora. Fora disso, encerre no plano pronto. A execução usa as etapas e autorizações declaradas no workflow; não implique push/PR nem publicação externa. O runtime V2 anterior só deve ser utilizado quando o usuário pedir explicitamente o modo legado.
+O modo custom/legado só é usado se solicitado explicitamente. Não o selecione para
+contornar validações do perfil enxuto. Snapshots de runs existentes permanecem imutáveis.

@@ -1,5 +1,7 @@
 # Contexto automático por worktree
 
+O padrão para novos lotes é o [fluxo enxuto](fluxo-enxuto.md). Durante seu planejamento e despacho Go, não execute preparação/indexação/process/flow do Node legado nem acrescente gates/auditores/QA. As instruções operacionais Node abaixo só se aplicam ao modo legado explícito; regras de negócio e segurança do projeto permanecem vigentes.
+
 O código Contexto está em `_shared/contexto/`. Não depende de instalação externa ou cadastro de MCP. O usuário não executa init por worktree. Siga o [protocolo V2](protocolo-v2.md) e preserve autorização, Git e proteção de banco.
 
 ## Criar, reutilizar e retomar

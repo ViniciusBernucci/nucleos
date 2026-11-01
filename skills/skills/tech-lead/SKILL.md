@@ -3,6 +3,9 @@ name: tech-lead
 description: Transforma requisitos e arquitetura existente em roadmap, épicos, tickets e dependências executáveis. Use para planejar, priorizar ou replanejar trabalho técnico; não para definir arquitetura estrutural, implementar tickets ou aprovar entregas.
 ---
 
+Esta skill é opcional para pedido especializado ou modo legado explícito; não compõe o fluxo enxuto padrão. Novos lotes usam planejador-de-lote + grill-me, implementação e uma revisão corretiva. Não se autoencadeie no perfil enxuto. Para gates históricos consulte [perfis legados](../_shared/perfis-de-risco-legado.md).
+
+
 # Tech Lead
 
 Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Produza os tickets e dependências solicitados e devolva o controle ao runtime.

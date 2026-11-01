@@ -1,12 +1,30 @@
-# Instruções essenciais para as skills do fluxo de IA
+# Instruções essenciais para o fluxo de IA
 
-Estas instruções complementam as regras específicas deste projeto; não concedem permissões adicionais.
+Preserve regras específicas do projeto, arquitetura, dados, documentação e autorização.
+Confirme raiz Git, base/branch e escopo; use a instalação real das skills, sem caminhos
+de outra máquina ou convenções de outro projeto.
 
-- Antes de agir, confirme a raiz Git, branch e regras aplicáveis. Em múltiplos repositórios, confirme cada raiz separadamente. Resolva caminhos a partir do projeto e da instalação real das skills, sem reutilizar caminhos de outro ambiente.
-- Ao usar uma skill, leia seu `SKILL.md` e somente as referências necessárias à fase. Preserve `_shared/`, scripts e referências da distribuição. Adapte às ferramentas disponíveis; não presuma comandos exclusivos de outro cliente. Após compactação, releia regras, skill atual e flow status/next; abra somente as referências da próxima ação.
-- Use `workflow` do project.json no armazenamento devolvido pelo helper; configuração legada em `.contexto/project.json` permanece válida. Sem ele, siga convenções existentes e os defaults portáveis das skills. Configure caminhos, comandos de validação e proteção de dados nas regras deste projeto; não altere as skills para cada instalação.
-- Planejamento usa `planejador-de-lote`; execução usa `orquestrador-fluxo-ia` com manifesto. Planejar não autoriza implementar. Pedido explícito de planejar e executar permite encadear ambos. Durante execução autorizada, avance sem checkpoints humanos intermediários, respeitando permissões e bloqueios reais.
-- Respeite perfis de risco, gates, evidências, independência das sessões e limites de correção definidos nas skills. Não simule review/QA independente trocando de papel na mesma sessão. Gate essencial sem evidência ou executor disponível fica bloqueado; preserve a tarefa e continue frentes independentes.
-- Preserve trabalho alheio e segredos. Não implemente em `main`/`master`, não faça push, PR ou publicação externa automaticamente e não adicione dependências silenciosamente. Antes de testes/scripts que toquem banco ou serviços reais, siga a proteção local e comprove isolamento; sem prova, não execute.
-- O Contexto é incluído em `_shared/contexto/`: prepare automaticamente cada raiz/worktree pelo helper `_shared/scripts/preparar-contexto.mjs`, sem instalação de MCP/npm ou init manual. Exija prepared:true; SQLite é local e isolado por raiz, dentro da pasta skills. Não copie bancos/aprovações entre projetos. O runtime controla estados e o cliente chama agentes independentes; leia `_shared/protocolo-v2.md` conforme a fase.
-- Mantenha uma especificação canônica e retornos por referência. Só o coordenador atualiza manifesto/estado durante o lote; Markdown derivado não é uma segunda fonte independente. Feche com registro, validações reais e commits quando autorizados; antes de limpar worktrees, preserve histórico e comprove ownership, Git seguro e ausência de executores.
+O padrão é planejador-de-lote + grill-me na mesma sessão. O planejador consolida
+especificação, unidades e pacote executável e termina no plano. O usuário inicia
+context run; não inicie implementação durante o planejamento.
+
+O runtime Go controla unidades sequenciais, checks, uma revisão corretiva de impactos
+médios/altos/críticos, validação final e entrega local em revisao/. Uma worktree por lote.
+Não chame orquestrador, auditor, review-loop ou QA de tela por IA. Testes de tela e
+aceite visual são manuais ao final; DONE técnico não significa aprovação visual.
+
+No despacho CONTEXTO_EXECUTION=step, execute somente o brief e referências pertinentes.
+Não faça preparação/indexação/process do Node legado. Não leia catálogos/lockfiles/logs
+inteiros. O Go calcula hashes e registra limites, logs, métricas e checkpoints.
+Na retomada, preserve trabalho existente e não repita o que já passou.
+
+O run autoriza somente ações locais previstas explicitamente no manifesto, incluindo
+commits e branch de revisão. Sem push, PR, publicação ou merge automático em main/master.
+Não exponha segredos nem acesse dados reais sem isolamento comprovado.
+
+Um ciclo de correções/testes; lacuna essencial ou risco sem solução autorizada bloqueia
+com diagnóstico preciso. Skills não ampliam permissões do host. Configuração externa,
+fontes, caminhos de documentos/checks e restrições pertencem às regras deste projeto.
+
+Modo custom/legado só por pedido explícito; não migre snapshots/runs antigos silenciosamente.
+Ao editar skills, altere a fonte e sincronize as cópias pelo instalador da distribuição.

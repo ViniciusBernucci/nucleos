@@ -1,5 +1,7 @@
 # Configuração por projeto
 
+O padrão para novos lotes é o [fluxo enxuto](fluxo-enxuto.md). Durante seu planejamento e despacho Go, não execute preparação/indexação/process/flow do Node legado nem acrescente gates/auditores/QA. As instruções operacionais Node abaixo só se aplicam ao modo legado explícito; regras de negócio e segurança do projeto permanecem vigentes.
+
 As skills mantêm papéis, risco, independência, evidências, limites de correção e autorização. Convenções de infraestrutura/documentação vêm do projeto, não de um caminho fixo no SKILL.md.
 
 ## Descoberta

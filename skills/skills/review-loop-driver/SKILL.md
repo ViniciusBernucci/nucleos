@@ -3,6 +3,9 @@ name: review-loop-driver
 description: Consolida a fila de review e coordena correções por decisão do auditor no lote ou por indicação do usuário fora dele. Use para aplicar achados autorizados e registrar commits; não refaz review nem aprova QA.
 ---
 
+Esta skill é opcional para pedido especializado ou modo legado explícito; não compõe o fluxo enxuto padrão. Novos lotes usam planejador-de-lote + grill-me, implementação e uma revisão corretiva. Não se autoencadeie no perfil enxuto. Para gates históricos consulte [perfis legados](../_shared/perfis-de-risco-legado.md).
+
+
 # Condutor das correções
 
 Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Execute somente as correções autorizadas recebidas; novas revisões e rodadas pertencem ao runtime.

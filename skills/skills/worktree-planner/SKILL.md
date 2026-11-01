@@ -3,6 +3,9 @@ name: worktree-planner
 description: Planeja isolamento de tickets em worktrees, contratos entre frentes, sequência de integração e prompts de execução. Use quando solicitado planejamento com worktrees ou no fluxo Intranet/Orca; não substitui o backlog do Tech Lead nem intercepta toda solicitação de implementação.
 ---
 
+Esta skill é opcional para pedido especializado ou modo legado explícito; não compõe o fluxo enxuto padrão. Novos lotes usam planejador-de-lote + grill-me, implementação e uma revisão corretiva. Não se autoencadeie no perfil enxuto. Para gates históricos consulte [perfis legados](../_shared/perfis-de-risco-legado.md).
+
+
 # Planejador de worktrees
 
 Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Planeje o isolamento e entregue os contratos; a criação e o despacho das worktrees pertencem ao runtime.

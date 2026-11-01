@@ -1,5 +1,7 @@
 # Contexto e coordenação econômica
 
+O padrão para novos lotes é o [fluxo enxuto](fluxo-enxuto.md). Durante seu planejamento e despacho Go, não execute preparação/indexação/process/flow do Node legado nem acrescente gates/auditores/QA. As instruções operacionais Node abaixo só se aplicam ao modo legado explícito; regras de negócio e segurança do projeto permanecem vigentes.
+
 A implementação é distribuída em `_shared/contexto/`, sem instalação de MCP/npm. Leia o [protocolo V2](protocolo-v2.md) somente na seção da próxima ação. Risco/gates permanecem em [perfis](perfis-de-risco.md).
 
 ## Leituras e handoffs

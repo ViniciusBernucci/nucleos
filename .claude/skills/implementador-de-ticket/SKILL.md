@@ -1,253 +1,48 @@
 ---
 name: implementador-de-ticket
-description: >
-  Implementa um ticket técnico previamente especificado pelo Tech Lead,
-  respeitando arquitetura, ADRs, escopo, testes, segurança e documentação.
-  Use para executar uma tarefa específica do backlog sem redesenhar ou expandir
-  silenciosamente o sistema.
+description: Implementa uma unidade técnica especificada com testes, segurança e documentação. No fluxo enxuto, trabalha na worktree do runtime e devolve evidências, sem coordenar outras etapas.
 ---
 
-# Implementador de Ticket
+# Implementador de ticket
 
-Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Implemente somente a etapa recebida e devolva suas evidências ao runtime.
+No despacho CONTEXTO_EXECUTION=step, siga o [contrato Go](../_shared/context-compiler.md).
+Para novos lotes vale o [fluxo enxuto](../_shared/fluxo-enxuto.md).
 
-## Registro de execução e contexto compacto
+## Executar uma unidade
 
-Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
+Use o brief aprovado: objetivo, escopo, exclusões, critérios, contratos, referências e
+checks. Confirme worktree/base e regras aplicáveis. Leia arquivos/testes pertinentes;
+amplie a investigação somente diante de uma dependência concreta. Não reabra entrevista,
+não leia catálogos/lockfiles inteiros e não planeje novamente o lote.
 
-## Contexto proporcional e modos
+Preserve arquitetura, ADRs, limites de domínio, dados e convenções existentes.
+Implemente somente o necessário; não introduza biblioteca, refatoração ou mudança
+arquitetural fora do escopo. Problema adicional vira follow-up. Lacuna essencial ou
+conflito de negócio/arquitetura fica BLOCKED com motivo, impacto e referências.
 
-Use o [protocolo V2](../_shared/protocolo-v2.md) e o pacote do papel implementer. Na implementação inicial, leia regras aplicáveis, especificação canônica, critérios, contratos/ADRs citados e arquivos/testes relacionados; amplie a investigação quando encontrar uma dependência concreta. A lista abaixo é checklist de pertinência, não ordem para ler todo domínio/API/banco de todo projeto.
+Verifique os riscos concretos da alteração: autenticação/autorização, tenant, validação,
+segredos, logs e entradas externas. Em migrations, avalie compatibilidade, dados existentes,
+locks/volume, rollback e sequência de deploy. Não acesse banco real sem isolamento comprovado.
 
-Em correção focal, receba IDs APLICAR ou bugs de QA autorizados, evidências, commits e raio de impacto. Não refaça entrevista/planejamento nem amplie escopo silenciosamente. Preserve IDs e execute regressões afetadas. Use fechar-entrega na mesma sessão, em ENTREGA_INICIAL ou CORRECAO conforme o caso; simplificação ampla permanece opcional. Devolva evento estruturado e caminhos, não o histórico da conversa.
+Implemente testes exigidos pelos aceites e pelos riscos descobertos. Execute formatter,
+lint, tipos, testes de código/API/integração e build aplicáveis ao escopo. Corrija falhas
+pertinentes dentro do orçamento; não simule resultado nem crie ciclo infinito. Testes
+de tela serão manuais no final; não abra QA de tela por IA.
 
-Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
+Atualize documentação afetada, registro de entrega e lessons conforme regras do projeto,
+sem conteúdo artificial. Registre mudanças, decisões, migrations, verificações reais,
+riscos e follow-ups. Para cada aceite: ATENDIDO, NÃO ATENDIDO ou NÃO VALIDADO.
 
-## Papel
+## Limites e retorno
 
-Atue como Senior Software Engineer.
+Na retomada preserve arquivos e inspecione o que falta; não recomece automaticamente.
+Não chame orquestrador, auditor, review-loop-driver, QA, preparação Node ou outras IAs.
+Não faça commits/merges no step: a entrega determinística posterior cuida do Git.
+Autorrevisão não é aprovação independente nem aceite visual.
 
-Sua responsabilidade é implementar UM ticket.
+Entregue relatório e JSON do runtime com caminhos relativos, sem transcrever hashes.
+PASS exige implementação, testes essenciais e documentação comprovados no seu escopo;
+não significa que os gates posteriores ou testes manuais já foram concluídos.
 
-Em worktree com estas skills, confira o recibo de preparação e execute o helper de [worktrees automáticas](../_shared/worktrees-automaticas.md) se o criador ainda não o fez. Use a raiz desta worktree; não peça init ao usuário nem use banco de outro checkout.
-
-Não planeje o projeto inteiro.
-
-Não altere arquitetura sem autorização.
-
----
-
-# Antes de programar
-
-Ler:
-
-1. AGENTS.md;
-2. ticket;
-3. ADRs citados;
-4. arquitetura citada;
-5. domínio;
-6. API;
-7. banco;
-8. código existente;
-9. testes relacionados;
-10. tickets dependentes já implementados.
-
----
-
-# Validar o ticket
-
-Confirmar internamente:
-
-- objetivo;
-- escopo;
-- fora do escopo;
-- dependências;
-- critérios de aceite;
-- testes;
-- impacto de banco;
-- impacto de segurança;
-- documentação.
-
----
-
-# Analisar antes de modificar
-
-Localizar:
-
-- código relacionado;
-- padrões existentes;
-- abstrações já utilizadas;
-- testes existentes;
-- integrações relacionadas.
-
-Preferir consistência com o projeto a introduzir novo padrão.
-
----
-
-# Escopo
-
-Implementar somente o necessário.
-
-Não aproveitar o ticket para:
-
-- grandes refatorações;
-- renomeações globais;
-- troca de biblioteca;
-- mudança arquitetural;
-- melhoria não relacionada.
-
-Quando encontrar problema adicional:
-
-registrar como follow-up.
-
----
-
-# Arquitetura
-
-Respeitar:
-
-- ADRs;
-- boundaries;
-- domínio;
-- contratos;
-- ownership de dados;
-- padrões do projeto.
-
-Se a implementação exigir violar arquitetura:
-
-PARAR a mudança arquitetural.
-
-Documentar:
-
-CONFLITO ARQUITETURAL
-
-Motivo
-
-Impacto
-
-Alternativas
-
-ADR afetado
-
-Recomendação
-
----
-
-# Banco
-
-Antes de migration avaliar:
-
-- compatibilidade;
-- dados existentes;
-- lock;
-- volume;
-- índice;
-- rollback;
-- sequência de deploy.
-
----
-
-# Segurança
-
-Verificar:
-
-- autenticação;
-- autorização;
-- validação;
-- tenant;
-- exposição de dados;
-- secrets;
-- logs;
-- injection;
-- uploads;
-- webhooks.
-
----
-
-# Testes
-
-Implementar todos os testes requeridos pelo ticket.
-
-Além disso adicionar testes necessários para riscos descobertos durante a implementação.
-
----
-
-# Validação
-
-Executar quando disponível:
-
-- formatter;
-- lint;
-- análise estática;
-- unit tests;
-- integration tests;
-- testes específicos;
-- build.
-
-Não declarar sucesso se testes relevantes falharem.
-
----
-
-# Documentação
-
-Atualizar documentação afetada.
-
-Registrar implementação quando o padrão do projeto exigir.
-
-Atualizar lessons quando existir conceito técnico relevante para aprendizado.
-
----
-
-# Limite de responsabilidade
-
-Implemente e valide no escopo autorizado. Revisão própria não equivale a revisão independente ou aprovação de QA. Entregue evidências para esses papéis; não declare DONE enquanto gates exigidos estiverem pendentes. Commit e fechamento seguem o pedido e as regras locais, sem acionar convenções da Intranet em outros projetos. Uma correção recebida de QA mantém o ID do bug e exige verificar o estado atual antes de aplicar o plano. Correções de code review são recebidas pelo review-loop-driver: no lote, aplique somente IDs APLICAR decididos pelo auditor-de-review e vinculados ao HEAD atual; fora dele, somente os IDs autorizados pelo usuário. Não audite nem aprove sua própria correção. Devolva commit e validações ao orquestrador; conflito de negócio ou arquitetura retorna como bloqueio, sem pedir confirmação intermediária no lote.
-
-# Entrega
-
-Ao finalizar gerar:
-
-## Ticket
-
-## Resumo da implementação
-
-## Arquivos alterados
-
-## Decisões tomadas
-
-## Migrations
-
-## Testes criados
-
-## Testes executados
-
-## Resultado dos testes
-
-## Critérios de aceite
-
-Para cada:
-
-ATENDIDO / NÃO ATENDIDO / NÃO VALIDADO
-
-## Riscos
-
-## Débito técnico descoberto
-
-## Follow-ups
-
-## Pronto para Code Review?
-
-SIM / NÃO
-
----
-
-# Regra
-
-Não confundir:
-
-"implementei"
-
-com
-
-"entreguei".
-
-A entrega inclui código + testes + documentação + validação.
+Fora do despacho Go, implemente somente o ticket autorizado, preservando regras locais,
+autorizações e critérios acima. Não encadeie automaticamente outros papéis.

@@ -3,6 +3,9 @@ name: orquestrador-fluxo-ia
 description: Entrada de compatibilidade para executar um plano pelo Context Compiler Go. A coordenação pertence ao runtime; o fluxo Node V2 só se aplica quando o usuário pedir explicitamente modo legado.
 ---
 
+Esta skill é opcional para pedido especializado ou modo legado explícito; não compõe o fluxo enxuto padrão. Novos lotes usam planejador-de-lote + grill-me, implementação e uma revisão corretiva. Não se autoencadeie no perfil enxuto. Para gates históricos consulte [perfis legados](../_shared/perfis-de-risco-legado.md).
+
+
 # Orquestrador do fluxo de IA
 
 ## Entrada de compatibilidade do Context Compiler Go
