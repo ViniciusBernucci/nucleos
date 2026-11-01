@@ -2,13 +2,12 @@
 
 Criada em 2026-10-30. Última atualização: 2026-11-01. Numeração provisória (o coordenador reconcilia a posição na trilha). Exemplos validados com Node.js 24.22.1, TypeScript 5.9.3 (`strict`), Next.js 16.4.3, React 19.3.1 e Python 3.13.17 (monorepo).
 
-> **Nota de 2026-11-01:** o código mockado desta entrega (`apps/web/lib/mock-*.ts`, painéis e
-> `dashboard-mock.test.ts`) foi removido quando o front end foi reiniciado do zero, e o
-> projeto passou a proibir dados mockados na interface (ver
+> **Nota de 2026-11-01:** o front end foi reiniciado do zero e o projeto passou a proibir dados mockados em páginas novas (ver
 > [manual de front end](../documentacoes/interface-web/manual-frontend.md) e
 > [documento da limpeza](../documentacoes/interface-web/2026-11-01-reinicio-do-frontend.md)).
-> Os trechos abaixo continuam válidos como material conceitual sobre estados canônicos de
-> tela e fronteira de dados, mas os arquivos citados já não existem no repositório.
+> Depois disso, `/login` e `/orgs` foram restauradas com o shell mockado como exceção legada.
+> Os trechos abaixo seguem como material conceitual sobre estados canônicos de tela e
+> fronteira de dados.
 
 ## 1. Objetivo de aprendizagem
 

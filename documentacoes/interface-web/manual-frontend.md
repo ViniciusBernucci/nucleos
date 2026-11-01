@@ -178,7 +178,9 @@ Toda area que depende de dados trata, explicitamente:
 
 ## 11. Estado atual do front end
 
-Em 2026-11-01 o front end foi reiniciado do zero: sem menus, sem paginas de negocio, sem
-dashboard e sem dados mockados. Existem apenas o layout raiz, o tema claro/escuro, o
-endpoint `/healthz` e uma pagina inicial vazia. Menu de navegacao sera definido junto com
-a primeira pagina real e documentado neste manual.
+Em 2026-11-01 o front end foi reiniciado (sem menus, paginas, dashboard e mocks) e, a pedido,
+as rotas `/login` e `/orgs` foram restauradas **como excecao legada**: continuam renderizando
+o shell de demonstracao (`DashboardClientShell`, menu lateral e paineis) com os dados
+mockados de `lib/mock-*.ts`. A regra de "sem dados mockados" vale para toda pagina nova; essas
+duas rotas serao substituidas por paginas reais conforme este manual. `/` segue vazia,
+`/platform` nao existe e `/healthz` permanece.

@@ -143,3 +143,16 @@ index f4309ed..582f3e7 100644
 ## Pendencias
 
 Nenhuma conhecida. Proximos passos: definir a primeira pagina e o menu, seguindo o manual.
+
+## Atualizacao: restauracao de /login e /orgs
+
+A pedido, `/login` e `/orgs` foram restauradas a partir de `083ead0`, junto com o que
+dependem: `DashboardClientShell`, os 7 paineis, `lib/mock-*.ts`, `dashboard-mock.test.ts` e o
+`globals.css` anterior (as primitivas novas `.page`, `.page-header`, `.btn--primary`,
+`.btn--danger` e `.badge*` foram anexadas). O skip-link do layout foi removido porque o shell
+ja tem o seu. Isso reintroduz os dados mockados nessas duas rotas, como excecao legada
+registrada no manual (secao 11). `/platform` continua removida.
+
+Validacao: `build` (rotas `/`, `/login`, `/orgs`, `/healthz`), `lint` (`tsc --noEmit`) e
+`test` (14 de 14 aprovados). Nao executados: `make lint` completo e verificacao visual.
+Commits: o commit `1655d2a` fez a limpeza; a restauracao esta no commit seguinte da `developer`.

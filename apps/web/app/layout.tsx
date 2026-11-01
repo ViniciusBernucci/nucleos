@@ -15,9 +15,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: buildThemeInitScript() }} />
       </head>
       <body>
-        <a className="skip-link" href="#conteudo">
-          Ir para o conteúdo
-        </a>
         {children}
       </body>
     </html>
