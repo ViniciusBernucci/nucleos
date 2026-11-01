@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Organizações</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070B1A}
+a{color:#9F94FF;text-decoration:none}
+.card{position:relative;background:linear-gradient(180deg,#0F1636,#0B1129);border:1px solid #1C2549;border-radius:20px}
+.org{display:flex;flex-wrap:wrap;align-items:center;gap:16px;padding:20px 24px;border-top:1px solid #172043}
+.org:hover{background:#101738}
+.av{width:44px;height:44px;border-radius:14px;background:#18204A;border:1px solid #28336A;display:flex;align-items:center;justify-content:center;color:#A89CFF;font-size:14px;font-weight:600;flex:0 0 44px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 22px;border-radius:999px;background:linear-gradient(135deg,#5A52E6,#7A5CF2);color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;box-shadow:0 6px 20px rgba(98,84,240,0.35)}
+.btn2{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 22px;border-radius:999px;background:#18204A;border:1px solid #28336A;color:#DCE3FF;font-size:14px;font-weight:500;text-decoration:none}
+</style>
+</helmet>
+<div style="position:relative;overflow:hidden;min-height:800px;background:radial-gradient(900px 500px at 50% -20%,#1A1F5E 0%,transparent 60%),#070B1A;color:#EAF0FF;font-family:'Inter',system-ui,sans-serif;display:flex;flex-direction:column">
+
+<header style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 40px">
+<div style="display:flex;align-items:center;gap:12px">
+<svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8F82FF"/><stop offset="1" stop-color="#5A52E6"/></linearGradient></defs><rect x="1" y="1" width="28" height="28" rx="9" fill="url(#lg)"/><path d="M9 21V9l12 12V9" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<span style="font-size:19px;font-weight:700;letter-spacing:-0.01em">Nucleos</span>
+</div>
+<button type="button" aria-label="Conta do usuário" style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#5A52E6,#7A5CF2);border:none;color:#fff;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer">U</button>
+</header>
+
+<main style="position:relative;width:100%;max-width:760px;box-sizing:border-box;margin:0 auto;padding:48px 24px 64px;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;flex-direction:column;gap:10px">
+<span style="font-size:15px;color:#A3AED0">Bom dia, [Nome]</span>
+<h1 style="margin:0;font-size:34px;line-height:1.2;font-weight:600;letter-spacing:-0.02em">Selecione a <span style="color:#A89CFF">organização</span></h1>
+<p style="margin:0;font-size:14px;line-height:1.6;color:#8E9ABD">Cada organização possui dados, permissões e agentes isolados.</p>
+</div>
+
+<section class="card" aria-label="Organizações disponíveis" style="overflow:hidden">
+<div class="org" style="border-top:none"><span class="av">[N]</span><div style="flex:1 1 220px;display:flex;flex-direction:column;gap:3px"><span style="font-size:16px;font-weight:600">[Nome da organização]</span><span style="font-size:13px;color:#8E9ABD">Papel: [Administrador] · Último acesso [dd/mm/aaaa]</span></div><a class="btn" href="Main.dc.html">Acessar</a></div>
+<div class="org"><span class="av">[N]</span><div style="flex:1 1 220px;display:flex;flex-direction:column;gap:3px"><span style="font-size:16px;font-weight:600">[Nome da organização]</span><span style="font-size:13px;color:#8E9ABD">Papel: [Executivo] · Último acesso [dd/mm/aaaa]</span></div><a class="btn" href="Main.dc.html">Acessar</a></div>
+<div class="org"><span class="av">[N]</span><div style="flex:1 1 220px;display:flex;flex-direction:column;gap:3px"><span style="font-size:16px;font-weight:600">[Nome da organização]</span><span style="font-size:13px;color:#8E9ABD">Papel: [Auditor] · Último acesso [dd/mm/aaaa]</span></div><a class="btn" href="Main.dc.html">Acessar</a></div>
+</section>
+
+<div><a class="btn2" href="#">Nova organização</a></div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":800}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

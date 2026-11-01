@@ -1,0 +1,23 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-10-31T19:33:40.736Z" },
+  "title": "Nucleos Redesign Corporativo",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1440, "h": 900, "title": "Painel v3 · violeta (referência NexusAI)", "expand": "fill", "is_interactive": true },
+    "Setor.dc.html": { "x": 1520, "y": 0, "w": 1440, "h": 1000, "title": "Setor: Financeiro", "expand": "fill", "is_interactive": true },
+    "Organizacoes.dc.html": { "x": 0, "y": 1120, "w": 1440, "h": 800, "title": "Organizações", "expand": "fill", "is_interactive": true },
+    "Plataforma.dc.html": { "x": 1520, "y": 1120, "w": 1440, "h": 900, "title": "Plataforma", "expand": "fill", "is_interactive": true },
+    "Login.dc.html": { "x": 0, "y": 2140, "w": 1440, "h": 800, "title": "Entrada", "expand": "fill", "is_interactive": true },
+    "Painel-v4.dc.html": { "x": 0, "y": 3180, "w": 1440, "h": 760, "title": "Painel v4 · preto Claude + verde", "expand": "fill", "is_interactive": true },
+    "Painel-v5.dc.html": { "x": 1520, "y": 3180, "w": 1440, "h": 760, "title": "Painel v5 · paletas verde + laranja", "expand": "fill", "is_interactive": true },
+    "Painel-v6.dc.html": { "x": 0, "y": 4060, "w": 1440, "h": 760, "title": "Painel v6 · paletas só verdes", "expand": "fill", "is_interactive": true }
+  },
+  "order": ["Main.dc.html", "Setor.dc.html", "Organizacoes.dc.html", "Plataforma.dc.html", "Login.dc.html", "Painel-v4.dc.html", "Painel-v5.dc.html", "Painel-v6.dc.html"],
+  "notes": {
+    "v4": { "x": 0, "y": 2990, "w": 520, "text": "Painel v4: preto quente (estilo Claude), verde escuro como destaque, verde neon só para atenção; menus em 12,5 px e espaçamentos reduzidos. Versão v3 (violeta) preservada acima.", "fill": "green", "size": "s" }
+  },
+  "designSystems": [],
+  "attachments": {}
+}

@@ -1,6 +1,6 @@
 # Trilha de lessons do Nucleos
 
-Criada em 2026-10-25. Ultima atualizacao: 2026-10-31 (lesson 04 atualizada com o follow-up do job `security` sobre override transitivo de dependencia vulneravel).
+Criada em 2026-10-25. Ultima atualizacao: 2026-11-01 (lesson 15 criada: temas claro e escuro com variaveis CSS no Next.js).
 
 `lessons/` e uma trilha progressiva e didatica da stack do projeto, nao um changelog.
 A stack segue o [ADR de arquitetura do MVP](../documentacoes/transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md):
@@ -58,3 +58,4 @@ A numeracao segue dependencia de aprendizagem: qualidade estatica (02) e Compose
 - [12 - Configuracao tipada com falha rapida](12%20-%20Configuracao%20tipada%20com%20falha%20rapida.md) (bloco 7, seguranca; entrega FND-006; numeracao provisoria).
 - [13 - Segredos por arquivo e verificacao de vazamento](13%20-%20Segredos%20por%20arquivo%20e%20verificacao%20de%20vazamento.md) (blocos 4 e 7, Docker e seguranca; entrega FND-006; numeracao provisoria).
 - [14 - Estado deterministico de UI e fronteira de mocks no Next.js](14%20-%20Estado%20deterministico%20de%20UI%20e%20fronteira%20de%20mocks%20no%20Next.js.md) (blocos 6 e 8, Next.js e testes; entrega LOC-WEB-001; numeracao provisoria).
+- [15 - Temas claro e escuro com variaveis CSS no Next.js](15%20-%20Temas%20claro%20e%20escuro%20com%20variaveis%20CSS%20no%20Next.js.md) (blocos 6 e 8, Next.js e testes; entrega interface-web 2026-11-01; numeracao provisoria). Pre-requisitos: lessons 02 e 14.

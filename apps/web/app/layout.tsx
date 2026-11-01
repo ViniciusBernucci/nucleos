@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { buildThemeInitScript } from "../lib/theme.ts";
 import "./globals.css";
 
 export const metadata = {
@@ -9,7 +10,11 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="pt-BR">
+    // `data-theme` e aplicado antes da hidratacao pelo script abaixo.
+    <html lang="pt-BR" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: buildThemeInitScript() }} />
+      </head>
       <body>{children}</body>
     </html>
   );
