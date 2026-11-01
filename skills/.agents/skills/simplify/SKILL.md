@@ -5,6 +5,16 @@ description: Simplifica o código para maior clareza sem alterar o comportamento
 
 # Simplificação de código
 
+Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Limite as alterações ao escopo e à validação desta etapa.
+
+## Registro de execução e contexto compacto
+
+Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
+
+## Acionamento
+
+Não acione automaticamente em todo ticket. Use somente por pedido, risco/complexidade concreta ou escopo autorizado de simplificação. Não transforme correção focal em refatoração ampla e não substitua review independente.
+
 Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
 
 ## Visão geral

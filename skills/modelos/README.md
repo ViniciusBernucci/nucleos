@@ -17,10 +17,8 @@
 | Validação | Comandos reais de lint, build e testes; critérios e isolamento exigido para banco/serviços |
 | Documentos e worktrees | Diretórios de planos, relatórios, entregas e worktrees; fuso operacional |
 | Políticas locais | Regras de dependências, Git, dados e limites adicionais; permissões continuam sendo as do cliente |
-| Contexto, quando usado | Instalação real da CLI, runtime compatível e configuração da raiz selecionada |
+| Contexto integrado | Node.js >=22.13/Git e configuração da raiz; a CLI já acompanha `_shared` |
 
-Com Contexto, o objeto `workflow` de `.contexto/project.json` descreve caminhos, fuso e repositórios; não concede autorização nem substitui regras de segurança. Sem Contexto, as skills usam as convenções locais/defaults documentados nelas. Não é necessário instalar o Contexto para descobrir ou ler as skills.
-
-Se a ferramenta estiver separada das skills, configure `CONTEXTO_CLI` no ambiente do executor para o arquivo real `contexto.mjs`, ou declare o caminho ao coordenador. Copiar os modelos não instala Node, integrações MCP, ferramentas externas ou sessões independentes. Gates que exigem esses recursos permanecem bloqueados se não estiverem disponíveis.
+O Contexto acompanha as skills em `_shared/contexto`; o agente executa a preparação automaticamente e o helper informa o caminho do project.json/SQLite dentro das skills locais. Configuração legada em `.contexto/project.json` é preservada. Workflow descreve caminhos, fuso e repositórios; não concede autorização nem substitui segurança. Não é necessário instalar/cadastrar MCP, configurar CONTEXTO_CLI nem executar init manualmente. Node/Git e executores independentes são recursos do host; gates que dependem de recursos ausentes ficam bloqueados.
 
 Os modelos não incluem caminhos de máquina, nomes de empresa, framework obrigatório, banco específico, credenciais ou vínculo obrigatório com gerenciador de tarefas. Também não repetem os contratos completos de cada skill: eles continuam nos respectivos `SKILL.md` e referências.

@@ -5,6 +5,16 @@ description: Consolida a fila de review e coordena correções por decisão do a
 
 # Condutor das correções
 
+Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Execute somente as correções autorizadas recebidas; novas revisões e rodadas pertencem ao runtime.
+
+## Registro de execução e contexto compacto
+
+Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
+
+## Fila e rodada determinísticas
+
+Use [protocolo V2](../_shared/protocolo-v2.md): o runtime mantém IDs, decisões, revisão esperada e contadores por ticket, compartilhados entre camadas. Agrupe APLICAR independentes e compatíveis em uma unidade lógica, respeitando dependências; registre round_id novo ligado à decisão antes de corrigir. Uma retomada reutiliza o mesmo ID; uma rodada antiga não autoriza novo plano. Passe só IDs aprovados e impacto ao implementador, feche em CORRECAO e devolva ao revisor focal. Não reabra ADIAR/REJEITAR sem evidência nova nem crie entrega/índice por ID.
+
 Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
 
 Leia relatório, auditoria, ticket, critérios, branch e estado atual. No lote, leia [execução portátil](../_shared/execucao-portavel.md). Montar fila por si só não autoriza implementar fora do lote.

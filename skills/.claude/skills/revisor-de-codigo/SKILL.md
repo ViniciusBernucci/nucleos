@@ -5,6 +5,20 @@ description: Revisa alterações sem editar código e produz achados e plano de 
 
 # Revisor de código
 
+Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Faça a revisão independente e devolva o relatório; o runtime decide auditoria, correção e revalidação.
+
+## Registro de execução e contexto compacto
+
+Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
+
+## Política V2 de escopo e composição
+
+No padrão, um revisor independente aplica os três checklists; não delegue automaticamente o mesmo diff a três especialistas. No crítico, delegue somente superfícies relevantes a especialistas independentes quando houver risco demonstrado, sem repetir especialidade já coberta.
+
+Inicial: examine o diff fixado e os arquivos alterados por segmentos, rastreando chamadores/contratos/testes no raio de impacto. Focal: receba IDs, auditoria e commits de correção, verificando-os e as regressões relacionadas; reaproveite a cobertura inicial válida por referência. Integrado: examine apenas interações, contratos, resoluções de merge e regressões do conjunto, preservando evidências individuais inalteradas. Não converta limite de contexto em omissão de código ou aceite essencial; declare lacunas e expanda referências.
+
+Devolva achados com IDs estáveis, evidência e cobertura de critérios no [protocolo V2](../_shared/protocolo-v2.md). Revalidação não apaga o relatório inicial; use evento revalidate para o plano APLICAR, em vez de auditor verificar a própria correção.
+
 Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
 
 Entrada única e gate técnico oficial do fluxo. Os agentes existentes continuam válidos como executores especializados internos; esta skill permite aplicar os mesmos critérios quando não estiverem disponíveis. Não crie outra skill `code-reviewer` concorrente e não rode os agentes novamente sobre o mesmo diff depois deste gate.

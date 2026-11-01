@@ -1,3 +1,7 @@
+## Adendo V2 — modos e distribuição
+
+No lote V2, a sessão de correção atualiza o registro existente em modo CORRECAO, sem nova linha no índice diário. ENTREGA_INICIAL e FECHAMENTO_INTEGRADO seguem o contrato abaixo. Use o gerador de `_shared/contexto`; mesma sessão executora, sem agente extra para metadados. Retorno no lote é compacto por referência, sem repetir o relatório no chat. As skills são distribuídas pelo sincronizador único da fonte `scripts/sincronizar-skills.mjs`, check antes de apply; não se presume link global nem caminho fixo de instalação.
+
 ## Invariantes de registro e autorização
 
 Os caminhos abaixo são o perfil Intranet/Orca original. Confirme os caminhos reais antes de gerar comandos; não aplique esse perfil a outro projeto. Instruções explícitas do usuário prevalecem sobre as convenções deste perfil.
@@ -21,8 +25,7 @@ commita e devolve o `FLUXO_EVENTO` ao coordenador (que serializa a linha no índ
 para os gates); fora do lote, esta skill commita, atualiza o índice e encerra — nunca rode `git push`.
 Quem publica no remoto é o usuário, quando decidir. `</obrigatório>`
 
-As skills chegam a toda sessão por links globais (`~/.claude/skills` e `~/.agents/skills`)
-conferidos por `planejador-de-lote/scripts/sincronizar-fluxo.mjs`, e o prompt de worktree-planner referencia este perfil por caminho absoluto. Só transcreva o contrato quando esse acesso não existir. Mudou algo aqui? Mude também em `worktree-planner/references/intranet.md`, ou os dois
+As skills chegam por cópias locais completas, incluindo `_shared`, conferidas pelo sincronizador único da distribuição, e o prompt de worktree-planner referencia este perfil por caminho absoluto. Só transcreva o contrato quando esse acesso não existir. Mudou algo aqui? Mude também em `worktree-planner/references/intranet.md`, ou os dois
 caminhos divergem.
 
 ---

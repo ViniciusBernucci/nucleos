@@ -5,6 +5,14 @@ description: Transforma requisitos e arquitetura existente em roadmap, épicos, 
 
 # Tech Lead
 
+Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Produza os tickets e dependências solicitados e devolva o controle ao runtime.
+
+Novos manifestos declaram risk_level R0–R4 separado de risk_factors e profile. R3/R4 exigem QA independente; R0–R2 exigem testes aplicáveis, aceite e review independente, com QA condicional por lacunas. Siga os gatilhos críticos existentes; não reduza riscos para dispensar gates. Mantenha critérios/testes/evidências por ID no contrato canônico, sem copiar todo o histórico.
+
+## Registro de execução e contexto compacto
+
+Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
+
 Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
 
 Planeje a execução respeitando requisitos aprovados, ADRs e o estado real do repositório. Leia AGENTS.md, arquitetura/handoff, backlog e evidências de implementação existentes. Não trate checkbox, plano ou relato como prova de entrega.
@@ -29,6 +37,6 @@ Estados: proposto, pronto para implementar, em andamento, pronto para revisão, 
 
 O `implementador-de-ticket` executa um ticket pronto. `worktree-planner` prepara o isolamento operacional; não replique backlog nem invente critérios já definidos. `revisor-de-codigo` e `revisor-de-qa` avaliam a entrega.
 
-No fluxo Intranet, receba a entrevista do planejador-de-lote/grill-me e, com os tickets prontos, carregue automaticamente worktree-planner. Não salte o planejamento operacional e não inicie o orquestrador por terminar a especificação. Quando chamado pelo planejador-de-lote, devolva os artefatos ao coordenador, que consolida o manifesto. Se chamado diretamente, encadeie worktree-planner e termine no planejamento pronto, salvo pedido já explícito para executar.
+No fluxo Intranet, receba a entrevista e o planning-context.json do planejador-de-lote/grill-me. Quando chamado pelo planejador, devolva as especificações a ele e não invoque worktree-planner novamente. Quando chamado diretamente, encadeie worktree-planner após produzir os tickets. Não salte o planejamento operacional e não inicie o orquestrador por terminar a especificação. Quando chamado pelo planejador-de-lote, devolva os artefatos ao coordenador, que consolida o manifesto. Se chamado diretamente, encadeie worktree-planner e termine no planejamento pronto, salvo pedido já explícito para executar.
 
 Saída: prioridades e motivos, tickets prontos, dependências/bloqueios, próximo trabalho recomendado e caminhos dos artefatos atualizados.

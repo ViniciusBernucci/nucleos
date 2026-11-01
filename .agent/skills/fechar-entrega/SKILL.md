@@ -5,6 +5,18 @@ description: Registra mudanças, validações e pendências e realiza commit loc
 
 # Fechar entrega
 
+Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Feche somente a entrega autorizada desta etapa; o runtime registra conclusão e decide integração/finalização do workflow.
+
+## Registro de execução e contexto compacto
+
+Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
+
+## Modos V2 e geração determinística
+
+Use [protocolo V2](../_shared/protocolo-v2.md), seção Medição e documentação. ENTREGA_INICIAL cria um registro; CORRECAO atualiza o registro da tarefa antes do resumo ClickUp, preserva IDs e não gera nova linha de índice; FECHAMENTO_INTEGRADO documenta o conjunto. Esta distinção prevalece sobre a regra geral de um registro por sessão quando esta sessão só corrige entrega do lote.
+
+Use `contexto/contexto.mjs delivery --file JSON` a partir de `_shared` para inventário/base/branch/estrutura e marcadores. IA fornece contexto, mudanças/motivo, riscos e como testar; não copie diff ou logs. O mesmo executor fecha sua implementação, sem outro agente apenas para metadados. O gerador não commita nem atualiza índice externo: coordenador registra SHA real após commit autorizado e serializa uma linha por chave de registro, nunca por achado. Correção não gera outra entrega completa.
+
 Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
 
 Consolide somente a entrega da sessão. Leia as regras locais e confirme repositório, branch, alterações próprias, validações e gates pendentes. Não transforme uma solicitação de resumo em autorização para commit.

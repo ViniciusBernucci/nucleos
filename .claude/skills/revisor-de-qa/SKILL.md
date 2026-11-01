@@ -9,6 +9,18 @@ description: >
 
 # Revisor de QA
 
+Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Valide os critérios e devolva evidências, sem iniciar correções nem aprovar o próprio trabalho de implementação.
+
+## Registro de execução e contexto compacto
+
+Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
+
+## Contexto V2 e evidências reutilizáveis
+
+Receba especificação por referência, IDs de critérios, matriz existente e evidências do snapshot, conforme [protocolo V2](../_shared/protocolo-v2.md). Preserve validação independente: evidência de teste ajuda a mapear cobertura, mas PASS exige execução observada e ambiente/isolamento verificados. Não redescubra toda a documentação já canônica.
+
+Inicial: cubra todos os critérios essenciais e cenários de risco. Focal: reexecute os bugs FAIL e regressões do raio de impacto, mantendo IDs e referenciando a matriz anterior válida. Integrado: valide cenários combinados, contratos e efeitos de merges; não repita cenários individuais inalterados sem motivo. Critério não executado é BLOCKED. Relatório/matriz completa ficam em arquivo; o retorno contém IDs, snapshot e caminhos.
+
 Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
 
 ## Papel

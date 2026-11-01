@@ -9,3 +9,5 @@ Leia ../../_shared/perfil-projeto.md e regras locais. No preset Intranet, leia [
 5. Entrega para teste manual segue convenção local. Só troque checkout principal limpo e autorizado; senão, comandos concretos no pacote.
 6. Remova worktree só com topologia/ownership confirmados, sem executor, alteração, operação pendente ou ignorado único. Commits preservados em branch. Inspecione/desfaça só links conhecidos, sem seguir junction para apagar destino. Nunca force ou exclusão recursiva.
 7. Pacote final registra branches/SHAs, evidências, roteiro, bloqueios e inventário real de limpeza. Publicação externa manual.
+
+No V2, use os comandos flow integrate/receipt/candidate/cleanup-check/cleanup/deliver/package do [protocolo](../../_shared/protocolo-v2.md). Review/QA integrado é focal nas interações/contratos/resoluções e regressões; não repita análise individual válida. Testes automatizados amplos continuam permitidos.

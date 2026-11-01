@@ -5,6 +5,12 @@ description: Investiga e define ou revisa arquitetura, domínios, dados, contrat
 
 # Arquiteto de software
 
+Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Entregue a decisão ou análise da etapa; não inicie outros papéis do workflow.
+
+## Registro de execução e contexto compacto
+
+Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
+
 Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
 
 Construa a menor arquitetura que atende os requisitos conhecidos e permite evolução. Identifique se o pedido é greenfield, evolução, legado ou revisão focal; não presuma projeto novo.

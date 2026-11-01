@@ -1,0 +1,125 @@
+"schema_version": 1
+"workflow":
+  "id": "nucleos/web-001-login-real"
+  "version": 1
+  "trigger": "manual"
+"steps":
+  -
+    "id": "setup"
+    "type": "command"
+    "command_ref": "project/setup"
+  -
+    "id": "db_up"
+    "type": "command"
+    "depends_on":
+      - "setup"
+    "command_ref": "project/db-up"
+  -
+    "id": "t1_implement"
+    "type": "skill"
+    "depends_on":
+      - "db_up"
+    "skill_ref": "software/implementador-de-ticket@v1"
+    "executor_ref": "claude/subscription"
+  -
+    "id": "t1_checks"
+    "type": "command"
+    "depends_on":
+      - "t1_implement"
+    "command_ref": "project/checks"
+  -
+    "id": "t1_review"
+    "type": "skill"
+    "depends_on":
+      - "t1_checks"
+    "skill_ref": "software/revisor-de-codigo@v1"
+    "executor_ref": "codex/subscription"
+  -
+    "id": "t1_audit"
+    "type": "skill"
+    "depends_on":
+      - "t1_review"
+    "skill_ref": "software/auditor-de-review@v1"
+    "executor_ref": "claude/subscription"
+  -
+    "id": "t1_qa"
+    "type": "skill"
+    "depends_on":
+      - "t1_audit"
+    "skill_ref": "software/revisor-de-qa@v1"
+    "executor_ref": "codex/subscription"
+  -
+    "id": "t2_implement"
+    "type": "skill"
+    "depends_on":
+      - "t1_qa"
+    "skill_ref": "software/implementador-de-ticket@v1"
+    "executor_ref": "claude/subscription"
+  -
+    "id": "t2_checks"
+    "type": "command"
+    "depends_on":
+      - "t2_implement"
+    "command_ref": "project/checks"
+  -
+    "id": "t2_review"
+    "type": "skill"
+    "depends_on":
+      - "t2_checks"
+    "skill_ref": "software/revisor-de-codigo@v1"
+    "executor_ref": "codex/subscription"
+  -
+    "id": "t2_audit"
+    "type": "skill"
+    "depends_on":
+      - "t2_review"
+    "skill_ref": "software/auditor-de-review@v1"
+    "executor_ref": "claude/subscription"
+  -
+    "id": "t2_qa"
+    "type": "skill"
+    "depends_on":
+      - "t2_audit"
+    "skill_ref": "software/revisor-de-qa@v1"
+    "executor_ref": "codex/subscription"
+  -
+    "id": "t3_implement"
+    "type": "skill"
+    "depends_on":
+      - "t2_qa"
+    "skill_ref": "software/implementador-de-ticket@v1"
+    "executor_ref": "claude/subscription"
+  -
+    "id": "t3_checks"
+    "type": "command"
+    "depends_on":
+      - "t3_implement"
+    "command_ref": "project/checks"
+  -
+    "id": "t3_review"
+    "type": "skill"
+    "depends_on":
+      - "t3_checks"
+    "skill_ref": "software/revisor-de-codigo@v1"
+    "executor_ref": "codex/subscription"
+  -
+    "id": "t3_audit"
+    "type": "skill"
+    "depends_on":
+      - "t3_review"
+    "skill_ref": "software/auditor-de-review@v1"
+    "executor_ref": "claude/subscription"
+  -
+    "id": "t3_qa"
+    "type": "skill"
+    "depends_on":
+      - "t3_audit"
+    "skill_ref": "software/revisor-de-qa@v1"
+    "executor_ref": "codex/subscription"
+  -
+    "id": "finalize"
+    "type": "skill"
+    "depends_on":
+      - "t3_qa"
+    "skill_ref": "software/fechar-entrega@v1"
+    "executor_ref": "claude/subscription"

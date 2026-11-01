@@ -82,3 +82,7 @@ Execute apenas git -C REPO worktree remove PATH, sem --force, um path conferido 
 Entradas cujo path já desapareceu: inspecione git worktree prune --dry-run antes de prune; respeite entradas locked e expiração padrão. Não use --expire now para apagar registros recentes de execução concorrente. Releia worktree list depois e registre resultado.
 
 Finalize pacote com removidas/mantidas e motivos. Nenhum arquivo não commitado fica esquecido: todo material próprio autorizado e pronto é commitado; bloqueios de commit e material alheio são listados explicitamente. Limpeza recusada não pode ser reportada como feita. Permissões insuficientes isolam a ação e aparecem no resultado final, sem contorno de sandbox.
+
+## Execução V2
+
+Aplique o runtime embarcado de [protocolo-v2](../../_shared/protocolo-v2.md), preservando estas proteções. Review/QA integrado examina interações, contratos, conflitos/resoluções e regressões do conjunto; não reexecute análise semântica completa de partes individuais aprovadas e inalteradas. Preserve os testes de regressão automáticos e as evidências válidas. Nunca use limpeza de outros lotes como condição para concluir o atual.

@@ -1,0 +1,21 @@
+{
+  "lote": "lote-2026-10-31-web-001-login-real",
+  "data": "2026-10-31",
+  "fuso": "America/Sao_Paulo",
+  "demanda": {"chave_local": "WEB-001-REAL", "id_externo": null, "nota": "Não possui ID vinculado", "fonte": "documentacoes/backlog/EP-10-interface-web-e-predio-3d/tickets.md#ent-web-001"},
+  "base": {"repositorio": "nucleos", "ref": "main", "sha": "54a9aa78812e7772493b9fa5721a2e0a268bfb33", "arvore_suja_no_planejamento": true},
+  "decisoes": [
+    {"id": "D1", "texto": "Fatia vertical mínima IAM-001/002/003 parcial/004 + WEB-001; MFA, verify-email, forgot-password e cadastro fora", "origem": "resposta do usuário"},
+    {"id": "D2", "texto": "Trocar só login, logout e seletor de orgs; demais mocks atrás da sessão real", "origem": "resposta do usuário"},
+    {"id": "D3", "texto": "Seed de desenvolvimento idempotente em Postgres descartável do compose.dev; senhas por variável de ambiente", "origem": "resposta do usuário"},
+    {"id": "D4", "texto": "Usar parâmetros dos ADR-016/017 aceitos", "origem": "resposta do usuário"},
+    {"id": "D5", "texto": "Dependências kysely, pg, argon2, helmet, class-validator, class-transformer; Playwright e UI libs não autorizados", "origem": "inferido; revisão do usuário na autorização"}
+  ],
+  "hipoteses_abertas": ["TTL idle 30 min / absoluto 12 h", "5 falhas → bloqueio 15 min", "Kysely não exercitado em PoC"],
+  "tarefas": [
+    {"chave": "T1", "perfil": "R3", "criterios": ["LGN-AC-01", "LGN-AC-02", "LGN-AC-03"], "depende_de": []},
+    {"chave": "T2", "perfil": "R4", "criterios": ["LGN-AC-04", "LGN-AC-05", "LGN-AC-06", "LGN-AC-07"], "depende_de": ["T1"]},
+    {"chave": "T3", "perfil": "R3", "criterios": ["LGN-AC-08", "LGN-AC-09", "LGN-AC-10", "LGN-AC-11", "LGN-AC-12", "LGN-AC-13", "LGN-AC-14"], "depende_de": ["T2"]}
+  ],
+  "pacote": {"manifesto": "lote-2026-10-31-web-001-login-real.md", "workflow": "lote-2026-10-31-web-001-login-real.workflow.yaml", "bindings": "lote-2026-10-31-web-001-login-real.bindings.yaml", "validacoes": ["plan validate", "run --dry-run"]}
+}

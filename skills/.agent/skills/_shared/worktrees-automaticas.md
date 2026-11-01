@@ -1,28 +1,20 @@
 # Contexto automático por worktree
 
-Aplica-se a qualquer projeto com Contexto instalado. O usuário não executa init por worktree. Criar worktree continua exigindo a autorização do fluxo; preparar contexto não concede permissão para criar branches, alterar código, instalar dependências ou acessar banco.
+O código Contexto está em `_shared/contexto/`. Não depende de instalação externa ou cadastro de MCP. O usuário não executa init por worktree. Siga o [protocolo V2](protocolo-v2.md) e preserve autorização, Git e proteção de banco.
 
-## Depois de criar ou reutilizar uma worktree
+## Criar, reutilizar e retomar
 
-1. Confirme raiz Git, repo comum, branch/base e ownership, usando o criador autorizado (ORCA ou Git CLI). Nunca derive identidade só pelo path.
-2. Execute automaticamente o helper `scripts/preparar-contexto.mjs` desta pasta com `--project RAIZ_REAL_DA_WORKTREE`. Se o repo ainda não estiver registrado ou for necessário atualizar defaults, acrescente `--config-from RAIZ_REAL_DA_CONFIGURACAO` selecionada no planejamento. Resolva os caminhos antes da execução. O helper encontra a ferramenta instalada ao lado das skills; `CONTEXTO_CLI` permite outra instalação.
-3. Exija exit 0 e `prepared: true`, raiz correta e banco isolado. Registre o recibo no estado do lote antes de delegar. Falha real de permissão/runtime/topologia é bloqueio da preparação; nunca peça ao usuário para executar init manualmente. Continue tarefas independentes.
-4. O helper faz ensure: configura se necessário, preserva configuração existente, confere identidade e indexa. Retomada é idempotente. Não copie `.contexto` do checkout principal ou de outra worktree; não compartilhe bancos/gates.
+1. Confirme raiz Git, diretório comum, branch/base e ownership. Não derive identidade só do path; não aproprie worktree de outro lote.
+2. No lote V2, use `flow prepare` para criar em branch final, preparar contexto e registrar recibo. Fora dele, o criador autorizado chama automaticamente `scripts/preparar-contexto.mjs --project RAIZ_REAL_DA_WORKTREE` desta pasta. Resolva o path a partir da skill, não de um drive fixo.
+3. Exija exit 0, `prepared:true`, raiz correta e caminho do banco isolado antes de delegar. Runtime/permissão/topologia indisponível é bloqueio real; continue as tarefas independentes.
+4. `ensure` é idempotente, preserva configuração, registra defaults locais e reindexa. Não altera arquivos rastreados nem instala hooks por padrão. Pode receber `--config-from RAIZ_CONFIRMADA` para herdar somente configuração pertinente; não copia índices, eventos, gates, credenciais ou aprovações.
 
-Este passo pertence a todo criador/executor do fluxo: orquestrador, criação avulsa autorizada, integração e retomada de worktree criada por outra ferramenta. O worktree-planner apenas inclui o passo nos prompts; não cria nem prepara worktrees durante planejamento.
+O SQLite vive em `_shared/.contexto/` da instalação local escolhida por regra fixa. Sem skills copiadas na worktree, o helper cria somente `.agents/skills/_shared/.contexto/`. A CLI embarcada pode ser chamada da instalação central com `--project` apontando para a worktree; os dados ficam na raiz selecionada, não na fonte central. Cada executor usa sua raiz explícita. Configuração legada em `.contexto/` continua válida; não migre/copiem estados silenciosamente.
 
-## Repositório e hook
+`setup` existe para compatibilidade e registro explícito; o fluxo usa ensure automaticamente. Hooks antigos permanecem preservados; nenhum hook novo é necessário nesta distribuição. Não configure um MCP global para aprovar outra raiz.
 
-`setup --project RAIZ_REPO [--config-from RAIZ_CONFIG]` registra defaults nos metadados Git comuns e exclui `.contexto/` em info/exclude. Não altera `.gitignore` versionado nem Git config. O fluxo pode fazer setup; não há checkpoint humano além das permissões reais do host.
+## Limpeza
 
-O post-checkout local prepara worktrees criadas por Git/gerenciadores que executem hooks. Hook anterior é preservado e executado primeiro; core.hooksPath customizado é mantido, com fallback explícito ao helper. Criadores que desabilitam hooks ou usam --no-checkout também dependem do helper obrigatório. Checkout principal e main/master não são preparados pelo hook.
+Encerre executores e use `flow cleanup-check` antes de `flow cleanup` no lote. Fora dele, `archive --project RAIZ_REAL` apenas preserva o histórico e informa `archived:true`/`cleanup_safe`; não remove a worktree nem prova ausência de executores.
 
-CLI em uma worktree registrada sem configuração local também chama ensure no primeiro uso. Um MCP continua fixado na raiz com que foi iniciado; cada executor usa CLI com --project real ou processo MCP próprio. Não use MCP do checkout principal para aprovar outra worktree.
-
-Configuração é compartilhada por herança; índice, tarefas, eventos, logs e aprovações permanecem locais. Paths operacionais são ajustados em relação à origem da configuração; isso não amplia permissões de leitura/escrita. Nenhuma otimização de cache compartilhado de conteúdo é prometida nesta versão.
-
-## Antes de limpar
-
-Sem executores ativos e com ownership comprovado, o coordenador roda `archive --project RAIZ_REAL` e registra o recibo. SQLite e capturas reconhecidas ficam preservados nos metadados Git comuns como histórico. Só trate `.contexto/` como removível quando `archived: true` e `cleanup_safe: true`; arquivo desconhecido ou mudança concorrente exige manter a worktree. Arquivo de banco não é copiado para outra worktree nem usado para reaproveitar aprovação. As demais verificações de limpeza Git/ORCA continuam obrigatórias. Archive não remove nada nem aprova a entrega.
-
-Se Contexto não estiver instalado em outro projeto, preserve modo manual já existente, registrando ausência. Nesta instalação ele está ativo: não dispense a preparação alegando modo manual. Em outra máquina, copie ferramenta/skills, ative o repositório uma vez e deixe o fluxo preparar suas worktrees; não copie bancos operacionais.
+Ownership, topologia, branch preservada, estado Git limpo, ausência de operação pendente e de ignorados únicos continuam obrigatórios. Links/junctions, node_modules, arquivos operacionais desconhecidos ou atividade concorrente bloqueiam remoção. Nunca exclusão recursiva/force, nunca limpeza de worktree externa ao lote. Arquivo histórico não reativa gates em outra raiz.

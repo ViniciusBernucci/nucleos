@@ -9,6 +9,18 @@ description: >
 
 # Implementador de Ticket
 
+Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Implemente somente a etapa recebida e devolva suas evidências ao runtime.
+
+## Registro de execução e contexto compacto
+
+Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
+
+## Contexto proporcional e modos
+
+Use o [protocolo V2](../_shared/protocolo-v2.md) e o pacote do papel implementer. Na implementação inicial, leia regras aplicáveis, especificação canônica, critérios, contratos/ADRs citados e arquivos/testes relacionados; amplie a investigação quando encontrar uma dependência concreta. A lista abaixo é checklist de pertinência, não ordem para ler todo domínio/API/banco de todo projeto.
+
+Em correção focal, receba IDs APLICAR ou bugs de QA autorizados, evidências, commits e raio de impacto. Não refaça entrevista/planejamento nem amplie escopo silenciosamente. Preserve IDs e execute regressões afetadas. Use fechar-entrega na mesma sessão, em ENTREGA_INICIAL ou CORRECAO conforme o caso; simplificação ampla permanece opcional. Devolva evento estruturado e caminhos, não o histórico da conversa.
+
 Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
 
 ## Papel
@@ -17,7 +29,7 @@ Atue como Senior Software Engineer.
 
 Sua responsabilidade é implementar UM ticket.
 
-Em worktree com Contexto instalado, confira o recibo de preparação e execute o helper de [worktrees automáticas](../_shared/worktrees-automaticas.md) se o criador ainda não o fez. Use a raiz desta worktree; não peça init ao usuário nem use banco de outro checkout.
+Em worktree com estas skills, confira o recibo de preparação e execute o helper de [worktrees automáticas](../_shared/worktrees-automaticas.md) se o criador ainda não o fez. Use a raiz desta worktree; não peça init ao usuário nem use banco de outro checkout.
 
 Não planeje o projeto inteiro.
 

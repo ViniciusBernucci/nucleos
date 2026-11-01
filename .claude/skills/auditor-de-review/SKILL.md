@@ -5,6 +5,16 @@ description: Audita achados de code review contra código, especificação e reg
 
 # Auditor de review
 
+Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Audite os achados e devolva as decisões por ID; não dispare a etapa de correção.
+
+## Registro de execução e contexto compacto
+
+Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
+
+## Decisão antes da execução
+
+Siga [protocolo V2](../_shared/protocolo-v2.md). Registre `audit_decision` com cada ID, decisão, fundamento e condição bloqueante antes de corrigir; APLICAR não exige correção já feita. Verificação posterior pertence ao revisor independente. Preserve ADIAR/REJEITAR enquanto não houver fato novo; não reaudite os mesmos fatos em toda rodada. Use fontes/diffs por referência, sem colar arquivos inteiros. Auditoria integrada só trata novos achados/interações ou a exigência do perfil crítico.
+
 Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
 
 Seja independente do implementador e do revisor original. Leia [execução portátil](../_shared/execucao-portavel.md), o relatório completo, a base/HEAD revisados, o diff atual, ticket, critérios, contratos e ADRs pertinentes. Relatório é entrada para investigar, não autoridade para alterar regras de negócio. Não edite código e não commite.

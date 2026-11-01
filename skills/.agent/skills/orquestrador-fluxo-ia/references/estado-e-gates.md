@@ -14,7 +14,7 @@ O planejador cria; durante execução só o coordenador escreve esses arquivos. 
 
 Aplique ../../_shared/perfis-de-risco.md. Gates condicionais são NA_SEM_ACHADOS ou COBERTO_NO_REVIEW com evidência; nunca PASS fictício. Registre perfil e justificativa. Planos antigos mantêm critico até migração explícita.
 
-Com Contexto, SQLite é a fonte operacional e render gera projeções somente na pasta local do projeto. Eventos têm ID único, expected_revision e sessão. Manifesto/estado central pode apontar para essa projeção; não mantenha Markdown divergente como segunda fonte. Sem ferramenta, preserve o protocolo manual.
+No V2 integrado, SQLite é a fonte operacional e render gera projeções somente na pasta local do projeto. Eventos têm ID único, expected_revision e sessão. Manifesto/estado central pode apontar para essa projeção; não mantenha Markdown divergente como segunda fonte. Ausência do runtime incluído é distribuição incompleta/bloqueio real; não dispense gates. Veja ../../_shared/protocolo-v2.md.
 
 ## Estado mínimo da tarefa
 
@@ -41,7 +41,7 @@ Estado alternativo ISOLADA contém motivo, evidência, trabalho preservado e con
 | Review | cobertura essencial completa, relatório com base/HEAD e limitações |
 | Auditoria | todo achado decidido; em critico sempre independente; nos demais NA_SEM_ACHADOS somente com review completo sem achados |
 | Correções | IDs APLICAR commitados e verificados pelo revisor independente |
-| QA | critérios essenciais PASS; simples pode COBERTO_NO_REVIEW com evidência independente completa |
+| QA | R3/R4 e QA condicional exigem execução independente; R0–R2 explícitos podem COBERTO_NO_REVIEW com aceite, checks determinísticos e evidência independente completa; QA não executado nunca é PASS |
 | Pronta para integrar | todos os gates das camadas, relatórios commitados, dependências aprovadas |
 | Integração | commits das duas camadas incluídos nas candidatas compatíveis e merges registrados |
 | Validação integrada | verificações pós-merge, review/auditoria de interação e QA afetado aprovados |

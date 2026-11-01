@@ -5,7 +5,7 @@ As skills mantêm papéis, risco, independência, evidências, limites de corre�
 ## Descoberta
 
 1. Resolva cwd, repositório(s), regras AGENTS.md/CLAUDE.md/GEMINI.md aplicáveis e contexto da tarefa. Instruções vigentes prevalecem sobre configuração; não trate memória como regra.
-2. Se houver `.contexto/project.json` na raiz explicitamente selecionada, leia `workflow`. Em worktree use sua configuração ou a raiz de configuração explicitada pelo coordenador, sem procurar automaticamente em outro projeto. Paths configurados são relativos à raiz que contém `.contexto`; roots de repositórios adicionais devem ser confirmadas. Nunca copie segredos entre checkouts.
+2. Leia `workflow` no project.json do armazenamento devolvido pelo helper integrado (ver protocolo-v2.md). Configuração legada `.contexto/project.json` continua válida. Em worktree use sua configuração ou a raiz de configuração explicitada pelo coordenador, sem procurar automaticamente em outro projeto. Paths configurados são relativos à raiz que contém `.contexto`; roots de repositórios adicionais devem ser confirmadas. Nunca copie segredos entre checkouts.
 3. Sem configuração, descubra convenções existentes; pergunte somente lacuna essencial no planejamento. Defaults portáveis: um repositório, `docs/planejamento/ia/` para plano/estado, `docs/historico/` para relatórios, fuso informado pelo usuário (senão UTC explicitado), branch de tarefa por unidade lógica, integração local em branch de revisão. Não crie pastas operacionais da Intranet em outro projeto.
 4. Intranet identificada pelas regras centrais explícitas: use o perfil Intranet das skills e sua fonte `.claude` real. Preserve SQL Server, dois repositórios quando pertinentes, índice diário e ClickUp opcional. Não classifique um projeto como Intranet apenas pelo nome de uma pasta.
 
@@ -15,7 +15,7 @@ As skills mantêm papéis, risco, independência, evidências, limites de corre�
 
 Paths não podem substituir proteção de dados nem autorizar comandos. `root` dos repositórios pode ser relativo (`../frontend`), mas confirme a topologia e permissão antes de agir. Diretório externo não vira permissão de escrita. A ferramenta só acessa fontes da raiz selecionada; múltiplos repositórios usam instâncias/configurações separadas e coordenação por referências.
 
-`publish` permanece manual; flags não autorizam push/PR. Campos desconhecidos devem ser esclarecidos ou ignorados com registro; não invente efeitos. A classificação de risco pode elevar `defaultProfile`, nunca ser reduzida por ele. Exemplos e instalação estão no README/INSTALL da ferramenta Contexto; configure o projeto, não edite skills.
+`publish` permanece manual; flags não autorizam push/PR. Campos desconhecidos devem ser esclarecidos ou ignorados com registro; não invente efeitos. A classificação de risco pode elevar `defaultProfile`, nunca ser reduzida por ele. O runtime está incluído em _shared/contexto; caminhos e contratos estão em protocolo-v2.md. Configure o projeto, não edite skills por instalação.
 
 ## Limites invariantes
 
