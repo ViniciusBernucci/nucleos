@@ -3,9 +3,8 @@ import { buildThemeInitScript } from "../lib/theme.ts";
 import "./globals.css";
 
 export const metadata = {
-  title: "NÚCLEOS Enterprise — Painel Demonstrativo (Mock Local)",
-  description:
-    "Fundação navegável do frontend NÚCLEOS Enterprise com dados mockados tipados (LOC-WEB-001).",
+  title: "NÚCLEOS",
+  description: "Interface web NÚCLEOS.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -15,7 +14,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: buildThemeInitScript() }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <a className="skip-link" href="#conteudo">
+          Ir para o conteúdo
+        </a>
+        {children}
+      </body>
     </html>
   );
 }
