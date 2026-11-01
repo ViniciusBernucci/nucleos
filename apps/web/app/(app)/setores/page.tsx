@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export const metadata = {
   title: "Setores — NÚCLEOS",
   description: "Consulta e manutenção dos setores da organização.",
@@ -9,13 +11,21 @@ export default function SetoresPage() {
       <header className="page-header">
         <h1>Setores</h1>
       </header>
-      <section className="panel-card" aria-labelledby="setores-lista">
-        <div className="panel-header">
-          <h2 id="setores-lista">Lista de setores</h2>
-        </div>
-        <div className="state-box" role="status">
-          Nenhum setor cadastrado.
-        </div>
+      <section aria-labelledby="setores-lista">
+        <h2 id="setores-lista" className="visually-hidden">
+          Lista de setores
+        </h2>
+        <ul className="card-grid">
+          <li>
+            <Link href="/setores/financeiro" className="link-card">
+              <span className="link-card__code" aria-hidden="true">
+                FN
+              </span>
+              <span className="link-card__title">Financeiro</span>
+              <span className="link-card__text">Abrir o setor financeiro</span>
+            </Link>
+          </li>
+        </ul>
       </section>
     </main>
   );

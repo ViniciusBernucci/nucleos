@@ -170,3 +170,13 @@ Commits: o commit `1655d2a` fez a limpeza; a restauracao esta no commit seguinte
   14 de 14 testes. Nao executados: `make lint` completo e verificacao visual no navegador.
 - Lessons: nenhuma nova; conceitos (layout aninhado e Client Component minimo) nao exigem
   lesson propria nesta entrega.
+
+## Atualizacao: setor Financeiro
+
+- `(app)/setores/page.tsx` passou a listar o setor **Financeiro** como cartao-link
+  (`.link-card` em `.card-grid`, classes novas em `globals.css`, mais `.visually-hidden`).
+- Nova pagina vazia `(app)/setores/financeiro/page.tsx` (`/setores/financeiro`) com link de
+  volta para Setores; o item Setores do menu continua ativo nela.
+- Manual atualizado (secao 11 e lista de primitivas).
+- Validacao: `build` (inclui `/setores/financeiro`), `tsc --noEmit` e 14 de 14 testes. Nao
+  executados: `make lint` completo e verificacao visual no navegador. Sem lesson nova.

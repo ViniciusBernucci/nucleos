@@ -111,7 +111,7 @@ e `@media (prefers-color-scheme: light)`) na mesma alteracao.
 
 `.page`, `.page-header`, `.panel-card`, `.panel-header`, `.state-box`, `.state-box--error`,
 `.btn`, `.btn--primary`, `.btn--secondary`, `.btn--danger`, `.badge`, `.badge--{ok,warn,danger,info}`,
-`.code-preview`, `.theme-toggle`, `.skip-link`.
+`.code-preview`, `.theme-toggle`, `.skip-link`, `.card-grid`, `.link-card`, `.visually-hidden`.
 
 Regra de crescimento: nova classe so entra em `globals.css` quando for reutilizada; estilo
 de uso unico fica na propria rota.
@@ -188,7 +188,10 @@ tema claro/escuro (`ThemeToggle`). Para adicionar uma pagina ao menu:
 3. O item ativo e marcado automaticamente com `aria-current="page"`.
 
 Itens atuais: **Painel principal** (`/`) e, no grupo Gestao, **Setores** (`/setores`).
-Ambas as paginas mostram estado vazio (sem fonte de dados).
+`/setores` lista cada setor como `.link-card` dentro de `.card-grid`; o primeiro setor e o
+**Financeiro** (`/setores/financeiro`, pagina vazia, com link de volta para Setores). Todo
+setor novo segue esse padrao: um `link-card` em `/setores` e uma pagina em
+`app/(app)/setores/<setor>/page.tsx`. Sem fonte de dados, as paginas mostram estado vazio.
 
 ## 12. Estado atual do front end
 
