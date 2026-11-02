@@ -47,7 +47,11 @@ export class VendasModule {
         executar: async (ctx) => {
           ctx.signal.throwIfAborted();
           if (!(await ctx.verificarLease())) throw new Error("lease perdida");
-          return sincronizacao.executar();
+          const resultado = await sincronizacao.executar();
+          // A sincronização preserva seu contrato sem lançar; o motor precisa da
+          // falha explícita para aplicar backoff e não registrar SUCESSO fictício.
+          if (resultado.resultado === "falha") throw new Error("sincronizacao Hotmart falhou");
+          return resultado;
         },
       });
     }
@@ -67,7 +71,9 @@ export class VendasModule {
               const id = await motor.executarAgora(atribuicao.id);
               // Mesmo consumidor/lease do disparo automático; preserva o contrato síncrono do botão.
               void motor.consumirUma().catch(() => undefined);
-              const execucao = await motor.aguardar(id);
+              // Mantém a resposta do botão na primeira rodada; retentativas após
+              // falha continuam na fila sem prender a requisição durante o backoff.
+              const execucao = await motor.aguardar(id, 120000, true);
               return execucao.resumo === null
                 ? { resultado: "falha" as const, processadas: 0, mensagem: "A execucao falhou." }
                 : (execucao.resumo as ResultadoSincronizacao);

@@ -70,7 +70,7 @@ export class MotorFuncionarios {
     const r = await c.query<{ id: string }>(
       `INSERT INTO funcionarios.execucoes(atribuicao_id,agendamento_id,agendamento_versao,origem,
    programada_em,chave_idempotencia,correlacao,config_snapshot) VALUES($1,$2,$3,$4,$5,$6,$7,$8)
-   ON CONFLICT(chave_idempotencia) DO UPDATE SET chave_idempotencia=EXCLUDED.chave_idempotencia RETURNING id`,
+   ON CONFLICT(chave_idempotencia) DO NOTHING RETURNING id`,
       [
         id,
         agendamento?.id ?? null,
@@ -83,7 +83,16 @@ export class MotorFuncionarios {
       ],
     );
     const execucao = r.rows[0]?.id;
-    if (execucao === undefined) throw new Error("enfileiramento sem identificador");
+    if (execucao === undefined) {
+      const existente = await c.query<{ id: string }>(
+        "SELECT id FROM funcionarios.execucoes WHERE chave_idempotencia=$1",
+        [chave],
+      );
+      const idExistente = existente.rows[0]?.id;
+      if (idExistente === undefined) throw new Error("enfileiramento sem identificador");
+      // Fila e execução foram inseridas atomicamente. Não bloqueia um histórico já em conclusão.
+      return idExistente;
+    }
     await c.query(
       "INSERT INTO funcionarios.fila(execucao_id,executar_em) VALUES($1,$2) ON CONFLICT(execucao_id) DO NOTHING",
       [execucao, quando],
@@ -106,11 +115,20 @@ export class MotorFuncionarios {
    JOIN funcionarios.definicoes_tarefa d ON d.id=a.definicao_id JOIN organizacao.setores setor ON setor.id=f.setor_id
    WHERE s.habilitado AND a.habilitada AND f.status='ATIVO' AND d.ativo AND setor.ativo
     AND d.status_implementacao='DISPONIVEL' AND s.proxima_em<=$1
-   ORDER BY s.proxima_em,s.id LIMIT 100 FOR UPDATE OF s SKIP LOCKED`,
+   ORDER BY s.proxima_em,s.id LIMIT 100 FOR UPDATE OF a SKIP LOCKED`,
         [agora],
       );
       let total = 0;
-      for (const { agenda: s } of rows) {
+      for (const { agenda: candidata } of rows) {
+        // Mesma ordem das edições: atribuição antes do agendamento. Releitura evita
+        // usar a versão/próxima ocorrência do snapshot anterior à aquisição do lock.
+        const atual = await c.query<{ agenda: Agendamento }>(
+          `SELECT funcionarios.json_ids(to_jsonb(s)) agenda FROM funcionarios.agendamentos s
+           WHERE s.id=$1 AND s.habilitado AND s.proxima_em<=$2 FOR UPDATE OF s`,
+          [candidata.id, agora],
+        );
+        const s = atual.rows[0]?.agenda;
+        if (s === undefined) continue;
         const ocorrencia = new Date(s.proxima_em as string);
         if (s.fim_em === null || ocorrencia <= new Date(s.fim_em)) {
           await this.#enfileirar(
@@ -159,10 +177,18 @@ export class MotorFuncionarios {
     JOIN funcionarios.funcionarios f ON f.id=a.funcionario_id JOIN funcionarios.definicoes_tarefa d ON d.id=a.definicao_id
     WHERE s.gatilho='EVENTO' AND s.tipo_evento=$1 AND $2::jsonb @> s.filtro_evento AND s.habilitado
     AND s.inicio_em<=$3 AND(s.fim_em IS NULL OR s.fim_em>=$3) AND a.habilitada AND f.status='ATIVO' AND d.ativo
-    AND d.status_implementacao='DISPONIVEL' ORDER BY s.id FOR UPDATE OF s`,
+    AND d.status_implementacao='DISPONIVEL' ORDER BY a.id,s.id FOR UPDATE OF a`,
         [tipo, payload, agora],
       );
-      for (const { agenda: s } of agendas.rows)
+      for (const { agenda: candidata } of agendas.rows) {
+        const atual = await c.query<{ agenda: Agendamento }>(
+          `SELECT funcionarios.json_ids(to_jsonb(s)) agenda FROM funcionarios.agendamentos s
+           WHERE s.id=$1 AND s.gatilho='EVENTO' AND s.tipo_evento=$2 AND $3::jsonb @> s.filtro_evento
+           AND s.habilitado AND s.inicio_em<=$4 AND(s.fim_em IS NULL OR s.fim_em>=$4) FOR UPDATE OF s`,
+          [candidata.id, tipo, payload, agora],
+        );
+        const s = atual.rows[0]?.agenda;
+        if (s === undefined) continue;
         await this.#enfileirar(
           c,
           s.atribuicao_id,
@@ -171,6 +197,7 @@ export class MotorFuncionarios {
           agora,
           s,
         );
+      }
       await c.query("UPDATE funcionarios.eventos SET processado_em=$2 WHERE id=$1", [
         evento.id,
         agora,
@@ -182,15 +209,23 @@ export class MotorFuncionarios {
   async #reivindicar(): Promise<ItemFila | null> {
     return transacao(this.pool, async (c) => {
       const agora = await this.#agora(c);
-      const r = await c.query<ItemFila>(
-        `SELECT q.id,q.execucao_id,q.tentativa,q.estado,e.atribuicao_id,e.agendamento_id,e.agendamento_versao,e.chave_idempotencia,e.config_snapshot,
+      const consulta = `SELECT q.id,q.execucao_id,q.tentativa,q.estado,e.atribuicao_id,e.agendamento_id,e.agendamento_versao,e.chave_idempotencia,e.config_snapshot,
    s.versao,s.habilitado,coalesce(s.politica_sobreposicao,'ENFILEIRAR') politica_sobreposicao,
    coalesce(s.politica_retentativa,'{"maxTentativas":3,"backoffSegundos":30}'::jsonb) politica_retentativa
    FROM funcionarios.fila q JOIN funcionarios.execucoes e ON e.id=q.execucao_id LEFT JOIN funcionarios.agendamentos s ON s.id=e.agendamento_id
-   JOIN funcionarios.atribuicoes a ON a.id=e.atribuicao_id
-   WHERE(q.estado='AGUARDANDO' AND q.executar_em<=$1 OR q.estado='EXECUTANDO' AND q.lease_ate<=$1)
-   ORDER BY a.prioridade DESC,q.executar_em,q.id LIMIT 1 FOR UPDATE OF q SKIP LOCKED`,
+   JOIN funcionarios.atribuicoes a ON a.id=e.atribuicao_id`;
+      const disponivel = `(q.estado='AGUARDANDO' AND q.executar_em<=$1 OR q.estado='EXECUTANDO' AND q.lease_ate<=$1)`;
+      // O lock da atribuição precede também a fila; cancelamento e enfileiramento
+      // não podem esperar um item cujo consumidor esteja esperando esta atribuição.
+      const candidata = await c.query<ItemFila>(
+        `${consulta} WHERE ${disponivel} ORDER BY a.prioridade DESC,q.executar_em,q.id LIMIT 1 FOR UPDATE OF a SKIP LOCKED`,
         [agora],
+      );
+      const id = candidata.rows[0]?.id;
+      if (id === undefined) return null;
+      const r = await c.query<ItemFila>(
+        `${consulta} WHERE q.id=$2 AND ${disponivel} FOR UPDATE OF q SKIP LOCKED`,
+        [agora, id],
       );
       const item = r.rows[0];
       if (item === undefined) return null;
@@ -360,7 +395,11 @@ export class MotorFuncionarios {
     });
     return true;
   }
-  async aguardar(execucaoId: string, timeoutMs = 120000): Promise<ExecucaoFuncionario> {
+  async aguardar(
+    execucaoId: string,
+    timeoutMs = 120000,
+    primeiraTentativa = false,
+  ): Promise<ExecucaoFuncionario> {
     const fim = Date.now() + timeoutMs;
     while (Date.now() < fim) {
       const e = (
@@ -371,7 +410,11 @@ export class MotorFuncionarios {
         )
       )[0];
       if (e === undefined) throw new NotFoundException();
-      if (!["AGUARDANDO", "EXECUTANDO"].includes(e.status)) return e;
+      if (
+        !["AGUARDANDO", "EXECUTANDO"].includes(e.status) ||
+        (primeiraTentativa && e.status === "AGUARDANDO" && e.tentativa > 0)
+      )
+        return e;
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
     throw new ConflictException("execucao ainda em andamento");

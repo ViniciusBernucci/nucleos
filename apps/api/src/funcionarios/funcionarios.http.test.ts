@@ -655,5 +655,160 @@ describe(
       );
       assert.equal(typeof agendas[0]?.id, "string");
     });
+    for (const operacao of ["planejador", "evento", "consumidor"] as const)
+      test(`revisao: editar atribuicao durante ${operacao} nao inverte locks`, async () => {
+        const fx = await fixture();
+        await pool.query("UPDATE funcionarios.agendamentos SET habilitado=false WHERE id<>$1", [
+          fx.s,
+        ]);
+        await pool.query(
+          "UPDATE funcionarios.agendamentos SET proxima_em=clock_timestamp() WHERE id=$1",
+          [fx.s],
+        );
+        if (operacao === "evento")
+          await servico.salvarAgenda(
+            fx.a,
+            { gatilho: "EVENTO", tipo_evento: "financeiro.venda.alterada" },
+            fx.s,
+          );
+        const execucao = operacao === "consumidor" ? await motor.executarAgora(fx.a) : null;
+        const editor = await pool.connect();
+        const estado = { terminou: false };
+        let pid = 0;
+        const planejador = new MotorFuncionarios(pool, registro, undefined, {
+          agora: async (c) => {
+            const r = await c.query<{ pid: number; agora: Date }>(
+              "SELECT pg_backend_pid() pid, clock_timestamp() agora",
+            );
+            assert.ok(r.rows[0]);
+            pid = r.rows[0].pid;
+            return r.rows[0].agora;
+          },
+        });
+        await editor.query("BEGIN");
+        await editor.query("SELECT id FROM funcionarios.atribuicoes WHERE id=$1 FOR UPDATE", [
+          fx.a,
+        ]);
+        const rodada = (
+          operacao === "planejador"
+            ? planejador.planejar()
+            : operacao === "evento"
+              ? planejador.publicar("financeiro.venda.alterada", randomUUID(), {})
+              : planejador.consumirUma()
+        ).finally(() => {
+          estado.terminou = true;
+        });
+        try {
+          for (let i = 0; i < 200 && !estado.terminou; i++) {
+            const espera = (
+              await pool.query<{ espera: string | null }>(
+                "SELECT wait_event_type espera FROM pg_stat_activity WHERE pid=$1",
+                [pid],
+              )
+            ).rows[0]?.espera;
+            if (espera === "Lock") break;
+            await new Promise((r) => setTimeout(r, 5));
+          }
+          await editor.query("SET LOCAL lock_timeout='200ms'");
+          // Mesma segunda escrita de configurarAtribuicao: não pode aguardar um planner que espera este editor.
+          await assert.doesNotReject(
+            operacao === "consumidor"
+              ? editor.query(
+                  "SELECT id FROM funcionarios.fila WHERE execucao_id=$1 FOR UPDATE NOWAIT",
+                  [execucao],
+                )
+              : editor.query("UPDATE funcionarios.agendamentos SET versao=versao+1 WHERE id=$1", [
+                  fx.s,
+                ]),
+          );
+        } finally {
+          await editor.query("ROLLBACK");
+          editor.release();
+          await rodada;
+          await motor.consumirUma();
+        }
+      });
+    test("revisao: falha Hotmart gera retentativas e FALHA, preservando resposta manual", async () => {
+      const fetchFalho = mock.method(
+        globalThis,
+        "fetch",
+        async () => new Response("{}", { status: 401 }),
+      );
+      const compartilhado = new MotorFuncionarios(pool, new RegistroHandlers());
+      const aguardar = compartilhado.aguardar.bind(compartilhado);
+      const esperaCurta = mock.method(
+        compartilhado,
+        "aguardar",
+        (id: string, timeoutMs = 5000, primeiraTentativa = false) =>
+          aguardar(id, Math.min(timeoutMs, 5000), primeiraTentativa),
+      );
+      let aplicacao: INestApplication | undefined;
+      try {
+        const anterior =
+          (
+            await pool.query<{ id: string }>(
+              "SELECT coalesce(max(id),0)::text id FROM funcionarios.execucoes",
+            )
+          ).rows[0]?.id ?? "0";
+        aplicacao = await NestFactory.create(
+          AppModule.comModulos([
+            VendasModule.registrar({
+              pool,
+              motor: compartilhado,
+              config: {
+                hotmartEnv: "sandbox",
+                hotmart: {
+                  clientId: new Secret("id-simulado"),
+                  clientSecret: new Secret("segredo-simulado"),
+                },
+                syncIntervalMs: 1800000,
+                backfillDays: 30,
+                apiKey: new Secret(CHAVE),
+              },
+            }),
+          ]),
+          { logger: false },
+        );
+        await aplicacao.init();
+        const sincronizacao =
+          aplicacao.get<Pick<SincronizacaoVendas, "executar">>(SINCRONIZACAO_VENDAS);
+        const resultadoPendente = sincronizacao.executar();
+        const resultadoSeguro = resultadoPendente.catch(() => undefined);
+        let execucao: { id: string; status: string; tentativa: number } | undefined;
+        for (let i = 0; i < 200; i++) {
+          execucao = (
+            await pool.query<{ id: string; status: string; tentativa: number }>(
+              "SELECT id,status,tentativa FROM funcionarios.execucoes WHERE id>$1 ORDER BY id DESC LIMIT 1",
+              [anterior],
+            )
+          ).rows[0];
+          if (execucao && !["AGUARDANDO", "EXECUTANDO"].includes(execucao.status)) break;
+          if (execucao?.tentativa === 1 && execucao.status === "AGUARDANDO") break;
+          await new Promise((r) => setTimeout(r, 5));
+        }
+        assert.ok(execucao);
+        assert.equal(execucao.status, "AGUARDANDO");
+        assert.deepEqual(await resultadoSeguro, {
+          resultado: "falha",
+          processadas: 0,
+          mensagem: "A execucao falhou.",
+        });
+        for (let i = 0; i < 2; i++) {
+          await pool.query(
+            "UPDATE funcionarios.fila SET executar_em=clock_timestamp() WHERE execucao_id=$1",
+            [execucao.id],
+          );
+          await compartilhado.consumirUma();
+        }
+        const fim = await servico.execucao(execucao.id);
+        assert.equal(fim.status, "FALHA");
+        assert.equal(fim.tentativa, 3);
+        assert.equal(fim.erro_codigo, "HANDLER_FALHOU");
+      } finally {
+        esperaCurta.mock.restore();
+        fetchFalho.mock.restore();
+        await aplicacao?.close();
+      }
+    });
   },
 );
