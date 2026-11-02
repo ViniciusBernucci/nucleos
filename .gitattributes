@@ -1,0 +1,11 @@
+# Checksums das migrations dependem dos bytes; o checkout deve ser idêntico em Windows e Linux.
+apps/api/migrations/*.sql text eol=lf
+# O controle de drift também compara os bytes dos contratos gerados.
+packages/contracts/src/generated/*.ts text eol=lf
+packages/sdk/src/generated/*.ts text eol=lf
+# O formatter do projeto exige LF também nas fontes e configurações de qualidade.
+*.ts text eol=lf
+*.tsx text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+lefthook.yml text eol=lf

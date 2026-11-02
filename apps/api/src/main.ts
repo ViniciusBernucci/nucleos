@@ -8,6 +8,9 @@ import { createApiObservability, observabilityMiddleware } from "./observability
 import { FluxoCaixaModule } from "./fluxo-caixa/fluxo-caixa.module.js";
 import { RepositorioFluxoCaixaPg } from "./fluxo-caixa/repositorio-pg.js";
 import { VendasModule } from "./vendas/vendas.module.js";
+import { RegistroHandlers } from "./funcionarios/handlers.js";
+import { MotorFuncionarios } from "./funcionarios/motor.js";
+import { FuncionariosModule } from "./funcionarios/funcionarios.module.js";
 
 // Falha rapida (FND-006): configuracao ausente/invalida impede a subida; a mensagem so lista
 // nomes de variaveis e motivos, nunca valores.
@@ -39,12 +42,27 @@ pool?.on("error", () => {
 if (pool === undefined)
   log("api: DATABASE_URL ausente; painel de vendas e fluxo de caixa desativados");
 
+const motor =
+  pool === undefined
+    ? undefined
+    : new MotorFuncionarios(pool, new RegistroHandlers(), undefined, { log });
 const app = await NestFactory.create(
   AppModule.comModulos(
-    pool === undefined
+    pool === undefined || motor === undefined
       ? []
       : [
-          VendasModule.registrar({ config: vendasConfig, pool, log }),
+          VendasModule.registrar({
+            config: vendasConfig,
+            pool,
+            log,
+            motor,
+          }),
+          FuncionariosModule.registrar(
+            motor,
+            vendasConfig.apiKey,
+            true,
+            Math.round(vendasConfig.syncIntervalMs / 60000),
+          ),
           FluxoCaixaModule.registrar({
             apiKey: vendasConfig.apiKey,
             repositorio: new RepositorioFluxoCaixaPg(pool),

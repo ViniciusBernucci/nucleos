@@ -1,13 +1,15 @@
 import type { ReactNode } from "react";
 import { NavLink } from "./NavLink.tsx";
 import { ThemeToggle } from "./ThemeToggle.tsx";
+import { setoresMenu } from "../../lib/funcionarios-api.ts";
 
 /**
  * Estrutura comum das paginas do app: menu lateral + barra superior com o
  * seletor de tema. Cada pagina fornece o proprio `<main id="conteudo">`.
  * Novos itens de menu entram aqui (ver manual de front end, secao 4).
  */
-export function AppShell({ children }: { children: ReactNode }) {
+export async function AppShell({ children }: { children: ReactNode }) {
+  const setores = await setoresMenu();
   return (
     <div className="app-shell">
       <a href="#conteudo" className="skip-link">
@@ -36,6 +38,18 @@ export function AppShell({ children }: { children: ReactNode }) {
           <NavLink href="/setores" code="ST">
             Setores
           </NavLink>
+          <NavLink href="/funcionarios" code="FU">
+            Funcionários
+          </NavLink>
+          {setores.map((setor) => (
+            <NavLink
+              key={setor.id}
+              href={`/funcionarios/setores/${setor.id}`}
+              code={setor.codigo.slice(0, 2).toUpperCase()}
+            >
+              {setor.nome}
+            </NavLink>
+          ))}
         </div>
       </nav>
 

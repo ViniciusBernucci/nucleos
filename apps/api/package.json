@@ -17,6 +17,7 @@
     "@nucleos/config": "workspace:*",
     "@nucleos/contracts": "workspace:*",
     "@nucleos/observability": "workspace:*",
+    "cron-parser": "5.10.3",
     "pg": "8.23.1",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2"

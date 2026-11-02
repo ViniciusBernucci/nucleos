@@ -25,6 +25,15 @@ Em staging/produção o mesmo princípio vale: um banco do Nucleos; `DATABASE_UR
 
 | Schema | Tabela | Para que serve | Entrega |
 | --- | --- | --- | --- |
+| `organizacao` | `setores` | Setores ordenados para catálogo, funcionários e menu dinâmico | [Funcionários virtuais](../funcionarios/2026-11-02-modulo-funcionarios-virtuais.md) |
+| `funcionarios` | `funcionarios` | Papéis virtuais com estado explícito e setor | idem |
+| `funcionarios` | `definicoes_tarefa` | Catálogo de tarefas, schemas, permissões e vínculo a handlers do backend | idem |
+| `funcionarios` | `atribuicoes` | Configuração e habilitação da tarefa por funcionário; integridade de setor por FK composta | idem |
+| `funcionarios` | `agendamentos` | Intervalo, cron, evento e disparo único, com versão e próxima ocorrência persistida | idem |
+| `funcionarios` | `execucoes` | Histórico de execução, snapshot seguro e correlação | idem |
+| `funcionarios` | `fila` | Fila durável com reivindicação, lease, tentativa e fencing | idem |
+| `funcionarios` | `eventos` | Eventos internos deduplicados e despacho transacional | idem |
+| `funcionarios` | `auditoria` | Alterações administrativas do módulo sem segredos | idem |
 | `financeiro` | `vendas` | Vendas baixadas da Hotmart (uma linha por transação; sem e-mail/nome do comprador) | [Painel de vendas](../financeiro/2026-11-01-painel-de-vendas-hotmart.md) |
 | `financeiro` | `sincronizacao_estado` | Linha única com o estado da última verificação (sucesso, falha, quando) | idem |
 | `financeiro` | `contas_recorrentes` | Contas a pagar mensais (valor previsto, dia de vencimento, vigência) | [Fluxo de caixa](../financeiro/2026-11-02-fluxo-de-caixa.md) |
