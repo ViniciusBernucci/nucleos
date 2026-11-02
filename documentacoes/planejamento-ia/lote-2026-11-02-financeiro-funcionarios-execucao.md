@@ -101,3 +101,20 @@ antes do relatório e dos testes pertinentes. Frentes B/M/C/D ainda NÃO INICIAD
 A integração permanece limpa, somente documentação sobre a base P0; nenhum código A
 foi integrado e nenhuma migration nova foi aplicada ao banco de desenvolvimento.
 A normalização dos bytes na integração deve ocorrer depois do merge de `.gitattributes`.
+## A integrada; abertura de B/M
+
+Revisão independente PASS: RA-01 e RA-02 corrigidos; 22 PG/HTTP e 1 regressão de vendas PASS.
+Código corretivo commit bc89f2c; documentação f02cfa5. A integrada por merge 67db27b.
+Na integração: setup frozen PASS; make build TS/Python PASS; make contracts-check PASS
+(sem drift, 11 contratos compatíveis); PG real em dois bancos temporários PASS (28 testes).
+Gitleaks 8.30.1, versão fixada pelo projeto e artefato Windows com checksum oficial
+conferido: PASS, nenhuma detecção. Binário somente em .run/bin, sem mudança de dependências.
+Normalização LF na integração: zero diff de conteúdo. Nenhuma migration dev aplicada.
+
+`pnpm --filter !@nucleos/config -r test` também executado: FAIL em dois testes preexistentes
+de geração/drift dos contratos que pressupõem separador de caminho Unix; os scripts
+não foram alterados pela frente A. A execução não substitui o PASS dos checks focais
+nem autoriza declarar a suíte geral aprovada. Config TS baseline foi validada em Linux.
+
+Estado atual A: IMPLEMENTADA_REVISADA_INTEGRADA; teste manual A pendente.
+B e M iniciam em worktrees separadas da revisão atual. C e D não iniciadas.

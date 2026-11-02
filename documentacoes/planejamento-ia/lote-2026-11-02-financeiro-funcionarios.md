@@ -53,13 +53,13 @@ D12, D13 (nome do funcionário), D14 (CFO em Diretoria), regras de conciliação
 
 | ID | Título | Onda | Perfil/risco | Depende de | Status |
 | --- | --- | --- | --- | --- | --- |
-| P0 | Commitar o fluxo de caixa pendente em `developer` (ação do usuário) | — | baixo | — | **BLOQUEADOR** |
-| FUN-001 | Modelo de dados, seeds e catálogo | A | alto — migrations base de tudo | P0 | PRONTA |
-| FUN-002 | Motor: planejador, fila ADR-021, handlers, eventos | A | **crítico** — concorrência, idempotência | FUN-001 | PRONTA (dep. `cron-parser`) |
-| FUN-003 | Rotina Hotmart migrada para o motor (mecanismo único) | A | alto — regressão da sync existente | FUN-002 | PRONTA |
-| FUN-004 | API REST de Funcionários + estado p/ 3D | A | médio — validação/segredos | FUN-002 | PRONTA |
-| FUN-005 | Web: menu, listagem, cadastro, catálogo | A | médio | FUN-004 | PRONTA |
-| FUN-006 | Web: detalhes, configuração de tarefa, histórico | A | médio | FUN-005 | PRONTA |
+| P0 | Commitar o fluxo de caixa pendente em `developer` (ação do usuário) | — | baixo | — | CONCLUIDA (`a2aa0cc`) |
+| FUN-001 | Modelo de dados, seeds e catálogo | A | alto — migrations base de tudo | P0 | IMPLEMENTADA / REVISADA / INTEGRADA |
+| FUN-002 | Motor: planejador, fila ADR-021, handlers, eventos | A | **crítico** — concorrência, idempotência | FUN-001 | IMPLEMENTADA / REVISADA / INTEGRADA |
+| FUN-003 | Rotina Hotmart migrada para o motor (mecanismo único) | A | alto — regressão da sync existente | FUN-002 | IMPLEMENTADA / REVISADA / INTEGRADA |
+| FUN-004 | API REST de Funcionários + estado p/ 3D | A | médio — validação/segredos | FUN-002 | IMPLEMENTADA / REVISADA / INTEGRADA |
+| FUN-005 | Web: menu, listagem, cadastro, catálogo | A | médio | FUN-004 | IMPLEMENTADA / REVISADA / INTEGRADA |
+| FUN-006 | Web: detalhes, configuração de tarefa, histórico | A | médio | FUN-005 | IMPLEMENTADA / REVISADA / INTEGRADA |
 | FIN-103 | Alertas financeiros (infra comum) | B | baixo | FUN-002 | PRONTA |
 | FIN-101 | Receitas e vendas (comissões, eventos, reconciliação, tela) | B | alto — dados de receita | FUN-003, FIN-103 | PRONTA |
 | FIN-102 | Webhook Hotmart (receptor + handler) | B | alto — endpoint público, PII | FIN-101 | PRONTA (ativação real pendente) |
@@ -164,3 +164,15 @@ Testar em ~400 px e tema claro/escuro.
 | B5 | Login real/permissões por usuário | Admin único implícito; risco aceito só para uso local |
 | B6 | Nome definitivo do banco único (`nucleos_dev` × `nucleos_control`) | Herdado; não bloqueia |
 | B7 | Fiscal, Google Ads, Orçamentos e Metas | Lotes futuros |
+## Execução autorizada e estado atual
+
+O usuário autorizou P0, commits locais das frentes/integração e as dependências
+cron-parser, @aws-sdk/client-s3 e anthropic. P0 concluído em a2aa0cc.
+A revisão independente da frente A corrigiu RA-01/RA-02 e retornou PASS.
+Correção: bc89f2c; entrega A: f02cfa5; merge em revisão: 67db27b.
+Build TS/Python, 28 PG/HTTP integrados, contracts-check e Gitleaks 8.30.1 PASS.
+Testes gerais não recebem PASS por limitações preexistentes documentadas de Windows/formatação.
+Testes manuais continuam pendentes. Frentes B/M liberadas para implementação; C/D aguardam dependências.
+Estado e evidências: [execução](lote-2026-11-02-financeiro-funcionarios-execucao.md).
+Os itens B1 e B2 do planejamento estão resolvidos quanto a P0 e autorização de dependências;
+credenciais/ativação externa seguem como pendências previstas, sem exigir novo planejamento.
