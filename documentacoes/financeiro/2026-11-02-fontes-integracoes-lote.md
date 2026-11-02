@@ -44,3 +44,18 @@ Conferidos como fontes primárias alternativas os arquivos do SDK oficial da Met
   Inferência de implementação: level=campaign, time_increment=1 e janela de 7 dias.
 
 Não foram instalados SDKs Meta nem feitas requisições autenticadas.
+## Claude / dependências autorizadas
+
+Consultadas as [IDs oficiais de modelos](https://platform.claude.com/docs/en/models/overview)
+e o [SDK oficial Python](https://github.com/anthropics/anthropic-sdk-python/blob/main/README.md):
+`claude-sonnet-5-5` e `claude-opus-5-5` disponíveis; preços publicados na consulta:
+Sonnet USD 2/10 por milhão de tokens de entrada/saída; Opus USD 4/20.
+O SDK oferece `client.messages.create`; spans podem ser desativados com
+`open_telemetry=False`, evitando instrumentação implícita que capture conteúdo.
+A implementação deve manter os limites do ADR-015 sob controle do servidor,
+restringir ferramentas a agregados e usar cliente simulado nos testes.
+Não houve chamada autenticada nem custo de uso de modelo.
+
+Registry npm/PyPI consultados nesta preparação: `@aws-sdk/client-s3` 3.1161.0
+(Node >=20) e `anthropic` 2.3.0 (Python >=3.10). São versões candidatas verificadas;
+a fixação efetiva e os lockfiles pertencem aos tickets FIN-104 e FIN-303.
