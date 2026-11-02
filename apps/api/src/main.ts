@@ -5,6 +5,8 @@ import { Pool } from "pg";
 import { AppModule } from "./app.module.js";
 import { opcoesPool } from "./banco.js";
 import { createApiObservability, observabilityMiddleware } from "./observability.js";
+import { FluxoCaixaModule } from "./fluxo-caixa/fluxo-caixa.module.js";
+import { RepositorioFluxoCaixaPg } from "./fluxo-caixa/repositorio-pg.js";
 import { VendasModule } from "./vendas/vendas.module.js";
 
 // Falha rapida (FND-006): configuracao ausente/invalida impede a subida; a mensagem so lista
@@ -34,11 +36,20 @@ const pool =
 pool?.on("error", () => {
   log("api: erro em conexao ociosa do banco");
 });
-if (pool === undefined) log("api: DATABASE_URL ausente; painel de vendas desativado");
+if (pool === undefined)
+  log("api: DATABASE_URL ausente; painel de vendas e fluxo de caixa desativados");
 
 const app = await NestFactory.create(
   AppModule.comModulos(
-    pool === undefined ? [] : [VendasModule.registrar({ config: vendasConfig, pool, log })],
+    pool === undefined
+      ? []
+      : [
+          VendasModule.registrar({ config: vendasConfig, pool, log }),
+          FluxoCaixaModule.registrar({
+            apiKey: vendasConfig.apiKey,
+            repositorio: new RepositorioFluxoCaixaPg(pool),
+          }),
+        ],
   ),
 );
 app.enableShutdownHooks();

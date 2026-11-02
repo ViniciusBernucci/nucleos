@@ -15,7 +15,8 @@ export type ResultadoVendas<T> =
 const URL_PADRAO = "http://127.0.0.1:3001";
 const TIMEOUT_MS = 10_000;
 
-function configuracao(): { base: string; chave: string } | undefined {
+/** Base e chave de servico da API do Financeiro (vendas e fluxo de caixa usam a mesma chave). */
+export function configuracao(): { base: string; chave: string } | undefined {
   const arquivo = process.env["VENDAS_API_KEY_FILE"];
   const direta = process.env["VENDAS_API_KEY"];
   try {

@@ -27,6 +27,9 @@ Em staging/produção o mesmo princípio vale: um banco do Nucleos; `DATABASE_UR
 | --- | --- | --- | --- |
 | `financeiro` | `vendas` | Vendas baixadas da Hotmart (uma linha por transação; sem e-mail/nome do comprador) | [Painel de vendas](../financeiro/2026-11-01-painel-de-vendas-hotmart.md) |
 | `financeiro` | `sincronizacao_estado` | Linha única com o estado da última verificação (sucesso, falha, quando) | idem |
+| `financeiro` | `contas_recorrentes` | Contas a pagar mensais (valor previsto, dia de vencimento, vigência) | [Fluxo de caixa](../financeiro/2026-11-02-fluxo-de-caixa.md) |
+| `financeiro` | `lancamentos` | Entradas e saídas do caixa; pagamento de conta recorrente é uma saída com competência (única por conta e mês) | idem |
+| `financeiro` | `categorias` | Categorias de entrada e de saída (nome único por tipo, sem diferenciar maiúsculas) usadas nos formulários do fluxo de caixa | idem |
 | `public` | `api_schema_migrations` | Controle das migrations da API (versão, checksum, quando) | idem |
 | `dev_seed` | `organizacoes` | Dado fictício de desenvolvimento (FND-004); só existe em dev | FND-004 |
 

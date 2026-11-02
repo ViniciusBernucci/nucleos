@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { after, before, describe, test } from "node:test";
 import { Pool } from "pg";
+import {
+  CategoriaDuplicada,
+  ContaComLancamentos,
+  PagamentoDuplicado,
+} from "./fluxo-caixa/repositorio.js";
+import { RepositorioFluxoCaixaPg } from "./fluxo-caixa/repositorio-pg.js";
 import { lerMigracoes, migrar } from "./migrar.js";
 import type { Venda } from "./vendas/dominio.js";
 import { RepositorioVendasPg } from "./vendas/repositorio-pg.js";
@@ -215,6 +221,71 @@ describe(
         ocupado: false,
         valor: 1,
       });
+    });
+
+    test("fluxo de caixa: saldo, meses, pagamento unico por competencia e FK restrita", async () => {
+      const repo = new RepositorioFluxoCaixaPg(pool);
+      const base = { descricao: "Aporte", categoria: "Socios", valorCentavos: 100_000 };
+      await repo.inserirLancamento({ ...base, tipo: "entrada", data: "2026-10-31" });
+      await repo.inserirLancamento({
+        ...base,
+        tipo: "saida",
+        valorCentavos: 2_500,
+        data: "2026-11-01",
+      });
+      assert.equal(await repo.saldoAntesDe("2026-11-01"), 100_000);
+      assert.equal(await repo.saldoAntesDe("2026-11-02"), 97_500);
+
+      const conta = await repo.inserirConta({
+        descricao: "Aluguel",
+        categoria: "Imovel",
+        valorCentavos: 200_000,
+        diaVencimento: 31,
+        inicio: "2026-09",
+      });
+      assert.deepEqual({ inicio: conta.inicio, fim: conta.fim }, { inicio: "2026-09", fim: null });
+      const pagamento = {
+        ...base,
+        tipo: "saida" as const,
+        data: "2026-12-02",
+        contaRecorrenteId: conta.id,
+        competencia: "2026-11",
+      };
+      const pago = await repo.inserirLancamento(pagamento);
+      assert.equal(pago.competencia, "2026-11");
+      assert.equal(pago.data, "2026-12-02");
+      await assert.rejects(repo.inserirLancamento(pagamento), PagamentoDuplicado);
+      assert.equal((await repo.pagamentosDaCompetencia("2026-11")).length, 1);
+      assert.equal((await repo.lancamentosEntre("2026-11-01", "2026-11-30")).length, 1);
+      assert.equal(await repo.ultimaCompetenciaPaga(conta.id), "2026-11");
+
+      // O banco recusa entrada vinculada a conta e fim anterior ao inicio, mesmo sem a API.
+      await assert.rejects(
+        repo.inserirLancamento({ ...pagamento, tipo: "entrada", competencia: "2026-10" }),
+      );
+      await assert.rejects(repo.definirFimConta(conta.id, "2026-08"));
+
+      assert.ok(await repo.definirFimConta(conta.id, "2026-12"));
+      assert.equal((await repo.obterConta(conta.id))?.fim, "2026-12");
+      await assert.rejects(repo.excluirConta(conta.id), ContaComLancamentos);
+      assert.ok(await repo.excluirLancamento(pago.id));
+      assert.ok(await repo.excluirConta(conta.id));
+      assert.equal(await repo.obterConta(conta.id), null);
+    });
+
+    test("categorias: carga inicial, unicidade sem diferenciar maiusculas e exclusao", async () => {
+      const repo = new RepositorioFluxoCaixaPg(pool);
+      const iniciais = await repo.listarCategorias();
+      assert.ok(iniciais.some((c) => c.tipo === "saida" && c.nome === "Aluguel"));
+      assert.equal(await repo.nomeDaCategoria("saida", "ALUGUEL"), "Aluguel");
+      assert.equal(await repo.nomeDaCategoria("entrada", "Aluguel"), null);
+      await assert.rejects(
+        repo.inserirCategoria({ tipo: "saida", nome: "aluguel" }),
+        CategoriaDuplicada,
+      );
+      const nova = await repo.inserirCategoria({ tipo: "entrada", nome: "Aluguel recebido" });
+      assert.ok(await repo.excluirCategoria(nova.id));
+      assert.equal(await repo.excluirCategoria(nova.id), false);
     });
   },
 );

@@ -28,6 +28,15 @@ export default function FinanceiroPage() {
               <span className="link-card__text">Receita, ticket médio e reembolsos da Hotmart</span>
             </Link>
           </li>
+          <li>
+            <Link href="/setores/financeiro/fluxo-de-caixa" className="link-card">
+              <span className="link-card__code" aria-hidden="true">
+                FC
+              </span>
+              <span className="link-card__title">Fluxo de caixa</span>
+              <span className="link-card__text">Entradas, saídas e contas a pagar recorrentes</span>
+            </Link>
+          </li>
         </ul>
       </section>
     </main>
