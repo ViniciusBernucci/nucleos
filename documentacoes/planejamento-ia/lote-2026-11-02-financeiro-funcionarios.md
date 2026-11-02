@@ -7,8 +7,8 @@
 - **Base verificada:** `developer` @ `c542704` (`docs: regras de banco unico e fluxo enxuto…`), com
   **alterações não commitadas** do fluxo de caixa (migrations 0002/0003, `apps/api/src/fluxo-caixa/`,
   páginas web) — ver pré-condição P0.
-- **Status do lote:** `PRONTO_PARA_IMPLEMENTAR` para as ondas A–C, condicionado a P0 e às autorizações de
-  dependência (§5). FIN-301 e FIN-303 prontos para implementar, com ativação real dependente de credenciais.
+- **Status do lote:** EM_EXECUCAO. P0 concluído; A implementada, revisada e integrada.
+  B e M em implementação. C/D aguardam dependências; testes manuais pendentes.
 - **Especificação canônica:** [lote-2026-11-02-financeiro-funcionarios-especificacao.md](lote-2026-11-02-financeiro-funcionarios-especificacao.md)
 - **Prompts de execução:** [lote-2026-11-02-financeiro-funcionarios-prompts.md](lote-2026-11-02-financeiro-funcionarios-prompts.md)
 
@@ -157,8 +157,8 @@ Testar em ~400 px e tema claro/escuro.
 
 | ID | Descrição | Efeito |
 | --- | --- | --- |
-| B1 | P0 não feito | Nenhuma frente começa |
-| B2 | Dependências não autorizadas | FUN-002/FIN-104 usam alternativa; FIN-303 BLOQUEADO |
+| B1 | RESOLVIDO: P0 concluído em a2aa0cc | Base disponibilizada às frentes |
+| B2 | RESOLVIDO: dependências autorizadas pelo usuário | Fixação e validação nos tickets correspondentes |
 | B3 | Sem URL pública | Webhook só testado localmente (polling cobre) |
 | B4 | Sem credenciais Meta/Anthropic | FIN-301/303 entregues e testados com simulação; ativação real pendente |
 | B5 | Login real/permissões por usuário | Admin único implícito; risco aceito só para uso local |

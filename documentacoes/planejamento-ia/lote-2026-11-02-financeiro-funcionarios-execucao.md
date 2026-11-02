@@ -18,15 +18,21 @@ Alterações de regras/skills e outros backlogs foram preservadas fora do commit
 P0: commit a2aa0cc (`feat(financeiro): concluir base de fluxo de caixa para lote 1102`).
 Escopo e verificações: [registro P0](../financeiro/2026-11-02-fluxo-de-caixa.md#verificação-de-p0-para-o-lote-financeirofuncionários-2026-11-02).
 
-## Estado
+## Estado atual (fonte operacional desta execução avulsa)
 
-- P0: commit criado; checks focais PASS; checks gerais com limitações de Windows abaixo.
-- Frente A (FUN-001…006): EM_IMPLEMENTACAO na branch feat/lote-1102-a-funcionarios,
-  worktree ../nucleos-worktrees/feat/lote-1102-a-funcionarios, base a2aa0cc.
-- Frentes B, M, C e D: NÃO INICIADAS, aguardam dependências do manifesto.
-- Revisão corretiva independente: NÃO EXECUTADA.
-- Integração e checks integrados: NÃO EXECUTADOS.
-- Testes manuais/aceite visual: PENDENTES conforme manifesto §8.
+- P0: CONCLUIDA, commit a2aa0cc.
+- A (FUN-001…006): IMPLEMENTADA / REVISADA / INTEGRADA. Correção bc89f2c,
+  entrega f02cfa5, merge 67db27b; revisão independente PASS.
+- B (FIN-103→101→102→104→105→106): EM_IMPLEMENTACAO,
+  branch feat/lote-1102-b-base-financeira, base a1a0b0e.
+- M (FIN-301): EM_IMPLEMENTACAO em paralelo a B,
+  branch feat/lote-1102-m-meta-ads, base a1a0b0e.
+- C e D: NÃO INICIADAS, aguardam dependências.
+- Revisões corretivas B/M/C/D: NÃO EXECUTADAS.
+- Integração A: build TS/Python, 28 PG/HTTP, contratos e Gitleaks PASS;
+  suíte/lint gerais sem PASS pelas limitações documentadas.
+- Testes manuais e aceite visual: PENDENTES conforme manifesto §8.
+- Nenhuma migration nova aplicada ao nucleos_dev; testes só bancos temporários.
 
 ## Verificações da preparação
 
