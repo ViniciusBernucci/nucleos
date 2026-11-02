@@ -62,3 +62,20 @@ Não copiar variáveis/segredos para este documento.
   sem mudança de código ou conceito didático novo: lessons NA para esta consulta.
 - Frente A informa checks focais PASS (tipos, 4 unitários, 15 HTTP/PG) e conclui
   regressões/documentação; esses resultados ainda aguardam revisão independente.
+## Verificações adicionais e integridade
+
+- `uv build --all-packages --out-dir .run/lote-1102-p0-py-dist`: PASS.
+- `node node_modules/eslint/bin/eslint.js . --ignore-pattern **/.pytest_cache/** --ignore-pattern **/.venv/**`:
+  PASS (0 erros, 49 avisos). É equivalente de varredura da fonte, com caches gerados ignorados
+  por argumento; não houve alteração da configuração de lint nem remoção de cache alheio.
+- Docker Linux Python 3.13 com uv e `pytest -p no:cacheprovider`: 378 PASS, 1 FAIL por
+  ausência do binário Node na imagem. O único teste falho, paridade de padrões TS/Python,
+  foi repetido com Node Linux 24.22.1 montado em `/usr/local/bin/node`: PASS (1 teste).
+  Não houve mudança na fonte entre as execuções. Não declarar que uma única execução
+  completa teve 379 PASS: os resultados foram uma rodada e uma revalidação focal.
+- Risco demonstrado: `core.autocrlf=true`, sem `.gitattributes`; migrations 0002 e 0003
+  têm bytes diferentes entre checkout principal e worktree (LF vs CRLF). O runner
+  calcula SHA sobre SQL bruto. Frente A orientada a fixar `eol=lf` para migrations SQL,
+  preservando o conteúdo das já aplicadas, e verificar novamente os checks afetados.
+- Binário Node Linux extraído da imagem oficial apenas para o ambiente de testes;
+  container auxiliar removido. Execuções de teste usam `--rm`; imagens ficam em cache.
