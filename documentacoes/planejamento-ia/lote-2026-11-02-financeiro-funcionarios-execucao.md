@@ -46,3 +46,19 @@ Não há PASS da suíte geral nem aprovação técnica/visual do lote.
 Docker observado: nucleos-dev-postgres-1 em 127.0.0.1:15432.
 Nenhuma migration nova do lote aplicada no banco de desenvolvimento.
 Não copiar variáveis/segredos para este documento.
+## Atualização de preparação
+
+- Caminho curto 8.3 resolve a invocação de make: `make -C C:/Users/VINICI~1.SIL/DOCUME~1/DOCUME~1/PROJET~1/nucleos check-env` PASS.
+- `make ... lint` iniciou os checks e falhou por EPERM em `.pytest_cache` preexistente.
+- ESLint focal do P0 PASS (0 erros, 12 avisos); Prettier focal PASS.
+- Integração PG do P0 PASS: 6 testes; banco temporário criado e removido.
+- Configuração TypeScript do build atual em Docker Linux, Node 24.22.1: PASS, 20 testes.
+- `uv run --frozen --all-packages pytest` no Windows: 370 passed, 9 errors nos
+  cenários de arquivos/temporários/permissões de config-py. Ensaio Linux em andamento.
+- Integração criada na worktree `../nucleos-worktrees/revisao/2026-11-02-financeiro-funcionarios`.
+  Commit de registro de P0: d344146. Ainda não contém código da frente A.
+- [Fontes oficiais para Hotmart/Meta](../financeiro/2026-11-02-fontes-integracoes-lote.md)
+  consultadas sem credenciais, para orientar FIN-101/102/301. Material de apoio,
+  sem mudança de código ou conceito didático novo: lessons NA para esta consulta.
+- Frente A informa checks focais PASS (tipos, 4 unitários, 15 HTTP/PG) e conclui
+  regressões/documentação; esses resultados ainda aguardam revisão independente.
