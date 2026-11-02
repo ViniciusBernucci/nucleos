@@ -53,9 +53,11 @@ Referência consultada em 2026-11-02: [documentação oficial do cron-parser](ht
 
 ## Do cálculo puro à persistência
 
-Salvar uma agenda incrementa sua versão. O planejador bloqueia agendas vencidas com
-`FOR UPDATE SKIP LOCKED`, usa o relógio do banco, enfileira e salva a próxima ocorrência
-na mesma transação. O consumidor recusa itens com versão antiga antes de executar.
+Salvar uma agenda incrementa sua versão. O planejador bloqueia primeiro as atribuições
+de agendas vencidas com `FOR UPDATE SKIP LOCKED`, depois relê e bloqueia cada agenda
+ainda vencida. Essa ordem também é usada nas edições e evita espera circular entre
+pai e filho. Usa o relógio do banco, enfileira e salva a próxima ocorrência na mesma
+transação. O consumidor recusa itens com versão antiga antes de executar.
 
 Mudar de 30 para 60 minutos invalida o disparo antigo. Suspender agenda ou atribuição
 impede novos disparos; uma tarefa já iniciada mantém seu snapshot e pode concluir.

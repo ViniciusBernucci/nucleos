@@ -5,6 +5,8 @@ Criada em 2026-10-25. Ultima atualizacao: 2026-11-02 (lesson 18 do fluxo de caix
 `lessons/` e uma trilha progressiva e didatica da stack do projeto, nao um changelog.
 A atualização de 2026-11-02 inclui a aplicação real da fila na lesson 11 e a lesson 19
 de agendamento persistente, que combina as bases de fila, configuração e Server Actions.
+A revisão corretiva da frente A acrescenta à lesson 11 a ordem de locks entre tabelas
+e a tradução de falhas de negócio para retentativas, mantendo a mesma ordem da trilha.
 A stack segue o [ADR de arquitetura do MVP](../documentacoes/transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md):
 TypeScript (NestJS e Next.js), Python, Docker/Compose, PostgreSQL e seguranca.
 

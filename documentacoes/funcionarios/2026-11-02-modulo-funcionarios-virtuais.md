@@ -3,7 +3,7 @@
 Data: 2026-11-02, America/Sao_Paulo. Domínio: funcionários.
 Tarefa: frente A, FUN-001 a FUN-006 do lote financeiro/funcionários.
 Branch: `feat/lote-1102-a-funcionarios`. Base: `a2aa0ccc56938dd1e27ffaf52cd24646d68848dd`.
-Autor: agente executor Codex, por autorização do usuário. Estado: candidata à revisão independente;
+Autor: agente executor Codex, por autorização do usuário. Estado: revisão independente corretiva concluída no escopo A; integração pendente;
 teste de tela manual pendente. O checkout começou sem alterações de implementação;
 os cinco documentos de planejamento/backlog foram copiados pelo coordenador como insumo autorizado.
 
@@ -114,7 +114,7 @@ Logs locais ignorados pelo Git: `.run/agenda-test.log`, `.run/funcionarios-pg.lo
 FUN-001–004: implementados e cobertos por tipos/testes de modelo, concorrência,
 segurança, API e integração simulada da Hotmart. FUN-005–006: implementados, tipados
 e compilados; interação visual ainda NÃO VALIDADA. As APIs externas não foram acionadas.
-Revisão independente, checks integrados e aceite humano pertencem às etapas seguintes.
+A revisão independente está registrada abaixo. Checks integrados e aceite humano pertencem às etapas seguintes.
 
 Uso autorizado somente local com admin único. Observabilidade: correlação, tempos,
 status, tentativas e erro fixo por execução; auditoria administrativa. Não há logs de
@@ -146,3 +146,40 @@ que não foram alterados por esta tarefa. O lint global continua sem PASS, pelos
 Logs finais adicionais: `.run/prettier-diff.log`, `.run/eslint-final.log`, `.run/regressao-final.log`.
 As 18 verificações PG foram repetidas depois da correção LF e do ajuste transacional da auditoria: PASS.
 A ausência de aceite visual permanece explícita independentemente do commit técnico.
+
+## Revisão corretiva independente (2026-11-02)
+
+A sessão independente `/root/review_a` identificou e corrigiu RA-01 (ordem inversa
+entre locks de atribuição/agendamento/fila) e RA-02 (falha Hotmart registrada como
+SUCESSO). [Parecer e cobertura](../reviews/2026-11-02-frente-a-revisao-corretiva.md);
+[patch completo das correções](../reviews/2026-11-02-frente-a-revisao-corretiva-diffs.md).
+
+Mudanças: `motor.ts` usa atribuição antes dos filhos, relê o filho elegível e não
+atualiza o histórico ao deduplicar. Publicadores bloqueiam vários pais em ordem de ID.
+`vendas.module.ts` converte o retorno de falha em erro fixo para o motor aplicar
+backoff. O botão recebe o resultado da primeira tentativa; retries seguem na fila
+sem prolongar a requisição pelos intervalos de espera. A forma da resposta é preservada.
+
+`funcionarios.http.test.ts` ganhou regressões para edição concorrente com planner,
+evento e consumidor, além de 401 Hotmart simulado, retentativas e FALHA final.
+Nenhuma migration, credencial, dependência nova ou dado de desenvolvimento foi alterado.
+As lessons 11/19 e o índice foram alinhados ao mecanismo final e às decisões acima.
+
+Verificações do revisor: build/tipos da API PASS; 22 testes PG/HTTP PASS (0 skip),
+1 regressão do endpoint de atualização de vendas PASS; ESLint dos três arquivos PASS
+(0 erros, 1 aviso preexistente de leitura de fixture); Prettier focal PASS e
+`git diff --check` de código/testes PASS. O PostgreSQL usou somente banco temporário,
+criado/removido no harness; Hotmart foi simulada. A suíte geral não foi declarada PASS.
+
+Nenhum commit criado nesta tarefa de revisão; as correções permanecem unstaged para
+o coordenador. A candidata original continua registrada pelos commits acima.
+Não há achado médio/alto/crítico conhecido pendente no escopo revisto. Permanecem
+pendentes os checks integrados e o teste/aceite visual manual; esta revisão não aprova telas.
+
+## Registro Git posterior pelo coordenador
+
+Correções aprovadas da revisão registradas no commit `bc89f2ca7a87738e9de690b51303deb3c5606a72` —
+`fix(funcionarios): corrigir locks e falhas Hotmart no motor`.
+O patch do relatório corresponde exatamente aos três arquivos desse commit; documentação
+e lessons ficam em commit separado, sem diff recursivo. Não houve nova alteração de código
+depois dos checks finais do revisor. Integração e aceite visual continuam separados.

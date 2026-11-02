@@ -115,6 +115,61 @@ Saida real da execucao (2026-10-26): `linhas apos enfileirar t1 duas vezes: 1`; 
 
 ## Erros comuns e trade-offs
 
+### Uma ordem de locks para todas as operações
+
+No motor real, a atribuição é o recurso pai do agendamento e da fila. Uma edição
+não pode bloquear primeiro a atribuição enquanto o planejador faz o caminho inverso:
+cada transação ficaria esperando a linha que a outra segura. `SKIP LOCKED` na fila
+sozinho não resolve esse ciclo entre tabelas.
+
+Planejador, publicador e consumidor adquirem primeiro o lock da atribuição. Depois
+releem e bloqueiam o agendamento ou item da fila ainda elegível. A releitura importa:
+um snapshot obtido antes do lock pode carregar uma versão antiga da agenda. Quando
+um evento tem várias atribuições, elas são bloqueadas em ordem de ID para que dois
+publicadores também não montem um ciclo entre recursos pais.
+
+Este SQL pode ser executado dentro do banco temporário de testes, depois das migrations:
+
+```sql
+BEGIN;
+SELECT id FROM funcionarios.atribuicoes
+WHERE id = (SELECT min(id) FROM funcionarios.atribuicoes) FOR UPDATE;
+SELECT id FROM funcionarios.agendamentos
+WHERE atribuicao_id = (SELECT min(id) FROM funcionarios.atribuicoes) FOR UPDATE;
+ROLLBACK;
+```
+
+O produtor usa `ON CONFLICT DO NOTHING`: reentregar uma chave não exige atualizar e
+bloquear um histórico que outro worker pode estar concluindo. O registro existente
+é apenas consultado; fila e execução já foram inseridas atomicamente.
+
+### Resultado de negócio e estado da execução
+
+Um serviço legado pode retornar `{ resultado: "falha" }` sem lançar uma exceção.
+Se o adaptador só devolver esse objeto ao worker, a fila entenderá que ele concluiu
+com sucesso. O adaptador deve traduzir a falha para o protocolo de retentativa:
+
+```ts
+type Resultado = { resultado: "sucesso" | "parcial" | "falha"; processadas: number };
+
+export async function executarComRetentativa(
+  sincronizar: () => Promise<Resultado>,
+): Promise<Resultado> {
+  const resultado = await sincronizar();
+  if (resultado.resultado === "falha") throw new Error("sincronizacao falhou");
+  return resultado;
+}
+```
+
+A mensagem é fixa e não expõe a resposta externa. No projeto, o botão Hotmart recebe
+o resultado da primeira tentativa; se houver falha, as retentativas continuam na fila
+sem manter a requisição HTTP presa durante o backoff. O histórico só termina em
+`FALHA` depois de esgotadas as tentativas.
+
+As regressões da [revisão corretiva da frente A](../documentacoes/reviews/2026-11-02-frente-a-revisao-corretiva.md)
+reproduzem o ciclo de espera e a falha indevidamente marcada como sucesso, usando
+PostgreSQL temporário e uma resposta Hotmart simulada.
+
 - Contar o limite por tenant sem travar uma linha do tenant: duas reivindicacoes simultaneas passam do limite.
 - Usar `Date.now()` do cliente para `run_at` ou lease: relogio errado antecipa ou atrasa a tarefa (na PoC, o BullMQ falhou nesse teste; esta tecnica passou).
 - Esquecer a idempotencia do efeito: a tarefa pode rodar mais de uma vez. Na PoC do ADR-021 a chave primaria da tabela de efeitos faz a idempotencia, entao ela prova ausencia de perda e absorcao das reentregas, nao mede duplicacao de efeito de forma independente.
@@ -127,3 +182,5 @@ Saida real da execucao (2026-10-26): `linhas apos enfileirar t1 duas vezes: 1`; 
 - Exercicio 1: altere o lease para 3 s e acrescente o heartbeat do passo 3; mostre que o worker B nao assume enquanto A renova.
 - Exercicio 2: abra duas conexoes e reivindique em paralelo 20 tarefas; confirme que nenhuma e entregue a dois workers simultaneamente.
 - Pergunta: por que `attempt` serve de fencing e o `lease_owner` sozinho nao basta?
+- Por que duas transações precisam da mesma ordem de locks mesmo usando `SKIP LOCKED`?
+- Por que um objeto com `resultado: "falha"` não faz o worker aplicar backoff automaticamente?
