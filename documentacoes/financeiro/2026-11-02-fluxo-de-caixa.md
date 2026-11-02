@@ -225,7 +225,7 @@ Pré-requisito: `bash infrastructure/docker/scripts/migrar-banco.sh` (exige `mak
 
 ## Commits e diffs
 
-Nenhum commit criado nesta tarefa (não houve pedido explícito). Diffs da árvore de trabalho (unstaged e
+A implementação original permaneceu sem commit até a autorização de P0. Commit de P0: `a2aa0cc` (`feat(financeiro): concluir base de fluxo de caixa para lote 1102`). Diffs originalmente da árvore de trabalho (unstaged e
 arquivos novos), restritos a esta entrega, em
 [2026-11-02-fluxo-de-caixa-diffs.md](2026-11-02-fluxo-de-caixa-diffs.md). `apps/web/next-env.d.ts`, alterado
 automaticamente pelo `next build`, foi restaurado. Arquivos de documentação desta entrega (fora do patch):
@@ -272,3 +272,7 @@ As verificações gerais pendentes precisam ser resolvidas em ambiente compatív
   da aprovação técnica do lote. Este registro não substitui revisão independente nem teste manual.
 O commit desta preparação pode ser localizado por `git log --grep='concluir base de fluxo de caixa'`;
 a lista final de commits do lote será registrada no relatório da execução.
+
+Atualização dos checks de P0: integração PostgreSQL com banco temporário PASS (6 testes);
+configuração do build atual em Linux, Node 24.22.1, PASS (20 testes); ESLint focal PASS
+(0 erros, 12 avisos). A suite geral no Windows continua FAIL; não foi convertida em PASS.

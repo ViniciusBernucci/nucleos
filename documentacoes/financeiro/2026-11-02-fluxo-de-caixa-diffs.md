@@ -1,182 +1,11 @@
-# Diffs — Fluxo de caixa (2026-11-02)
+# Diff real de P0 — fluxo de caixa
 
-Documento principal: [2026-11-02-fluxo-de-caixa.md](2026-11-02-fluxo-de-caixa.md).
+Data: 2026-11-02. Registro: [entrega](2026-11-02-fluxo-de-caixa.md).
 
-Nenhum commit criado nesta tarefa. Patch da árvore de trabalho (unstaged + arquivos novos) sobre o
-HEAD `c5427047db13c8bb84e3a635298e94e89105caea`, somente código, testes, migration e CSS desta
-entrega. Arquivos de `documentacoes/` e `lessons/` não entram no patch. Nenhum segredo presente.
+Commit: a2aa0cc — feat(financeiro): concluir base de fluxo de caixa para lote 1102.
+Base: c5427047db13c8bb84e3a635298e94e89105caea. Código, testes e contratos; documentação e lessons excluídas para evitar recursão.
 
 ```diff
-diff --git a/apps/api/src/integracao-pg.test.ts b/apps/api/src/integracao-pg.test.ts
-index 74e2e68..7ca08e7 100644
---- a/apps/api/src/integracao-pg.test.ts
-+++ b/apps/api/src/integracao-pg.test.ts
-@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
- import { randomBytes } from "node:crypto";
- import { after, before, describe, test } from "node:test";
- import { Pool } from "pg";
-+import {
-+  CategoriaDuplicada,
-+  ContaComLancamentos,
-+  PagamentoDuplicado,
-+} from "./fluxo-caixa/repositorio.js";
-+import { RepositorioFluxoCaixaPg } from "./fluxo-caixa/repositorio-pg.js";
- import { lerMigracoes, migrar } from "./migrar.js";
- import type { Venda } from "./vendas/dominio.js";
- import { RepositorioVendasPg } from "./vendas/repositorio-pg.js";
-@@ -216,5 +222,70 @@ describe(
-         valor: 1,
-       });
-     });
-+
-+    test("fluxo de caixa: saldo, meses, pagamento unico por competencia e FK restrita", async () => {
-+      const repo = new RepositorioFluxoCaixaPg(pool);
-+      const base = { descricao: "Aporte", categoria: "Socios", valorCentavos: 100_000 };
-+      await repo.inserirLancamento({ ...base, tipo: "entrada", data: "2026-10-31" });
-+      await repo.inserirLancamento({
-+        ...base,
-+        tipo: "saida",
-+        valorCentavos: 2_500,
-+        data: "2026-11-01",
-+      });
-+      assert.equal(await repo.saldoAntesDe("2026-11-01"), 100_000);
-+      assert.equal(await repo.saldoAntesDe("2026-11-02"), 97_500);
-+
-+      const conta = await repo.inserirConta({
-+        descricao: "Aluguel",
-+        categoria: "Imovel",
-+        valorCentavos: 200_000,
-+        diaVencimento: 31,
-+        inicio: "2026-09",
-+      });
-+      assert.deepEqual({ inicio: conta.inicio, fim: conta.fim }, { inicio: "2026-09", fim: null });
-+      const pagamento = {
-+        ...base,
-+        tipo: "saida" as const,
-+        data: "2026-12-02",
-+        contaRecorrenteId: conta.id,
-+        competencia: "2026-11",
-+      };
-+      const pago = await repo.inserirLancamento(pagamento);
-+      assert.equal(pago.competencia, "2026-11");
-+      assert.equal(pago.data, "2026-12-02");
-+      await assert.rejects(repo.inserirLancamento(pagamento), PagamentoDuplicado);
-+      assert.equal((await repo.pagamentosDaCompetencia("2026-11")).length, 1);
-+      assert.equal((await repo.lancamentosEntre("2026-11-01", "2026-11-30")).length, 1);
-+      assert.equal(await repo.ultimaCompetenciaPaga(conta.id), "2026-11");
-+
-+      // O banco recusa entrada vinculada a conta e fim anterior ao inicio, mesmo sem a API.
-+      await assert.rejects(
-+        repo.inserirLancamento({ ...pagamento, tipo: "entrada", competencia: "2026-10" }),
-+      );
-+      await assert.rejects(repo.definirFimConta(conta.id, "2026-08"));
-+
-+      assert.ok(await repo.definirFimConta(conta.id, "2026-12"));
-+      assert.equal((await repo.obterConta(conta.id))?.fim, "2026-12");
-+      await assert.rejects(repo.excluirConta(conta.id), ContaComLancamentos);
-+      assert.ok(await repo.excluirLancamento(pago.id));
-+      assert.ok(await repo.excluirConta(conta.id));
-+      assert.equal(await repo.obterConta(conta.id), null);
-+    });
-+
-+    test("categorias: carga inicial, unicidade sem diferenciar maiusculas e exclusao", async () => {
-+      const repo = new RepositorioFluxoCaixaPg(pool);
-+      const iniciais = await repo.listarCategorias();
-+      assert.ok(iniciais.some((c) => c.tipo === "saida" && c.nome === "Aluguel"));
-+      assert.equal(await repo.nomeDaCategoria("saida", "ALUGUEL"), "Aluguel");
-+      assert.equal(await repo.nomeDaCategoria("entrada", "Aluguel"), null);
-+      await assert.rejects(
-+        repo.inserirCategoria({ tipo: "saida", nome: "aluguel" }),
-+        CategoriaDuplicada,
-+      );
-+      const nova = await repo.inserirCategoria({ tipo: "entrada", nome: "Aluguel recebido" });
-+      assert.ok(await repo.excluirCategoria(nova.id));
-+      assert.equal(await repo.excluirCategoria(nova.id), false);
-+    });
-   },
- );
-diff --git a/apps/api/src/main.ts b/apps/api/src/main.ts
-index 098684b..71a5b26 100644
---- a/apps/api/src/main.ts
-+++ b/apps/api/src/main.ts
-@@ -5,6 +5,8 @@ import { Pool } from "pg";
- import { AppModule } from "./app.module.js";
- import { opcoesPool } from "./banco.js";
- import { createApiObservability, observabilityMiddleware } from "./observability.js";
-+import { FluxoCaixaModule } from "./fluxo-caixa/fluxo-caixa.module.js";
-+import { RepositorioFluxoCaixaPg } from "./fluxo-caixa/repositorio-pg.js";
- import { VendasModule } from "./vendas/vendas.module.js";
- 
- // Falha rapida (FND-006): configuracao ausente/invalida impede a subida; a mensagem so lista
-@@ -34,11 +36,20 @@ const pool =
- pool?.on("error", () => {
-   log("api: erro em conexao ociosa do banco");
- });
--if (pool === undefined) log("api: DATABASE_URL ausente; painel de vendas desativado");
-+if (pool === undefined)
-+  log("api: DATABASE_URL ausente; painel de vendas e fluxo de caixa desativados");
- 
- const app = await NestFactory.create(
-   AppModule.comModulos(
--    pool === undefined ? [] : [VendasModule.registrar({ config: vendasConfig, pool, log })],
-+    pool === undefined
-+      ? []
-+      : [
-+          VendasModule.registrar({ config: vendasConfig, pool, log }),
-+          FluxoCaixaModule.registrar({
-+            apiKey: vendasConfig.apiKey,
-+            repositorio: new RepositorioFluxoCaixaPg(pool),
-+          }),
-+        ],
-   ),
- );
- app.enableShutdownHooks();
-diff --git a/apps/web/app/(app)/setores/financeiro/page.tsx b/apps/web/app/(app)/setores/financeiro/page.tsx
-index a8a6843..3e2c015 100644
---- a/apps/web/app/(app)/setores/financeiro/page.tsx
-+++ b/apps/web/app/(app)/setores/financeiro/page.tsx
-@@ -28,6 +28,15 @@ export default function FinanceiroPage() {
-               <span className="link-card__text">Receita, ticket médio e reembolsos da Hotmart</span>
-             </Link>
-           </li>
-+          <li>
-+            <Link href="/setores/financeiro/fluxo-de-caixa" className="link-card">
-+              <span className="link-card__code" aria-hidden="true">
-+                FC
-+              </span>
-+              <span className="link-card__title">Fluxo de caixa</span>
-+              <span className="link-card__text">Entradas, saídas e contas a pagar recorrentes</span>
-+            </Link>
-+          </li>
-         </ul>
-       </section>
-     </main>
-diff --git a/apps/web/lib/vendas-api.ts b/apps/web/lib/vendas-api.ts
-index 060316c..0f9bb99 100644
---- a/apps/web/lib/vendas-api.ts
-+++ b/apps/web/lib/vendas-api.ts
-@@ -15,7 +15,8 @@ export type ResultadoVendas<T> =
- const URL_PADRAO = "http://127.0.0.1:3001";
- const TIMEOUT_MS = 10_000;
- 
--function configuracao(): { base: string; chave: string } | undefined {
-+/** Base e chave de servico da API do Financeiro (vendas e fluxo de caixa usam a mesma chave). */
-+export function configuracao(): { base: string; chave: string } | undefined {
-   const arquivo = process.env["VENDAS_API_KEY_FILE"];
-   const direta = process.env["VENDAS_API_KEY"];
-   try {
-diff --git a/packages/contracts/src/index.ts b/packages/contracts/src/index.ts
-index d34dad2..18680b8 100644
---- a/packages/contracts/src/index.ts
-+++ b/packages/contracts/src/index.ts
-@@ -12,6 +12,7 @@ export function healthResponse(service: string): HealthResponse {
- 
- export * from "./generated/index.js";
- export * from "./vendas.js";
-+export * from "./fluxo-caixa.js";
- export { isRfc3339DateTime } from "./datetime.js";
- export {
-   RUNTIME_TOKEN_MAX_TTL_S,
 diff --git a/apps/api/migrations/0002_fluxo_caixa.up.sql b/apps/api/migrations/0002_fluxo_caixa.up.sql
 new file mode 100644
 index 0000000..13e3107
@@ -1789,6 +1618,130 @@ index 0000000..b8210b0
 +export function idValido(id: string): boolean {
 +  return /^[1-9]\d{0,17}$/.test(id);
 +}
+diff --git a/apps/api/src/integracao-pg.test.ts b/apps/api/src/integracao-pg.test.ts
+index 74e2e68..7ca08e7 100644
+--- a/apps/api/src/integracao-pg.test.ts
++++ b/apps/api/src/integracao-pg.test.ts
+@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
+ import { randomBytes } from "node:crypto";
+ import { after, before, describe, test } from "node:test";
+ import { Pool } from "pg";
++import {
++  CategoriaDuplicada,
++  ContaComLancamentos,
++  PagamentoDuplicado,
++} from "./fluxo-caixa/repositorio.js";
++import { RepositorioFluxoCaixaPg } from "./fluxo-caixa/repositorio-pg.js";
+ import { lerMigracoes, migrar } from "./migrar.js";
+ import type { Venda } from "./vendas/dominio.js";
+ import { RepositorioVendasPg } from "./vendas/repositorio-pg.js";
+@@ -216,5 +222,70 @@ describe(
+         valor: 1,
+       });
+     });
++
++    test("fluxo de caixa: saldo, meses, pagamento unico por competencia e FK restrita", async () => {
++      const repo = new RepositorioFluxoCaixaPg(pool);
++      const base = { descricao: "Aporte", categoria: "Socios", valorCentavos: 100_000 };
++      await repo.inserirLancamento({ ...base, tipo: "entrada", data: "2026-10-31" });
++      await repo.inserirLancamento({
++        ...base,
++        tipo: "saida",
++        valorCentavos: 2_500,
++        data: "2026-11-01",
++      });
++      assert.equal(await repo.saldoAntesDe("2026-11-01"), 100_000);
++      assert.equal(await repo.saldoAntesDe("2026-11-02"), 97_500);
++
++      const conta = await repo.inserirConta({
++        descricao: "Aluguel",
++        categoria: "Imovel",
++        valorCentavos: 200_000,
++        diaVencimento: 31,
++        inicio: "2026-09",
++      });
++      assert.deepEqual({ inicio: conta.inicio, fim: conta.fim }, { inicio: "2026-09", fim: null });
++      const pagamento = {
++        ...base,
++        tipo: "saida" as const,
++        data: "2026-12-02",
++        contaRecorrenteId: conta.id,
++        competencia: "2026-11",
++      };
++      const pago = await repo.inserirLancamento(pagamento);
++      assert.equal(pago.competencia, "2026-11");
++      assert.equal(pago.data, "2026-12-02");
++      await assert.rejects(repo.inserirLancamento(pagamento), PagamentoDuplicado);
++      assert.equal((await repo.pagamentosDaCompetencia("2026-11")).length, 1);
++      assert.equal((await repo.lancamentosEntre("2026-11-01", "2026-11-30")).length, 1);
++      assert.equal(await repo.ultimaCompetenciaPaga(conta.id), "2026-11");
++
++      // O banco recusa entrada vinculada a conta e fim anterior ao inicio, mesmo sem a API.
++      await assert.rejects(
++        repo.inserirLancamento({ ...pagamento, tipo: "entrada", competencia: "2026-10" }),
++      );
++      await assert.rejects(repo.definirFimConta(conta.id, "2026-08"));
++
++      assert.ok(await repo.definirFimConta(conta.id, "2026-12"));
++      assert.equal((await repo.obterConta(conta.id))?.fim, "2026-12");
++      await assert.rejects(repo.excluirConta(conta.id), ContaComLancamentos);
++      assert.ok(await repo.excluirLancamento(pago.id));
++      assert.ok(await repo.excluirConta(conta.id));
++      assert.equal(await repo.obterConta(conta.id), null);
++    });
++
++    test("categorias: carga inicial, unicidade sem diferenciar maiusculas e exclusao", async () => {
++      const repo = new RepositorioFluxoCaixaPg(pool);
++      const iniciais = await repo.listarCategorias();
++      assert.ok(iniciais.some((c) => c.tipo === "saida" && c.nome === "Aluguel"));
++      assert.equal(await repo.nomeDaCategoria("saida", "ALUGUEL"), "Aluguel");
++      assert.equal(await repo.nomeDaCategoria("entrada", "Aluguel"), null);
++      await assert.rejects(
++        repo.inserirCategoria({ tipo: "saida", nome: "aluguel" }),
++        CategoriaDuplicada,
++      );
++      const nova = await repo.inserirCategoria({ tipo: "entrada", nome: "Aluguel recebido" });
++      assert.ok(await repo.excluirCategoria(nova.id));
++      assert.equal(await repo.excluirCategoria(nova.id), false);
++    });
+   },
+ );
+diff --git a/apps/api/src/main.ts b/apps/api/src/main.ts
+index 098684b..71a5b26 100644
+--- a/apps/api/src/main.ts
++++ b/apps/api/src/main.ts
+@@ -5,6 +5,8 @@ import { Pool } from "pg";
+ import { AppModule } from "./app.module.js";
+ import { opcoesPool } from "./banco.js";
+ import { createApiObservability, observabilityMiddleware } from "./observability.js";
++import { FluxoCaixaModule } from "./fluxo-caixa/fluxo-caixa.module.js";
++import { RepositorioFluxoCaixaPg } from "./fluxo-caixa/repositorio-pg.js";
+ import { VendasModule } from "./vendas/vendas.module.js";
+ 
+ // Falha rapida (FND-006): configuracao ausente/invalida impede a subida; a mensagem so lista
+@@ -34,11 +36,20 @@ const pool =
+ pool?.on("error", () => {
+   log("api: erro em conexao ociosa do banco");
+ });
+-if (pool === undefined) log("api: DATABASE_URL ausente; painel de vendas desativado");
++if (pool === undefined)
++  log("api: DATABASE_URL ausente; painel de vendas e fluxo de caixa desativados");
+ 
+ const app = await NestFactory.create(
+   AppModule.comModulos(
+-    pool === undefined ? [] : [VendasModule.registrar({ config: vendasConfig, pool, log })],
++    pool === undefined
++      ? []
++      : [
++          VendasModule.registrar({ config: vendasConfig, pool, log }),
++          FluxoCaixaModule.registrar({
++            apiKey: vendasConfig.apiKey,
++            repositorio: new RepositorioFluxoCaixaPg(pool),
++          }),
++        ],
+   ),
+ );
+ app.enableShutdownHooks();
 diff --git a/apps/web/app/(app)/setores/financeiro/fluxo-de-caixa/_components/Categorias.tsx b/apps/web/app/(app)/setores/financeiro/fluxo-de-caixa/_components/Categorias.tsx
 new file mode 100644
 index 0000000..c1e5a17
@@ -3021,6 +2974,26 @@ index 0000000..465031a
 +    </main>
 +  );
 +}
+diff --git a/apps/web/app/(app)/setores/financeiro/page.tsx b/apps/web/app/(app)/setores/financeiro/page.tsx
+index a8a6843..3e2c015 100644
+--- a/apps/web/app/(app)/setores/financeiro/page.tsx
++++ b/apps/web/app/(app)/setores/financeiro/page.tsx
+@@ -28,6 +28,15 @@ export default function FinanceiroPage() {
+               <span className="link-card__text">Receita, ticket médio e reembolsos da Hotmart</span>
+             </Link>
+           </li>
++          <li>
++            <Link href="/setores/financeiro/fluxo-de-caixa" className="link-card">
++              <span className="link-card__code" aria-hidden="true">
++                FC
++              </span>
++              <span className="link-card__title">Fluxo de caixa</span>
++              <span className="link-card__text">Entradas, saídas e contas a pagar recorrentes</span>
++            </Link>
++          </li>
+         </ul>
+       </section>
+     </main>
 diff --git a/apps/web/app/fluxo-caixa.test.ts b/apps/web/app/fluxo-caixa.test.ts
 new file mode 100644
 index 0000000..e3057e2
@@ -3703,6 +3676,20 @@ index 0000000..f5d8626
 +    nome: campoTexto(f, "nome", "o nome da categoria", 60),
 +  });
 +}
+diff --git a/apps/web/lib/vendas-api.ts b/apps/web/lib/vendas-api.ts
+index 060316c..0f9bb99 100644
+--- a/apps/web/lib/vendas-api.ts
++++ b/apps/web/lib/vendas-api.ts
+@@ -15,7 +15,8 @@ export type ResultadoVendas<T> =
+ const URL_PADRAO = "http://127.0.0.1:3001";
+ const TIMEOUT_MS = 10_000;
+ 
+-function configuracao(): { base: string; chave: string } | undefined {
++/** Base e chave de servico da API do Financeiro (vendas e fluxo de caixa usam a mesma chave). */
++export function configuracao(): { base: string; chave: string } | undefined {
+   const arquivo = process.env["VENDAS_API_KEY_FILE"];
+   const direta = process.env["VENDAS_API_KEY"];
+   try {
 diff --git a/packages/contracts/src/fluxo-caixa.ts b/packages/contracts/src/fluxo-caixa.ts
 new file mode 100644
 index 0000000..e77d938
@@ -3836,4 +3823,16 @@ index 0000000..e77d938
 +}
 +
 +export const FLUXO_CAIXA_PATH = "/v1/fluxo-caixa";
+diff --git a/packages/contracts/src/index.ts b/packages/contracts/src/index.ts
+index d34dad2..18680b8 100644
+--- a/packages/contracts/src/index.ts
++++ b/packages/contracts/src/index.ts
+@@ -12,6 +12,7 @@ export function healthResponse(service: string): HealthResponse {
+ 
+ export * from "./generated/index.js";
+ export * from "./vendas.js";
++export * from "./fluxo-caixa.js";
+ export { isRfc3339DateTime } from "./datetime.js";
+ export {
+   RUNTIME_TOKEN_MAX_TTL_S,
 ```
