@@ -133,6 +133,16 @@ e [agendamento persistente](../../lessons/19%20-%20Agendamento%20persistente%20p
 
 ## Commits e diffs
 
-O commit de implementação e seu patch serão registrados no fechamento desta candidata;
-nenhum commit anterior à base pertence a esta frente. A ausência de aceite visual
-permanece explícita independentemente do commit técnico.
+Commit de implementação: `03b571b588a8d49f923f086691678f61ef0e66f8` — `feat(funcionarios): implementar catalogo motor duravel e painel administrativo`.
+O patch unificado desse commit, limitado a código/testes/configuração, está no documento de diffs.
+O commit seguinte apenas fecha estes metadados; a lista completa de commits é obtida por
+`git log a2aa0ccc56938dd1e27ffaf52cd24646d68848dd..HEAD`. Nenhum commit anterior à base pertence a esta frente.
+
+Fechamento: Prettier focal PASS em todos os arquivos alterados; `git diff --check` de código/testes/configuração PASS;
+links da documentação e do índice de lessons verificados (zero ausentes). A normalização de fontes reduziu o
+formatter global a 11 problemas preexistentes de conteúdo em NavLink/layout, config e observability,
+que não foram alterados por esta tarefa. O lint global continua sem PASS, pelos limites registrados acima.
+
+Logs finais adicionais: `.run/prettier-diff.log`, `.run/eslint-final.log`, `.run/regressao-final.log`.
+As 18 verificações PG foram repetidas depois da correção LF e do ajuste transacional da auditoria: PASS.
+A ausência de aceite visual permanece explícita independentemente do commit técnico.

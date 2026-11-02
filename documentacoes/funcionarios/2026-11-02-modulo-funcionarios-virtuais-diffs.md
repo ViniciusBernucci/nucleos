@@ -4,7 +4,8 @@ Data: 2026-11-02. Base: `a2aa0ccc56938dd1e27ffaf52cd24646d68848dd`.
 
 [Registro da entrega](2026-11-02-modulo-funcionarios-virtuais.md).
 
-Nenhum commit criado nesta etapa de preparação; diff staged real abaixo.
+Commit: `03b571b588a8d49f923f086691678f61ef0e66f8` — `feat(funcionarios): implementar catalogo motor duravel e painel administrativo`.
+Diff unificado real do commit de implementação abaixo.
 Documentação/lessons são listadas no registro e não repetidas no próprio patch.
 
 ## Arquivos de código, testes e configuração
