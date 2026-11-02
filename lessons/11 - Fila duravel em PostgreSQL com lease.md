@@ -1,6 +1,6 @@
 # Fila duravel em PostgreSQL com lease (SKIP LOCKED)
 
-Criada em 2026-10-26. Ultima atualizacao: 2026-10-26. Exemplos: Node 24.22.1, `pg` 8.23.1, PostgreSQL 16.15. TypeScript e Python nao sao usados neste exemplo (JavaScript ESM e SQL); a tecnica vale igual em ambos. Numeracao provisoria (o coordenador reconcilia).
+Criada em 2026-10-26. Ultima atualizacao: 2026-11-02. PoC original: Node 24.22.1, `pg` 8.23.1, PostgreSQL 16.15. Motor atual: Node 24.22.2, TypeScript 5.9.3, `pg` 8.23.1; Python não usado. A técnica vale nas duas linguagens.
 
 ## Objetivo, pre-requisitos e posicao na trilha
 
@@ -15,6 +15,45 @@ A tarefa e uma linha com um estado. Um worker "aluga" a linha por alguns segundo
 Decisao e medicoes no [ADR-021](../documentacoes/arquitetura/adr/0021-orquestracao-duravel-de-tarefas.md) (Proposto) e na [entrega DEC-007](../documentacoes/mensageria/2026-10-26-dec-007-orquestracao-duravel.md). A PoC completa (limite e justica por tenant, heartbeat, fencing) esta em `documentacoes/arquitetura/poc/dec-007/impl-pg.mjs`.
 
 ## Exemplo minimo (executado)
+
+### Do exemplo ao motor de Funcionários
+
+A [entrega FUN-001–006](../documentacoes/funcionarios/2026-11-02-modulo-funcionarios-virtuais.md)
+aplica esse mecanismo no banco único, em `funcionarios.fila`. `execucoes` registra a história;
+`fila` controla quando outro processo pode reivindicar a mesma execução. Não são duas filas.
+
+Enfileirar grava as duas linhas na mesma transação. Uma ocorrência de agenda usa
+`agendamento:{id}:v{versao}:{instante}`, e um evento usa a sua identidade mais a agenda.
+O índice único da execução evita duplicação mesmo com dois planejadores concorrentes.
+
+O consumidor bloqueia a atribuição durante a reivindicação para serializar a decisão de
+sobreposição. `PULAR` ignora a nova ocorrência; `ENFILEIRAR` espera; `CANCELAR_ANTERIOR`
+invalida a tentativa antiga. Essa última política não consegue desfazer um efeito externo
+já realizado. O handler deve ser idempotente e observar `signal`/`verificarLease`.
+
+```sql
+-- Trecho executável depois das migrations; consulta somente a fila local.
+SELECT e.id, e.status, q.tentativa, q.lease_ate
+FROM funcionarios.execucoes e
+JOIN funcionarios.fila q ON q.execucao_id = e.id
+ORDER BY e.criado_em DESC LIMIT 20;
+```
+
+Fencing não é apenas conferir o dono: a conclusão exige `id`, `tentativa`, `lease_dono`,
+estado em execução e lease ainda válida segundo `clock_timestamp()` do PostgreSQL.
+Uma tentativa antiga que termina depois de outra não consegue sobrescrever o resumo.
+Falhas persistem um código fixo, sem a mensagem potencialmente sensível da exceção.
+
+Teste relevante: `funcionarios.http.test.ts` usa um banco temporário no servidor local
+e dois consumidores reais. Ele força lease expirada, libera o consumidor antigo depois
+do novo e confere que prevalece o resultado da tentativa nova. Também cobre heartbeat,
+retentativa/backoff, as três políticas e pausa sem matar execução em curso.
+
+Perguntas de revisão: por que manter o `WHERE tentativa` depois de `SKIP LOCKED`?
+Qual efeito continua vulnerável se o handler ignora a chave idempotente? Por que não
+usar o relógio do navegador para concluir que uma lease expirou?
+
+### PoC original, preservada para estudo
 
 ```bash
 export PGPASSWORD="$(head -c 18 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')"   # senha aleatoria, so desta sessao

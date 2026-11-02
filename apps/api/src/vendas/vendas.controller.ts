@@ -51,7 +51,8 @@ export class VendasController {
   constructor(
     @Inject(ServicoPainelVendas) private readonly painel: ServicoPainelVendas,
     @Inject(REPOSITORIO_VENDAS) private readonly repo: RepositorioVendas,
-    @Inject(SINCRONIZACAO_VENDAS) private readonly sincronizacao: SincronizacaoVendas,
+    @Inject(SINCRONIZACAO_VENDAS)
+    private readonly sincronizacao: Pick<SincronizacaoVendas, "executar">,
   ) {}
 
   #filtro(q: Consulta) {

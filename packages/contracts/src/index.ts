@@ -13,6 +13,8 @@ export function healthResponse(service: string): HealthResponse {
 export * from "./generated/index.js";
 export * from "./vendas.js";
 export * from "./fluxo-caixa.js";
+export * from "./funcionarios.js";
+export { validarConfigTarefa } from "./config-tarefa.js";
 export { isRfc3339DateTime } from "./datetime.js";
 export {
   RUNTIME_TOKEN_MAX_TTL_S,

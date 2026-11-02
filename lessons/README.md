@@ -3,6 +3,8 @@
 Criada em 2026-10-25. Ultima atualizacao: 2026-11-02 (lesson 18 do fluxo de caixa: Server Actions de escrita e integridade no PostgreSQL; antes, em 2026-11-01, lesson 12 com diagnostico de conexao e ciclo de vida do ambiente; lessons 16 e 17 com token Basic e atualizacao por Server Action; lessons 12 e 13 revisadas para .env no MVP; lessons 16 e 17 do painel de vendas; lesson 00 atualizada com o banco unico; antes, lesson 14 marcada como conceitual apos a remocao dos mocks do front end).
 
 `lessons/` e uma trilha progressiva e didatica da stack do projeto, nao um changelog.
+A atualização de 2026-11-02 inclui a aplicação real da fila na lesson 11 e a lesson 19
+de agendamento persistente, que combina as bases de fila, configuração e Server Actions.
 A stack segue o [ADR de arquitetura do MVP](../documentacoes/transversal/2026-10-25-nucleos-enterprise-adr-arquitetura-mvp-e-evolucao.md):
 TypeScript (NestJS e Next.js), Python, Docker/Compose, PostgreSQL e seguranca.
 
@@ -62,3 +64,4 @@ A numeracao segue dependencia de aprendizagem: qualidade estatica (02) e Compose
 - [16 - Sincronizacao idempotente com API externa](16%20-%20Sincronizacao%20idempotente%20com%20API%20externa.md) (blocos 5 e 7, PostgreSQL e seguranca; entrega [Painel de vendas Hotmart](../documentacoes/financeiro/2026-11-01-painel-de-vendas-hotmart.md), 2026-11-01). Pre-requisitos: lessons 00, 12 e 13.
 - [17 - Painel de dados com Server Components no Next.js](17%20-%20Painel%20de%20dados%20com%20Server%20Components%20no%20Next.js.md) (bloco 6, Next.js; entrega [Painel de vendas Hotmart](../documentacoes/financeiro/2026-11-01-painel-de-vendas-hotmart.md), 2026-11-01). Pre-requisitos: lessons 14 e 15.
 - [18 - Mutacoes com Server Actions e integridade no PostgreSQL](18%20-%20Mutacoes%20com%20Server%20Actions%20e%20integridade%20no%20PostgreSQL.md) (blocos 5 e 6, PostgreSQL e Next.js; inclui off-canvas com `<dialog>`; entrega [Fluxo de caixa](../documentacoes/financeiro/2026-11-02-fluxo-de-caixa.md), 2026-11-02). Pre-requisitos: lessons 00 e 17.
+- [19 - Agendamento persistente por intervalo cron e eventos](19%20-%20Agendamento%20persistente%20por%20intervalo%20cron%20e%20eventos.md) (blocos 5, 6 e 7; entrega Funcionários Virtuais, 2026-11-02). Pré-requisitos: lessons 11, 12 e 18.
