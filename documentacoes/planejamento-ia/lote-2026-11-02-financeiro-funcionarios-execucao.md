@@ -79,3 +79,25 @@ Não copiar variáveis/segredos para este documento.
   preservando o conteúdo das já aplicadas, e verificar novamente os checks afetados.
 - Binário Node Linux extraído da imagem oficial apenas para o ambiente de testes;
   container auxiliar removido. Execuções de teste usam `--rm`; imagens ficam em cache.
+## Frente A: candidata e revisão independente
+
+Candidata congelada na branch de tarefa: `62bc66292fc9f7cfb84caf415d9eec24f5af8453`
+(implementação `03b571b588a8d49f923f086691678f61ef0e66f8`). Worktree limpa antes da revisão.
+Registro: [entrega A](../funcionarios/2026-11-02-modulo-funcionarios-virtuais.md),
+na branch da frente A até a integração. Foram comprovados 18 testes PG/HTTP,
+53 regressões/agenda, 2 web, build TS/Python, tipos, contratos e checks focais.
+Checks gerais não receberam PASS por limitações preexistentes documentadas.
+Conferência do coordenador: 11 documentos, 57 links relativos, nenhum ausente na candidata.
+
+A primeira tentativa de revisão independente encerrou por limite de uso, sem parecer.
+Após pedido do usuário “prossiga”, revisão retomada na mesma worktree, preservando a candidata.
+Estado atual: EM_REVISAO_CORRETIVA. Achados confirmados pelo revisor:
+
+1. Ordem de locks invertida entre planejador/eventos e edição administrativa, com deadlock possível.
+2. Retorno de falha Hotmart interpretado como sucesso pelo motor, sem retry/histórico correto.
+
+Correções e regressões estão em execução no único ciclo autorizado. Não declarar PASS
+antes do relatório e dos testes pertinentes. Frentes B/M/C/D ainda NÃO INICIADAS.
+A integração permanece limpa, somente documentação sobre a base P0; nenhum código A
+foi integrado e nenhuma migration nova foi aplicada ao banco de desenvolvimento.
+A normalização dos bytes na integração deve ocorrer depois do merge de `.gitattributes`.
