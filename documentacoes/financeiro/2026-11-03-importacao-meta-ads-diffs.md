@@ -1,7 +1,7 @@
 # Patch FIN-301 — Meta Ads
 
 Registro: [entrega](2026-11-03-importacao-meta-ads.md).
-Base: `a1a0b0e`; patch da candidata staged, somente código/testes/configuração.
+Base: `a1a0b0e`; patch da candidata commitada, somente código/testes/configuração.
 Sem patch de documentação ou lessons (evita recursão).
 
 ```diff
@@ -50,7 +50,7 @@ index 0000000..318308b
 +CREATE INDEX gastos_diarios_periodo ON marketing.gastos_diarios(dia);
 diff --git a/apps/api/migrations/0021_marketing_funcionario.up.sql b/apps/api/migrations/0021_marketing_funcionario.up.sql
 new file mode 100644
-index 0000000..7d2a080
+index 0000000..8745410
 --- /dev/null
 +++ b/apps/api/migrations/0021_marketing_funcionario.up.sql
 @@ -0,0 +1,12 @@
@@ -1010,5 +1010,4 @@ index 0000000..5a3d76b
 +          },
 +  };
 +}
-
 ```
