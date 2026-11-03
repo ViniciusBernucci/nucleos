@@ -243,3 +243,43 @@ TEST_DATABASE_URL="postgres://nucleos_dev:<senha>@127.0.0.1:15432/postgres" node
    saída entra no saldo? Por que essa separação (competência × caixa) é útil?
 5. Escreva um teste para a action `excluirConta` que garanta que um `id` como `../contas` nunca gera
    chamada à API.
+
+## Parcelas, recorrências materializadas e conciliação
+
+Atualização: 2026-11-03, Node 24.22.2, TypeScript 5.9.3.
+Quando cada ocorrência ganha estado próprio, fornecedor, centro de custo e anexo,
+uma linha por competência simplifica o histórico. A frente B evolui o caso mensal
+derivado para materialização idempotente, preservando o aprendizado anterior.
+
+Para dividir 10.001 centavos em três parcelas, use inteiros:
+
+```ts
+export function dividir(total: bigint, parcelas: number): bigint[] {
+  if (!Number.isInteger(parcelas) || parcelas < 1 || total < BigInt(parcelas)) {
+    throw new Error("parcelamento invalido");
+  }
+  const n = BigInt(parcelas);
+  return Array.from({ length: parcelas }, (_, i) =>
+    total / n + (BigInt(i) < total % n ? 1n : 0n));
+}
+// dividir(10001n, 3) => [3334n, 3334n, 3333n]
+```
+
+Criar todas as parcelas numa transação impede que a segunda falha deixe só a
+primeira conta. Pagar exige lock na conta, estado aberto e lançamento vinculado
+único; a checagem da interface não substitui essa exclusão.
+
+Em conciliação, valor igual não elimina ambiguidade. Duas entradas idênticas num
+intervalo de três dias exigem escolha explícita. Na confirmação, revalide se
+outro processo já usou o mesmo item. Desfazer libera o vínculo e preserva a
+conciliação anterior, em vez de apagar o histórico.
+
+As Server Actions usam mensagens fixas e só o servidor lê a chave da API. Upload
+e download de anexo também passam pelo servidor: não envie chave MinIO nem URL
+pública ao componente. A compensação de upload remove o objeto se os metadados
+falham; isso exige monitorar uma eventual falha de compensação em produção.
+
+Na [entrega B](../documentacoes/financeiro/2026-11-03-base-financeira-b.md), testes
+simulados comprovam distribuição de centavos e tentativa de rollback, enquanto
+as provas PostgreSQL continuam um gate separado. Exercício: force dois pagamentos
+concorrentes e verifique uma única saída, depois force rollback da segunda parcela.
