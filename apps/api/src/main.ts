@@ -6,10 +6,8 @@ import {
   loadVendasConfig,
 } from "@nucleos/config";
 import { NestFactory } from "@nestjs/core";
-import { PayloadTooLargeException } from "@nestjs/common";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Pool } from "pg";
-import type { IncomingMessage, ServerResponse } from "node:http";
 import { AppModule } from "./app.module.js";
 import { opcoesPool } from "./banco.js";
 import { createApiObservability, observabilityMiddleware } from "./observability.js";
@@ -20,6 +18,7 @@ import { RegistroHandlers } from "./funcionarios/handlers.js";
 import { MotorFuncionarios } from "./funcionarios/motor.js";
 import { FuncionariosModule } from "./funcionarios/funcionarios.module.js";
 import { FinanceiroModule } from "./financeiro/financeiro.module.js";
+import { verificarCorpoHotmart } from "./financeiro/corpo-webhook.js";
 
 // Falha rapida (FND-006): configuracao ausente/invalida impede a subida; a mensagem so lista
 // nomes de variaveis e motivos, nunca valores.
@@ -85,10 +84,7 @@ const app = await NestFactory.create<NestExpressApplication>(
 );
 app.useBodyParser("json", {
   limit: "2mb",
-  verify: (req: IncomingMessage, _res: ServerResponse, buf: Buffer) => {
-    if (req.url?.split("?")[0] === "/v1/webhooks/hotmart" && buf.byteLength > 65536)
-      throw new PayloadTooLargeException("corpo excede 64 KB");
-  },
+  verify: verificarCorpoHotmart,
 });
 app.enableShutdownHooks();
 app.use(observabilityMiddleware(createApiObservability(config)));

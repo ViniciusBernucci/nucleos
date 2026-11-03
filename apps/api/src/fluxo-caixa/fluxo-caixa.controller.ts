@@ -17,7 +17,12 @@ import type { Categoria, ContaRecorrente, FluxoCaixaMes, Lancamento } from "@nuc
 import { ChaveServicoGuard } from "../vendas/chave-servico.guard.js";
 import { mesValido } from "./calendario.js";
 import { RegraFluxoCaixa, ServicoFluxoCaixa } from "./fluxo-caixa.service.js";
-import { CategoriaDuplicada, ContaComLancamentos, PagamentoDuplicado } from "./repositorio.js";
+import {
+  CategoriaDuplicada,
+  ContaComLancamentos,
+  LancamentoVinculado,
+  PagamentoDuplicado,
+} from "./repositorio.js";
 import {
   type Resultado,
   idValido,
@@ -51,6 +56,10 @@ async function http<T>(fn: () => Promise<T>): Promise<T> {
     if (e instanceof PagamentoDuplicado) {
       throw new ConflictException("a conta ja esta paga nessa competencia");
     }
+    if (e instanceof LancamentoVinculado)
+      throw new ConflictException(
+        "lancamento vinculado a transferencia ou conciliacao aceita; desfaca a conciliacao antes de excluir",
+      );
     if (e instanceof ContaComLancamentos) {
       throw new ConflictException(
         "a conta tem pagamentos registrados; encerre-a em vez de excluir",

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
-import type { Pool, PoolClient } from "pg";
+import type { Pool, PoolClient, QueryResult } from "pg";
 import type { MotorFuncionarios } from "../funcionarios/motor.js";
 import type { AlertasFinanceiros } from "./alertas.js";
 import { centavos, csv, dia, decimal, extrato, hash, id, texto } from "./importacao.js";
@@ -30,6 +30,13 @@ export class RepositorioFinanceiroPg {
   async mudou(c: PoolClient): Promise<void> {
     await this.motor.publicar("financeiro.dados.alterados", randomUUID(), {}, c);
   }
+  private async gravar(sql: string, p: unknown[]): Promise<QueryResult<Objeto>> {
+    return this.transacao(async (c) => {
+      const r = await c.query<Objeto>(sql, p);
+      if (r.rowCount) await this.mudou(c);
+      return r;
+    });
+  }
   async cadastros(): Promise<Objeto> {
     const [fornecedores, centros, categorias, contas, regras] = await Promise.all([
       this.pool.query(
@@ -54,7 +61,7 @@ export class RepositorioFinanceiroPg {
       if (documento && ![11, 14].includes(documento.length))
         throw new BadRequestException("documento invalido");
       return (
-        await this.pool.query(
+        await this.gravar(
           "INSERT INTO financeiro.fornecedores(nome,documento,contato) VALUES($1,$2,$3) RETURNING id",
           [texto(p["nome"]), documento, p["contato"] ? texto(p["contato"], 120) : null],
         )
@@ -62,16 +69,15 @@ export class RepositorioFinanceiroPg {
     }
     if (tipo === "centros")
       return (
-        await this.pool.query(
-          "INSERT INTO financeiro.centros_custo(nome) VALUES($1) RETURNING id",
-          [texto(p["nome"], 80)],
-        )
+        await this.gravar("INSERT INTO financeiro.centros_custo(nome) VALUES($1) RETURNING id", [
+          texto(p["nome"], 80),
+        ])
       ).rows[0];
     if (tipo === "contas") {
       if (!["banco", "caixa", "plataforma"].includes(String(p["tipo"])))
         throw new BadRequestException("tipo invalido");
       return (
-        await this.pool.query(
+        await this.gravar(
           "INSERT INTO financeiro.contas_financeiras(nome,tipo) VALUES($1,$2) RETURNING id",
           [texto(p["nome"]), p["tipo"]],
         )
@@ -81,7 +87,7 @@ export class RepositorioFinanceiroPg {
       const dias = Number(p["dias"]);
       if (!Number.isInteger(dias) || dias < 0 || dias > 365)
         throw new BadRequestException("prazo invalido");
-      await this.pool.query(
+      await this.gravar(
         "INSERT INTO financeiro.regras_liberacao VALUES($1,$2) ON CONFLICT(pagamento) DO UPDATE SET dias=excluded.dias",
         [texto(p["pagamento"], 40), dias],
       );
@@ -217,7 +223,7 @@ export class RepositorioFinanceiroPg {
     });
   }
   async cancelar(contaId: string): Promise<void> {
-    const r = await this.pool.query(
+    const r = await this.gravar(
       "UPDATE financeiro.contas_pagar SET status='cancelada' WHERE id=$1 AND status='aberta' RETURNING id",
       [id(contaId)],
     );
@@ -407,7 +413,7 @@ export class RepositorioFinanceiroPg {
     const valor = String(p["valorCentavos"]);
     if (!/^\d{1,14}$/.test(valor)) throw new BadRequestException("saldo invalido");
     return (
-      await this.pool.query(
+      await this.gravar(
         "INSERT INTO financeiro.saldos_informados(conta_financeira_id,data,valor_centavos) VALUES($1,$2,$3) RETURNING id",
         [id(p["contaFinanceiraId"]), dia(p["data"]), valor],
       )
@@ -465,7 +471,7 @@ export class RepositorioFinanceiroPg {
   }
   async receberManual(p: Objeto): Promise<unknown> {
     return (
-      await this.pool.query(
+      await this.gravar(
         "INSERT INTO financeiro.contas_receber(origem,descricao,valor_centavos,previsto_em,conta_financeira_id) VALUES('manual',$1,$2,$3,$4) RETURNING id",
         [
           texto(p["descricao"]),

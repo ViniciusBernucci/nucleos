@@ -18,6 +18,7 @@ import { FluxoCaixaModule } from "./fluxo-caixa.module.js";
 import {
   CategoriaDuplicada,
   ContaComLancamentos,
+  LancamentoVinculado,
   type NovoLancamentoBanco,
   PagamentoDuplicado,
   type RepositorioFluxoCaixa,
@@ -190,6 +191,20 @@ describe("API de fluxo de caixa (HTTP)", () => {
     assert.equal(f.hoje, "2026-11-15");
     for (const q of ["?mes=2026-13", "?mes=nov", "?mes=2026-11&mes=2026-10"]) {
       assert.equal((await fetch(`${base}/v1/fluxo-caixa${q}`, { headers: auth })).status, 400, q);
+    }
+  });
+
+  test("exclusao de lancamento vinculado responde conflito sem expor detalhe interno", async () => {
+    const excluir = repo.excluirLancamento.bind(repo);
+    repo.excluirLancamento = async () => {
+      throw new LancamentoVinculado("detalhe-interno");
+    };
+    try {
+      const r = await enviar("/lancamentos/123", undefined, "DELETE");
+      assert.equal(r.status, 409);
+      assert.doesNotMatch(await r.text(), /detalhe-interno/);
+    } finally {
+      repo.excluirLancamento = excluir;
     }
   });
 

@@ -9,26 +9,34 @@ import { MotorFuncionarios } from "../funcionarios/motor.js";
 import { AlertasFinanceiros } from "./alertas.js";
 import { RepositorioFinanceiroPg } from "./repositorio-pg.js";
 import { ConciliacaoFinanceira } from "./conciliacao.js";
+import { encerrarFixturePg } from "./teste-pg-apoio.js";
+import { RepositorioFluxoCaixaPg } from "../fluxo-caixa/repositorio-pg.js";
 const url = process.env["TEST_DATABASE_URL"];
 describe("Base financeira PostgreSQL", { skip: url === undefined }, () => {
   let pool: Pool, admin: Pool, alertas: AlertasFinanceiros;
+  let fecharPool: (() => Promise<void>) | undefined;
+  let removerBanco: (() => Promise<void>) | undefined;
+  let fecharAdmin: (() => Promise<void>) | undefined;
   const banco = `nucleos_fin_teste_${randomBytes(5).toString("hex")}`;
   before(async () => {
     const u = new URL(url as string);
     assert.equal(u.hostname, "127.0.0.1");
     assert.equal(u.port, "15432");
     admin = new Pool({ connectionString: u.toString() });
+    fecharAdmin = () => admin.end();
     await admin.query(`CREATE DATABASE ${banco}`);
+    removerBanco = async () => {
+      await admin.query(`DROP DATABASE IF EXISTS ${banco} WITH (FORCE)`);
+    };
     u.pathname = `/${banco}`;
     pool = new Pool({ connectionString: u.toString() });
+    fecharPool = () => pool.end();
     pool.on("error", () => undefined);
     await migrar(pool, await lerMigracoes(new URL("../../migrations/", import.meta.url)));
     alertas = new AlertasFinanceiros(pool, new MotorFuncionarios(pool, new RegistroHandlers()));
   });
   after(async () => {
-    await pool.end();
-    await admin.query(`DROP DATABASE IF EXISTS ${banco} WITH (FORCE)`);
-    await admin.end();
+    await encerrarFixturePg(fecharPool, removerBanco, fecharAdmin);
   });
   test("alerta concorrente deduplica e publica um evento; encerrado permite nova ocorrencia", async () => {
     const dados = {
@@ -111,6 +119,22 @@ describe("Base financeira PostgreSQL", { skip: url === undefined }, () => {
       [t.id],
     );
     assert.deepEqual(r.rows[0], { n: 2, saldo: "0" });
+    const perna = (
+      await pool.query<{ id: string }>(
+        "SELECT id FROM financeiro.lancamentos WHERE transferencia_id=$1 ORDER BY id LIMIT 1",
+        [t.id],
+      )
+    ).rows[0];
+    assert.ok(perna);
+    await assert.rejects(
+      new RepositorioFluxoCaixaPg(pool, alertas.motor).excluirLancamento(perna.id),
+      /vinculado/,
+    );
+    assert.equal(
+      (await pool.query("SELECT id FROM financeiro.lancamentos WHERE transferencia_id=$1", [t.id]))
+        .rowCount,
+      2,
+    );
     const p = {
       contaFinanceiraId: "1",
       formato: "csv",
@@ -204,5 +228,74 @@ describe("Base financeira PostgreSQL", { skip: url === undefined }, () => {
     await assert.rejects(conciliacao.agir(outra.id, "aceitar"));
     await conciliacao.agir(manual.id, "desfazer");
     await conciliacao.agir(outra.id, "aceitar");
+  });
+  test("exclusao legada preserva pagamento conciliado e so reabre apos desfazer", async () => {
+    const repo = new RepositorioFinanceiroPg(pool, alertas.motor, alertas);
+    const criada = (await repo.criarDespesa({
+      descricao: "Protegida",
+      categoria: "Serviços",
+      valorCentavos: "5000",
+      vencimento: "2026-11-03",
+    })) as { ids: string[] };
+    const cid = criada.ids[0];
+    assert.ok(cid);
+    await repo.pagar(cid, { data: "2026-11-03", contaFinanceiraId: "1" });
+    const lancamento = (
+      await pool.query<{ id: string }>(
+        "SELECT id FROM financeiro.lancamentos WHERE conta_pagar_id=$1",
+        [cid],
+      )
+    ).rows[0];
+    assert.ok(lancamento);
+    await repo.importarExtrato({
+      contaFinanceiraId: "1",
+      formato: "csv",
+      conteudo: "data;valor;fitid;memo\n2026-11-03;-50,00;REV-PAGO;Teste",
+    });
+    const e = (
+      await pool.query<{ id: string }>(
+        "SELECT id FROM financeiro.extrato_itens WHERE fitid='REV-PAGO'",
+      )
+    ).rows[0];
+    assert.ok(e);
+    const conciliacao = new ConciliacaoFinanceira(repo);
+    const manual = (await conciliacao.manual({
+      itens: [
+        { tipo: "conta_pagar", referenciaId: cid, valorCentavos: "-5000" },
+        { tipo: "extrato_item", referenciaId: e.id, valorCentavos: "-5000" },
+      ],
+    })) as { id: string };
+    await conciliacao.agir(manual.id, "aceitar");
+    const legado = new RepositorioFluxoCaixaPg(pool, alertas.motor);
+    await repo.importarExtrato({
+      contaFinanceiraId: "1",
+      formato: "csv",
+      conteudo: "data;valor;fitid;memo\n2026-11-03;-50,00;REV-PAGO-ALIAS;Teste",
+    });
+    const outro = (
+      await pool.query<{ id: string }>(
+        "SELECT id FROM financeiro.extrato_itens WHERE fitid='REV-PAGO-ALIAS'",
+      )
+    ).rows[0];
+    assert.ok(outro);
+    const alias = (await conciliacao.manual({
+      itens: [
+        { tipo: "lancamento", referenciaId: lancamento.id, valorCentavos: "-5000" },
+        { tipo: "extrato_item", referenciaId: outro.id, valorCentavos: "-5000" },
+      ],
+    })) as { id: string };
+    await assert.rejects(conciliacao.agir(alias.id, "aceitar"), /item ja conciliado/);
+    await assert.rejects(legado.excluirLancamento(lancamento.id), /vinculado/);
+    await conciliacao.agir(manual.id, "desfazer");
+    assert.equal(await legado.excluirLancamento(lancamento.id), true);
+    assert.equal(
+      (
+        await pool.query<{ status: string }>(
+          "SELECT status FROM financeiro.contas_pagar WHERE id=$1",
+          [cid],
+        )
+      ).rows[0]?.status,
+      "aberta",
+    );
   });
 });

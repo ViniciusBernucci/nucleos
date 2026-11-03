@@ -12,6 +12,7 @@ import type { ContaRecorrenteBanco } from "./dominio.js";
 import {
   CategoriaDuplicada,
   ContaComLancamentos,
+  LancamentoVinculado,
   type NovoLancamentoBanco,
   PagamentoDuplicado,
   type RepositorioFluxoCaixa,
@@ -167,10 +168,37 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
   }
 
   async excluirLancamento(id: string): Promise<boolean> {
-    const r = await this.consultar("DELETE FROM financeiro.lancamentos WHERE id = $1::bigint", [
-      id,
-    ]);
-    return (r.rowCount ?? 0) > 0;
+    const c = await this.pool.connect();
+    try {
+      await c.query("BEGIN");
+      // Mesma exclusao global de aceitar/desfazer: a checagem e a exclusao sao atomicas.
+      await c.query("SELECT pg_advisory_xact_lock(7315090)");
+      const r = await c.query<{ id: string; transferencia_id: string | null; conciliado: boolean }>(
+        `SELECT id,transferencia_id,EXISTS(
+          SELECT 1 FROM financeiro.conciliacao_itens i
+          JOIN financeiro.conciliacoes c ON c.id=i.conciliacao_id
+          WHERE c.aceita AND NOT c.desfeita AND
+            ((i.tipo='lancamento' AND i.referencia_id=l.id::text) OR
+             (i.tipo='conta_pagar' AND i.referencia_id=l.conta_pagar_id::text))
+        ) conciliado FROM financeiro.lancamentos l WHERE l.id=$1::bigint FOR UPDATE`,
+        [id],
+      );
+      const linha = r.rows[0];
+      if (linha && (linha.transferencia_id !== null || linha.conciliado))
+        throw new LancamentoVinculado("lancamento vinculado");
+      const removida = linha
+        ? await c.query("DELETE FROM financeiro.lancamentos WHERE id=$1::bigint", [id])
+        : null;
+      if (removida?.rowCount && this.motor)
+        await this.motor.publicar("financeiro.dados.alterados", randomUUID(), {}, c);
+      await c.query("COMMIT");
+      return (removida?.rowCount ?? 0) > 0;
+    } catch (e) {
+      await c.query("ROLLBACK");
+      throw e;
+    } finally {
+      c.release();
+    }
   }
 
   async inserirConta(nova: NovaContaRecorrente): Promise<ContaRecorrenteBanco> {

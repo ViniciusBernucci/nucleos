@@ -4,6 +4,69 @@ import type { Pool } from "pg";
 import type { MotorFuncionarios } from "../funcionarios/motor.js";
 import { AlertasFinanceiros } from "./alertas.js";
 import { RepositorioFinanceiroPg } from "./repositorio-pg.js";
+
+test("mutacoes financeiras publicam dados.alterados atomicamente e falha do evento impede commit", async () => {
+  const entradas: [string, Record<string, unknown>][] = [
+    ["cancelar", { id: "1" }],
+    ["saldo", { contaFinanceiraId: "1", data: "2026-11-03", valorCentavos: "100" }],
+    [
+      "receber",
+      {
+        contaFinanceiraId: "1",
+        previstoEm: "2026-11-03",
+        valorCentavos: "100",
+        descricao: "Teste",
+      },
+    ],
+    ["regras", { pagamento: "PIX", dias: "2" }],
+    ["fornecedores", { nome: "Ficticio" }],
+    ["centros", { nome: "Centro" }],
+    ["contas", { nome: "Caixa", tipo: "caixa" }],
+  ];
+  for (const [operacao, p] of entradas)
+    for (const falhar of [false, true]) {
+      const passos: string[] = [];
+      const c = {
+        query: async (sql: string) => {
+          passos.push(sql);
+          return { rows: [{ id: "1" }], rowCount: 1 };
+        },
+        release: () => {},
+      };
+      const pool = {
+        connect: async () => c,
+        query: () => {
+          throw new Error("escrita fora da transacao");
+        },
+      } as unknown as Pool;
+      const motor = {
+        publicar: async (tipo: string, _chave: string, _p: unknown, cliente: unknown) => {
+          assert.equal(tipo, "financeiro.dados.alterados");
+          assert.equal(cliente, c);
+          passos.push("EVENTO");
+          if (falhar) throw new Error("evento falhou");
+          return true;
+        },
+      } as unknown as MotorFuncionarios;
+      const repo = new RepositorioFinanceiroPg(pool, motor, new AlertasFinanceiros(pool, motor));
+      const executar = () =>
+        operacao === "cancelar"
+          ? repo.cancelar("1")
+          : operacao === "saldo"
+            ? repo.saldoInformado(p)
+            : operacao === "receber"
+              ? repo.receberManual(p)
+              : repo.cadastro(operacao, p);
+      if (falhar) {
+        await assert.rejects(executar(), /evento falhou/);
+        assert.equal(passos.includes("COMMIT"), false);
+      } else {
+        await executar();
+        assert.equal(passos.filter((s) => s === "EVENTO").length, 1);
+      }
+      assert.equal(passos.at(-1), falhar ? "ROLLBACK" : "COMMIT");
+    }
+});
 function ambiente(falhar = false) {
   const sqls: { sql: string; p: unknown[] }[] = [];
   let conta = 0;

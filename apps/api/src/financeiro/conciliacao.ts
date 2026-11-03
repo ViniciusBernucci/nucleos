@@ -130,7 +130,13 @@ export class ConciliacaoFinanceira {
       };
     });
     return this.repo.transacao(async (c) => {
-      for (const i of itens) await this.validarItem(c, i);
+      const identidades = new Set<string>();
+      for (const i of itens) {
+        const identidade = await this.validarItem(c, i);
+        if (identidades.has(identidade))
+          throw new BadRequestException("pagamento repetido na conciliacao");
+        identidades.add(identidade);
+      }
       const origens = itens
         .filter((i) => i.tipo !== "extrato_item")
         .reduce((n, i) => n + BigInt(i.valorCentavos), 0n);
@@ -156,7 +162,7 @@ export class ConciliacaoFinanceira {
       return { id: cid };
     });
   }
-  private async validarItem(c: PoolClient, i: Item): Promise<void> {
+  private async validarItem(c: PoolClient, i: Item): Promise<string> {
     // Query table/columns come only from the closed discriminator above.
     const queries: Record<Item["tipo"], string> = {
       saque: "SELECT liquido_centavos::text valor FROM financeiro.saques_hotmart WHERE id=$1",
@@ -167,11 +173,16 @@ export class ConciliacaoFinanceira {
       venda:
         "SELECT liquido_centavos::text valor FROM financeiro.vendas WHERE transacao=$1 AND moeda='BRL'",
       lancamento:
-        "SELECT (CASE WHEN tipo='entrada' THEN valor_centavos ELSE -valor_centavos END)::text valor FROM financeiro.lancamentos WHERE id=$1",
+        "SELECT (CASE WHEN tipo='entrada' THEN valor_centavos ELSE -valor_centavos END)::text valor,conta_pagar_id::text FROM financeiro.lancamentos WHERE id=$1",
     };
-    const r = await c.query<{ valor: string }>(queries[i.tipo], [i.referenciaId]);
+    const r = await c.query<{ valor: string; conta_pagar_id?: string | null }>(queries[i.tipo], [
+      i.referenciaId,
+    ]);
     if (!r.rows[0] || BigInt(r.rows[0].valor) !== BigInt(i.valorCentavos))
       throw new BadRequestException("item ou valor divergente");
+    return i.tipo === "lancamento" && r.rows[0].conta_pagar_id
+      ? "conta_pagar:" + r.rows[0].conta_pagar_id
+      : i.tipo + ":" + i.referenciaId;
   }
   async agir(cid: string, acao: string): Promise<void> {
     id(cid);
@@ -200,18 +211,32 @@ export class ConciliacaoFinanceira {
       if (acao === "aceitar") {
         if (v.aceita || v.estado === "pendente_analise" || itens.rows.length < 2)
           throw new ConflictException("revise os itens manualmente");
+        const identidades = new Set<string>();
         for (const i of itens.rows) {
-          await this.validarItem(c, {
+          const identidade = await this.validarItem(c, {
             tipo: i.tipo,
             referenciaId: i.referencia_id,
             valorCentavos: i.valor_centavos,
           });
+          if (identidades.has(identidade))
+            throw new ConflictException("pagamento repetido na conciliacao");
+          identidades.add(identidade);
+          const contaPagar = identidade.startsWith("conta_pagar:")
+            ? identidade.slice("conta_pagar:".length)
+            : null;
           if (
             (
               await c.query(
                 `SELECT i.id FROM financeiro.conciliacao_itens i JOIN financeiro.conciliacoes c ON c.id=i.conciliacao_id
-            WHERE i.tipo=$1 AND i.referencia_id=$2 AND c.aceita AND NOT c.desfeita`,
-                [i.tipo, i.referencia_id],
+            WHERE c.aceita AND NOT c.desfeita AND (
+              (i.tipo=$1 AND i.referencia_id=$2) OR
+              ($3::text IS NOT NULL AND (
+                (i.tipo='conta_pagar' AND i.referencia_id=$3) OR
+                (i.tipo='lancamento' AND i.referencia_id IN
+                  (SELECT id::text FROM financeiro.lancamentos WHERE conta_pagar_id=$3::bigint))
+              ))
+            )`,
+                [i.tipo, i.referencia_id, contaPagar],
               )
             ).rowCount
           )
