@@ -139,3 +139,20 @@ os agentes Codex nessas worktrees enquanto esses processos existirem. Informaç�
 locais de retomada em `.run/lote-1102-active-executors.json`, prompts e logs CLI no
 checkout principal. Metadados pessoais da autenticação não integram o registro.
 Revisões independentes B/M ainda necessárias antes da integração. C/D não iniciadas.
+
+## Recuperação após fechamento da sessão — 2026-11-03
+
+Sessão coordenadora recuperada pelos registros locais: a tarefa vigente é este lote,
+não o redesign mencionado no handoff antigo. O usuário pediu restaurar e continuar.
+As autorizações e a sequência do plano avulso foram preservadas.
+
+Os executores CLI anteriores não concluíram: stdout vazio, stderr com aviso de
+workspace sem confiança; as sessões de execução 86701 e 24609 não existem mais.
+Nenhum processo identificado pelos caminhos/prompts do lote foi encontrado na
+verificação de retomada. Não houve alteração de permissões nem de confiança.
+
+B e M foram retomadas por agentes Codex em suas mesmas worktrees, com o trabalho
+parcial intacto, conforme o paralelismo do manifesto §6. A integração permanece em
+269e28e, limpa antes deste registro; A não será reimplementada nem sua revisão repetida.
+Revisões corretivas B/M, integração, C/D e roteiro manual continuam pendentes.
+Instrumentação Node legado não foi iniciada; contadores de tokens por skill indisponíveis.
