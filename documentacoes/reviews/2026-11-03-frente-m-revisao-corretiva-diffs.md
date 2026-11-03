@@ -70,4 +70,3 @@ index ea1b84c..d6b8c3b 100644
      test("sem credencial: indisponível, nenhuma execução nem pedido, sem reset de PAUSADO", async () => {
        await subir(false);
 ```
-
