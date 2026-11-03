@@ -188,3 +188,11 @@ sem supor câmbio.
 Verifique com `node --test apps/api/dist/marketing/meta-client.test.js`.
 Exercício: forneça `paging.next` em um domínio diferente e prove que todas as
 requisições continuam no domínio fixo; depois teste um cursor repetido.
+
+Nos testes de integração, uma falha pode acontecer entre criar o banco temporário e
+inicializar o servidor HTTP. Registre cada recurso assim que ele existir e faça a limpeza
+com `finally`: se fechar o servidor falhar, ainda é necessário fechar o pool, remover o
+banco criado pelo teste e encerrar a conexão administrativa. O teste não deve pressupor
+que toda a preparação terminou. Veja a [correção da fixture Meta](../documentacoes/reviews/2026-11-03-frente-m-revisao-corretiva.md).
+Exercício: identifique quais recursos precisam ser liberados se a primeira migration
+falhar. Escrever esse caminho de limpeza não substitui executá-lo em ambiente autorizado.

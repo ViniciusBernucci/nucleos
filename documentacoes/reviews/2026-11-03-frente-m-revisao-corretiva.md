@@ -8,10 +8,11 @@ Branch: `feat/lote-1102-m-meta-ads`.
 
 ## Resultado
 
-Leitura independente concluída sem achado demonstrado de impacto médio, alto ou crítico.
+Leitura independente e conferência de falha de preparação concluídas. Um achado médio
+de limpeza da fixture foi corrigido no único ciclo, commit `bf0a20e177c2d7668ba871d87f496a92b8e2ce64`.
 **Revisão ainda não aprovada:** os testes essenciais de PostgreSQL/HTTP não foram executados
 nesta retomada. A autorização do ambiente temporário foi solicitada ao usuário e permanece
-pendente. Não interpretar ausência de achados como PASS de integração ou aceite visual.
+pendente. Não interpretar a correção em código como PASS de integração ou aceite visual.
 
 ## Cobertura e evidências
 
@@ -38,9 +39,28 @@ pendente. Não interpretar ausência de achados como PASS de integração ou ace
 
 ## Achados e correções
 
-Nenhum achado médio/alto/crítico confirmado. Nenhuma correção de fonte aplicada pelo
-revisor; portanto não há patch corretivo de código/testes/configuração nem lesson nova
-para esta revisão. O patch da implementação permanece no registro da própria frente.
+**RM-01 — MÉDIO — banco temporário podia permanecer após falha de preparação.**
+Em `apps/api/src/marketing/marketing-pg.test.ts`, o hook `before` cria o banco e aplica
+migrations antes de inicializar `app`. Se uma migration ou a criação da aplicação falha,
+o antigo `after` começava com `await app.close()` sobre recurso ainda ausente. Esse erro
+impedia `pool.end`, `DROP DATABASE` e `admin.end`. Uma falha no próprio close também
+interrompia as etapas seguintes. A sequência é demonstrável no código da candidata;
+o cenário não foi executado contra PostgreSQL nesta retomada.
+
+A correção registra cada recurso após sua aquisição, identifica se o banco chegou a
+ser criado e usa blocos `finally` para tentar toda a limpeza, inclusive o encerramento
+da conexão administrativa quando o DROP falha. Não altera SQL de negócio nem acessa
+o banco de desenvolvimento. O [patch corretivo completo](2026-11-03-frente-m-revisao-corretiva-diffs.md)
+corresponde ao commit `bf0a20e`.
+
+Validação da correção: `tsc -p tsconfig.json --noEmit` da API, ESLint focal,
+Prettier focal e `git diff --check` PASS. Os sete testes anteriores não foram repetidos,
+pois o cliente/configuração não mudaram. Execução da fixture PG e comprovação da
+limpeza real continuam NÃO VALIDADAS, dentro da mesma pendência de ambiente.
+Nenhum outro achado médio/alto/crítico conhecido permanece no código lido.
+Lesson 16 e índice atualizados com a limpeza mesmo após preparação incompleta.
+Patch corretivo conferido contra o diff commitado; 39 links relativos conferidos nos
+cinco documentos do fechamento, nenhum ausente. `git diff --check`: PASS.
 
 ## Pendências para concluir
 

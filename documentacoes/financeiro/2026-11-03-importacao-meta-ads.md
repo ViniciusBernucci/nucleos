@@ -3,7 +3,7 @@
 Data: 2026-11-03, America/Sao_Paulo. Domínio: financeiro/marketing.
 Branch: `feat/lote-1102-m-meta-ads`; base: `a1a0b0e`.
 Autor: Codex, retomando arquivos parciais preservados da sessão anterior.
-Estado: implementação candidata; revisão independente, PostgreSQL e aceite manual pendentes.
+Estado: candidata com revisão corretiva aplicada; aprovação PostgreSQL e aceite manual pendentes.
 
 ## Objetivo e escopo
 
@@ -91,7 +91,8 @@ contém a operação GET de insights. A implementação usa HTTP diretamente, se
 Cliente, configuração, registro de handler, migrations e API: ATENDIDOS em código e
 testes unitários aplicáveis. Idempotência e rollback reais PG/HTTP: NÃO VALIDADOS nesta
 retomada. Ativação com Meta real: NÃO VALIDADA, depende das credenciais de leitura.
-Revisão independente e roteiro manual M: PENDENTES.
+Revisão independente: leitura e correção RM-01 concluídas; aprovação ainda depende de PG.
+Roteiro manual M: PENDENTE. Relatório e patch: [revisão M](../reviews/2026-11-03-frente-m-revisao-corretiva.md).
 
 Roteiro manual: sem token, conferir mensagem no catálogo de Funcionários; com token de
 System User `ads_read` no servidor, habilitar Gestor de Tráfego, executar a tarefa e
@@ -114,3 +115,9 @@ Commit de implementação: `4690f1c8a2982fbceb0d6ea7e94adb90c6703de3`,
 O fechamento documental posterior registra esse SHA e remove uma linha vazia terminal
 do arquivo de patch. O [patch completo](2026-11-03-importacao-meta-ads-diffs.md) contém apenas
 código, testes e configuração desta frente, excluindo documentação/lessons para evitar recursão.
+
+Correção da revisão: `bf0a20e177c2d7668ba871d87f496a92b8e2ce64`,
+`fix(marketing): garantir limpeza do teste PG em falha de preparacao`.
+O teardown passa a encerrar os recursos adquiridos mesmo se migrations/listen ou outro
+encerramento falhar. Tipos, ESLint/Prettier focais e diff-check PASS; execução PG pendente.
+O patch dessa correção fica no relatório de revisão, separado do patch da candidata original.
