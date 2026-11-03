@@ -44,8 +44,10 @@ para esta revisão. O patch da implementação permanece no registro da própria
 
 ## Pendências para concluir
 
-1. Resolver a declaração do ambiente de teste: AGENTS.md, seção Dados, e o plano de
-   execução divergem quanto ao PostgreSQL core com bancos temporários. Sem resposta
+1. Resolver a declaração do ambiente de teste: o plano e banco-unico-nucleos.md, seção
+   Testes, admitem bancos temporários, mas AGENTS.md, seção Dados, só declara containers
+   descartáveis de PoC e exige declaração naquela seção. O core local ainda não foi
+   declarado ali como ambiente deste teste. Sem resposta
    explícita do usuário, não executar esse acesso nem alterar as regras para permiti-lo.
 2. Executar os cenários PG/HTTP já escritos em ambiente autorizado; registrar resultado
    real e verificar remoção dos bancos temporários. Falha própria deve ser corrigida e

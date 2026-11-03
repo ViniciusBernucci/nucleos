@@ -75,9 +75,11 @@ contém a operação GET de insights. A implementação usa HTTP diretamente, se
 - Links relativos nos cinco documentos alterados: 41 conferidos, nenhum ausente.
   Logs locais ignorados em `.run/meta-*.log`.
 - PostgreSQL nesta retomada: NÃO EXECUTADO. O harness existente cria banco temporário no
-  servidor core; o plano menciona esse teste, mas AGENTS §Dados declara apenas containers
-  descartáveis e o documento de banco único proíbe criar banco por tarefa. A exceção precisa
-  ser resolvida pelo coordenador com o usuário. Não foi acessado nem migrado `nucleos_dev`.
+  servidor core. O plano e a seção Testes do documento de banco único admitem bancos
+  temporários de teste, distintos de bancos de funcionalidade; porém AGENTS §Dados exige
+  ambiente isolado declarado naquela seção e só declara containers descartáveis de PoC.
+  O uso do core para esses bancos temporários aguarda resposta do usuário ao coordenador.
+  Não foi acessado nem migrado `nucleos_dev`.
   Resultados de logs antigos não são atribuídos à presente retomada.
 - Testes PG escritos cobrem migrations/reaplicação, ausência de credencial/execução,
   pausa preservada, catálogo, upsert, rollback por lease, moeda, handler pelo motor,
