@@ -40,6 +40,9 @@ Em staging/produção o mesmo princípio vale: um banco do Nucleos; `DATABASE_UR
 | `financeiro` | `lancamentos` | Entradas e saídas do caixa; pagamento de conta recorrente é uma saída com competência (única por conta e mês) | idem |
 | `financeiro` | `categorias` | Categorias de entrada e de saída (nome único por tipo, sem diferenciar maiúsculas) usadas nos formulários do fluxo de caixa | idem |
 | `public` | `api_schema_migrations` | Controle das migrations da API (versão, checksum, quando) | idem |
+| `marketing` | `contas_anuncio` | Conta externa de anúncios e moeda; sem credencial persistida | [Importação Meta Ads](../financeiro/2026-11-03-importacao-meta-ads.md) |
+| `marketing` | `campanhas` | Catálogo externo por conta, status e objetivo; sem escrita na Meta | idem |
+| `marketing` | `gastos_diarios` | Métricas reportadas por campanha e dia, valores em centavos e moeda explícita | idem |
 | `dev_seed` | `organizacoes` | Dado fictício de desenvolvimento (FND-004); só existe em dev | FND-004 |
 
 > Ao criar tabelas novas, **acrescente a linha aqui**. Um assunto novo ganha um schema novo

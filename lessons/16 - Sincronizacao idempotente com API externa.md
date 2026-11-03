@@ -1,6 +1,6 @@
 # 16 - Sincronização idempotente com API externa
 
-Criada em 2026-11-01. Última atualização: 2026-11-01. Exemplos validados com Node 24.22.2,
+Criada em 2026-11-01. Última atualização: 2026-11-03. Exemplos validados com Node 24.22.2,
 TypeScript 5.9.3 (type stripping do Node) e PostgreSQL 18. Python: não usado nesta lesson.
 
 ## Objetivo
@@ -145,3 +145,46 @@ e botao manual; iniciar pelo botao nao altera a janela incremental nem a idempot
 
 Exercicio: teste um Client Token ja prefixado e prove que o cabecalho contem apenas um Basic.
 Veja os testes reais em hotmart-client.test.ts e o [registro da entrega](../documentacoes/financeiro/2026-11-01-atualizacao-manual-hotmart.md).
+
+## Janela reimportada e cursores externos: Meta Ads
+
+A [importação Meta Ads](../documentacoes/financeiro/2026-11-03-importacao-meta-ads.md)
+reutiliza a idempotência com chave `(campanha_id, dia)`. A cada seis horas reimporta
+sete dias, incluindo o dia corrente em `America/Sao_Paulo`. Isso permite corrigir
+atribuições que o fornecedor atualiza depois da primeira leitura.
+
+O cursor é dado externo, não uma autorização para visitar outra URL. O cliente
+reconstrói a rota fixa `graph.facebook.com/v26.0/act_<id>/insights`, copia somente
+`paging.cursors.after` validado, rejeita repetição e não segue `paging.next`.
+O bearer fica no cabeçalho; erros têm mensagens fixas, sem corpo da resposta ou URL.
+
+O upsert ocorre em uma transação com advisory lock por conta. Antes e depois das
+gravações, verifica-se a lease do motor. Se ela for perdida, a transação inteira
+é desfeita. Upsert evita duplicatas; a verificação da lease impede que um executor
+antigo confirme dados depois de perder o trabalho para outro consumidor.
+
+Valores monetários devem ser convertidos de texto para centavos com `BigInt`,
+sem passar por `Number`. O teste executável abaixo usa a função real:
+
+```typescript
+import assert from "node:assert/strict";
+import { centavos } from "../apps/api/dist/marketing/meta-client.js";
+
+assert.equal(centavos("19.99"), "1999");
+assert.equal(centavos("0.105"), "11"); // arredondamento half-up declarado
+assert.equal(centavos("99999999999999.99"), "9999999999999999");
+```
+
+Salve o exemplo em `lessons/exemplo-meta.ts`, após o build, e execute com
+`node lessons/exemplo-meta.ts`. O arquivo é só uma sugestão para estudo, não parte
+dos artefatos da entrega.
+
+As compras `purchase`, `omni_purchase` e `offsite_conversion.fb_pixel_purchase`
+podem descrever o mesmo evento. O importador escolhe uma série prioritária e
+guarda qual escolheu; não soma as três. Valores reportados pela Meta não são
+receita financeira nem lucro. Contas fora de BRL são rejeitadas explicitamente,
+sem supor câmbio.
+
+Verifique com `node --test apps/api/dist/marketing/meta-client.test.js`.
+Exercício: forneça `paging.next` em um domínio diferente e prove que todas as
+requisições continuam no domínio fixo; depois teste um cursor repetido.

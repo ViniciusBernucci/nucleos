@@ -1,5 +1,6 @@
 import "reflect-metadata";
-import { ConfigError, loadApiConfig, loadVendasConfig } from "@nucleos/config";
+import { MarketingModule } from "./marketing/marketing.module.js";
+import { ConfigError, loadApiConfig, loadVendasConfig, loadMarketingConfig } from "@nucleos/config";
 import { NestFactory } from "@nestjs/core";
 import { Pool } from "pg";
 import { AppModule } from "./app.module.js";
@@ -16,9 +17,11 @@ import { FuncionariosModule } from "./funcionarios/funcionarios.module.js";
 // nomes de variaveis e motivos, nunca valores.
 let config;
 let vendasConfig;
+let marketingConfig;
 try {
   config = loadApiConfig();
   vendasConfig = loadVendasConfig();
+  marketingConfig = loadMarketingConfig();
 } catch (e) {
   if (e instanceof ConfigError) {
     console.error(`api: ${e.message}`);
@@ -51,6 +54,12 @@ const app = await NestFactory.create(
     pool === undefined || motor === undefined
       ? []
       : [
+          MarketingModule.registrar({
+            config: marketingConfig,
+            motor,
+            apiKey: vendasConfig.apiKey,
+            log,
+          }),
           VendasModule.registrar({
             config: vendasConfig,
             pool,
