@@ -23,14 +23,19 @@ Escopo e verificações: [registro P0](../financeiro/2026-11-02-fluxo-de-caixa.m
 - P0: CONCLUIDA, commit a2aa0cc.
 - A (FUN-001…006): IMPLEMENTADA / REVISADA / INTEGRADA. Correção bc89f2c,
   entrega f02cfa5, merge 67db27b; revisão independente PASS.
-- B (FIN-103→101→102→104→105→106): EM_IMPLEMENTACAO,
-  branch feat/lote-1102-b-base-financeira, base a1a0b0e.
-- M (FIN-301): CANDIDATA_IMPLEMENTADA / LEITURA_INDEPENDENTE_CONCLUIDA,
+- B (FIN-103→101→102→104→105→106): CORRECOES_APLICADAS / PG_NAO_VALIDADO,
+  branch feat/lote-1102-b-base-financeira, base a1a0b0e, código c5da47f,
+  candidata documental 0604d25, correção ecb94e7 e fechamento ab936c1;
+  PG/HTTP real não validado.
+- M (FIN-301): CORRECAO_APLICADA / PG_NAO_VALIDADO,
   branch feat/lote-1102-m-meta-ads, implementação 4690f1c, candidata adaa9b7,
-  relatório 9e144ba; aprovação ainda depende de PG/HTTP em ambiente autorizado.
+  correção RM-01 bf0a20e, relatório/fechamento aa5cdae;
+  aprovação ainda depende de PG/HTTP em ambiente autorizado.
 - C e D: NÃO INICIADAS, aguardam dependências.
-- Revisão M: sem achados médios/altos/críticos demonstrados; validação PG pendente.
-  Revisões B/C/D: NÃO EXECUTADAS.
+- Revisão M: RM-01 médio corrigido (limpeza da fixture em falha de preparação);
+  validação PG pendente. Revisão B: cinco achados corrigidos no único ciclo;
+  aprovação final pendente de PostgreSQL essencial.
+  Revisões C/D: NÃO EXECUTADAS.
 - Integração A: build TS/Python, 28 PG/HTTP, contratos e Gitleaks PASS;
   suíte/lint gerais sem PASS pelas limitações documentadas.
 - Testes manuais e aceite visual: PENDENTES conforme manifesto §8.
@@ -166,7 +171,59 @@ Build TypeScript/Python, sete unitários, ESLint/Prettier focais, Gitleaks e dif
 PASS. `make lint` falha na formatação preexistente de NavLink/layout; `make test` falha
 nos cenários Unix de configuração no Windows. Nenhum desses comandos gerais recebeu PASS.
 
-Nenhum achado médio/alto/crítico foi demonstrado pela leitura independente. PG/HTTP
+Na conferência de falha de preparação, RM-01 médio foi corrigido no teste PG: recursos
+são registrados na aquisição e limpos em `finally`, mesmo sem aplicação HTTP inicializada.
+Tipos e ESLint/Prettier focais PASS; patch corretivo conferido, 39 links sem ausentes e
+diff-check final da branch PASS. Commit de correção bf0a20e, fechamento aa5cdae. PG/HTTP
 essenciais permanecem NÃO VALIDADOS: a pergunta ao usuário sobre bancos temporários no
 core local ainda aguarda resposta explícita. Nenhuma migration de desenvolvimento foi
-aplicada. M não foi integrada; segue roteiro manual pendente. B continua em implementação.
+aplicada. M não foi integrada; segue roteiro manual pendente.
+
+### Candidata B e transferência ao revisor
+
+Código c5da47f, documentação 2265c5c e fechamento 0604d25. Executor encerrou as escritas
+e devolveu ownership; o revisor independente da frente B recebeu controle exclusivo
+para o único ciclo corretivo. A alteração gerada preexistente em `next-env.d.ts` está
+fora dos commits e será preservada.
+
+Fonte final: build sete tarefas, 67 testes API/domínio/configuração e 17 web PASS, sem
+skips; ESLint focal e geral sem erros, arquitetura PASS; contratos sem drift e 11
+compatíveis, `make build` TS/Python e Gitleaks PASS com exit 0 confirmado. `make lint`
+falha apenas na formatação preexistente de NavLink/layout, inalterados desde a base;
+`make test` falha em seis testes de configuração Unix/permissões no Windows. Documentação:
+sete documentos, 50 links, nenhum ausente; patch real e diff-check PASS.
+
+PG não executado, sem migrations de desenvolvimento nem credenciais externas reais.
+Revisão corretiva B em andamento; integração B/M, frentes C/D e roteiro visual aguardam
+os gates pertinentes. O plano e a seção Testes de banco-unico-nucleos.md admitem bancos
+temporários de teste, mas AGENTS §Dados exige declaração do ambiente naquela seção e
+só declara containers descartáveis de PoC; a decisão sobre o core local foi solicitada
+ao usuário e não será inferida do silêncio.
+
+### Encerramento da retomada independente de PostgreSQL
+
+B: cinco achados corrigidos no commit ecb94e761f6a303bf6a9d518e019d11b911c80b0:
+exclusão de movimentações vinculadas/conciliação aceita (alto), limite bruto do
+webhook nas variantes de rota, publicação transacional de eventos, limpeza de fixture
+parcial e identidade única do pagamento exposto como conta paga/lançamento (médios).
+Fechamento documental ab936c14aa35cabd754dfd17e17f1b8537e7a21c.
+
+Validação corretiva: 20 testes afetados PASS, zero falhas/skips; build API PASS;
+ESLint/Prettier de 15 fontes PASS; Gitleaks sobre diff próprio e stage PASS;
+diff-check PASS. Patch final corresponde ao commit corretivo; 46 links relativos,
+nenhum ausente. O revisor encerrou todas as escritas e devolveu ownership. A única
+alteração não commitada na worktree B é `next-env.d.ts`, gerada/preexistente e preservada.
+M está preservada/limpa em aa5cdae, correção de teste bf0a20e; seus sete unitários e
+build anteriores seguem registrados, sem repetição indevida após mudança apenas na fixture.
+
+Estado do lote: **AGUARDANDO_AUTORIZACAO_PG**. A pergunta assíncrona ao usuário continua
+sem resposta. A autorização solicitada cobre somente criar/remover bancos temporários
+de teste no PostgreSQL local em `127.0.0.1:15432`, sem acessar `nucleos_dev` e sem nova
+instância. Ela não autoriza migrations de desenvolvimento nem ativação externa.
+
+Próximos passos condicionais: com autorização explícita, executar PG/HTTP essenciais
+das candidatas, comprovar remoção dos bancos de teste, finalizar o mesmo ciclo de
+validação e integrar B/M conforme os gates. Depois iniciar C e D em ordem do plano.
+Sem essa autorização, não há aprovação final de B/M nem avanço de C/D por cima do gate.
+Os cenários PG escritos/compilados não contam como executados. Roteiro manual e aceite
+visual continuam pendentes. O checkout principal e as alterações alheias foram preservados.
