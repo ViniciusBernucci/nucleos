@@ -124,3 +124,18 @@ nem autoriza declarar a suíte geral aprovada. Config TS baseline foi validada e
 
 Estado atual A: IMPLEMENTADA_REVISADA_INTEGRADA; teste manual A pendente.
 B e M iniciam em worktrees separadas da revisão atual. C e D não iniciadas.
+## Retomada em 2026-11-03
+
+Os agentes Codex B e M encerraram por limite de uso, sem conclusão/commits dessas frentes.
+Trabalho parcial preservado nas respectivas worktrees; a base A integrada não mudou.
+Após o usuário reiterar “prossiga”, a execução foi retomada pelo Claude CLI local,
+autenticado por assinatura e configuração padrão da conta, com sessões separadas B/M.
+Não foram fornecidos argumentos de modelo nem habilitadas chaves diretas de API paga.
+Ferramentas limitadas a leitura/escrita/edição/busca/shell; prompts proíbem outras IAs,
+publicação, push, PR, migração de desenvolvimento e alteração do estado do coordenador.
+
+Estado: B/M EM_IMPLEMENTACAO, com propriedade ativa dos executores CLI; não reativar
+os agentes Codex nessas worktrees enquanto esses processos existirem. Informações
+locais de retomada em `.run/lote-1102-active-executors.json`, prompts e logs CLI no
+checkout principal. Metadados pessoais da autenticação não integram o registro.
+Revisões independentes B/M ainda necessárias antes da integração. C/D não iniciadas.
