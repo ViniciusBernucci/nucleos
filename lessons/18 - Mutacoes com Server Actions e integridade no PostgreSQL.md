@@ -283,3 +283,30 @@ Na [entrega B](../documentacoes/financeiro/2026-11-03-base-financeira-b.md), tes
 simulados comprovam distribuição de centavos e tentativa de rollback, enquanto
 as provas PostgreSQL continuam um gate separado. Exercício: force dois pagamentos
 concorrentes e verifique uma única saída, depois force rollback da segunda parcela.
+
+### Integridade também nas rotas antigas
+
+Quando uma nova transferência grava duas linhas, uma rota antiga que apaga qualquer
+lançamento pode deixar apenas uma perna. O vínculo precisa ser validado no servidor
+em todos os caminhos de escrita. Na exclusão legada, o projeto bloqueia transferência
+e lançamento/conta paga já usados em conciliação aceita. Desfazer a conciliação libera
+o pagamento para exclusão; uma transferência não é apagada pela rota de lançamento.
+
+A checagem e a exclusão compartilham transação e o mesmo advisory lock da aceitação
+de conciliação. Sem essa coordenação, aceitar e apagar poderiam passar em checagens
+separadas. O conflito retorna HTTP 409 com mensagem fixa.
+
+Publicar `financeiro.dados.alterados` também faz parte da mutação. Se a gravação
+confirmar e a publicação falhar depois, projeções e indicadores ficam desatualizados.
+O evento deve usar a mesma conexão e ser confirmado ou desfeito com a operação.
+Os testes simulados de `repositorio.test.ts` forçam falha do evento e comprovam que
+o caminho termina em rollback; a garantia SQL real depende do teste PostgreSQL.
+
+Veja a [revisão corretiva B](../documentacoes/reviews/2026-11-03-frente-b-revisao-corretiva.md).
+Exercício: execute aceitar conciliação e excluir pagamento concorrentemente em um
+ambiente isolado autorizado. Por que somente uma ordem compatível deve confirmar?
+
+Uma conta paga e seu lançamento são duas representações do mesmo pagamento. Para
+conciliar, use uma identidade comum: `conta_pagar:<id>` nas duas formas. Compare essa
+identidade tanto dentro da sugestão manual quanto contra conciliações já aceitas.
+Sem isso, trocar o tipo da origem permite contabilizar o mesmo pagamento duas vezes.

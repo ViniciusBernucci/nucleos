@@ -57,11 +57,23 @@ Esse fluxo cabe em notificações pequenas e processamento assíncrono. Não sub
 um upload de arquivo nem garante entrega de um provedor que nunca reenviou o evento.
 Polling e reconciliação continuam cobrindo a janela de inconsistência.
 
+O tamanho deve ser limitado sobre os bytes antes de desserializar o JSON. Muitos
+espaços podem desaparecer no objeto, então `JSON.stringify(corpo).length` não é
+uma medida do corpo recebido. A verificação também precisa cobrir todas as rotas
+equivalentes que o servidor aceita: neste projeto, letras maiúsculas e barra final.
+Comparar somente o caminho literal deixava uma variante ignorar o limite de 64 KB.
+O mesmo verificador de produção é usado no teste HTTP com JSON pequeno precedido
+de mais de 64 KB de espaços; todas as variantes devem responder 413 sem consultar banco.
+
 ## Verificar e praticar
 
 `node --test apps/api/dist/financeiro/webhook.test.js` usa pool/motor simulados para
 provar autenticação, limite, descarte de PII e uma publicação por id. Isso não prova
 a restrição PostgreSQL: a integração real precisa de ambiente isolado declarado.
+
+`node --test apps/api/dist/financeiro/financeiro.http.test.js` verifica também o
+limite bruto nas variantes de rota usando somente HTTP local e pool simulado.
+Correção e evidência: [revisão B](../documentacoes/reviews/2026-11-03-frente-b-revisao-corretiva.md).
 
 Exercícios: envie o mesmo id com payload distinto; force rollback antes do commit;
 compare um evento de reembolso atrasado com a reconsulta atual da transação. Em

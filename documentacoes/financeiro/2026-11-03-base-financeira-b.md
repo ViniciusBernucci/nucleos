@@ -4,6 +4,7 @@ Data: 2026-11-03, America/Sao_Paulo. Domínio: financeiro.
 Tickets: FIN-103, FIN-101, FIN-102, FIN-104, FIN-105 e FIN-106.
 Branch: `feat/lote-1102-b-base-financeira`. Base: `a1a0b0e` (A integrada/revisada).
 Estado: candidata congelada para revisão, **sem aprovação de persistência nem aceite visual**.
+Revisão corretiva aplicada em `ecb94e7`; aprovação final ainda depende de PostgreSQL.
 
 ## Objetivo e estado inicial
 
@@ -130,6 +131,14 @@ O [patch completo de código/testes/configuração](2026-11-03-base-financeira-b
 compara a base `a1a0b0e` à candidata, sem diff da documentação dentro dela própria.
 O commit documental posterior não altera o código. `apps/web/next-env.d.ts` é saída de geração
 preexistente na worktree e não pertence à entrega.
+
+A [revisão corretiva independente](../reviews/2026-11-03-frente-b-revisao-corretiva.md)
+registra as correções posteriores à candidata, com
+[patch próprio](../reviews/2026-11-03-frente-b-revisao-corretiva-diffs.md): exclusão
+legada protegida, limite bruto do webhook nas rotas equivalentes, eventos atômicos
+nas mutações financeiras, cleanup de fixture em setup parcial e identidade única do
+pagamento exposto como conta paga ou lançamento. Os testes PostgreSQL
+continuam NÃO EXECUTADOS, aguardando ambiente autorizado; não há PASS final do lote.
 
 Lessons: [sincronização](../../lessons/16%20-%20Sincronizacao%20idempotente%20com%20API%20externa.md),
 [mutações](../../lessons/18%20-%20Mutacoes%20com%20Server%20Actions%20e%20integridade%20no%20PostgreSQL.md),
