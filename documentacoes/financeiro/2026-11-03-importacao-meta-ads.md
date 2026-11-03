@@ -107,6 +107,8 @@ Migrations são forward-only; não apagar schema nem editar migration já aplica
 
 ## Commits e diffs próprios
 
-Nenhum commit criado nesta tarefa até a emissão do registro inicial; o commit candidato
-é registrado no fechamento subsequente. O [patch completo](2026-11-03-importacao-meta-ads-diffs.md) contém apenas
+Commit de implementação: `4690f1c8a2982fbceb0d6ea7e94adb90c6703de3`,
+`feat(marketing): importar metricas Meta Ads somente leitura`.
+O fechamento documental posterior registra esse SHA e remove uma linha vazia terminal
+do arquivo de patch. O [patch completo](2026-11-03-importacao-meta-ads-diffs.md) contém apenas
 código, testes e configuração desta frente, excluindo documentação/lessons para evitar recursão.
