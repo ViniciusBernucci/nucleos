@@ -5,6 +5,7 @@ import type {
   VendaResumo,
 } from "@nucleos/contracts";
 import type { Pool } from "pg";
+import type { MotorFuncionarios } from "../funcionarios/motor.js";
 import type { Venda } from "./dominio.js";
 import { FUSO } from "./periodo.js";
 import type {
@@ -39,7 +40,8 @@ function indicadoresDe(linha: Record<string, unknown>): IndicadoresVendas {
   return {
     receitaBrutaCentavos: receita,
     taxasCentavos: taxas,
-    receitaLiquidaCentavos: receita - taxas,
+    receitaLiquidaCentavos:
+      linha["liquido"] === undefined ? receita - taxas : num(linha["liquido"]),
     vendas,
     ticketMedioCentavos: vendas === 0 ? 0 : Math.round(receita / vendas),
     compradoresUnicos: num(linha["compradores"]),
@@ -54,6 +56,7 @@ const SQL_INDICADORES = `
   SELECT
     COALESCE(SUM(valor_centavos) FILTER (WHERE grupo = 'receita'), 0) AS receita,
     COALESCE(SUM(taxa_centavos)  FILTER (WHERE grupo = 'receita'), 0) AS taxas,
+    COALESCE(SUM(liquido_centavos) FILTER (WHERE grupo = 'receita'),0) AS liquido,
     COUNT(*) FILTER (WHERE grupo = 'receita') AS vendas,
     COUNT(DISTINCT comprador_id) FILTER (WHERE grupo = 'receita') AS compradores,
     COALESCE(SUM(valor_centavos) FILTER (WHERE grupo = 'reembolso'), 0) AS reembolsado,
@@ -62,46 +65,106 @@ const SQL_INDICADORES = `
   FROM financeiro.vendas WHERE ${ONDE}`;
 
 export class RepositorioVendasPg implements RepositorioVendas {
-  constructor(private readonly pool: Pool) {}
+  constructor(
+    private readonly pool: Pool,
+    private readonly motor?: MotorFuncionarios,
+  ) {}
 
-  async gravarVendas(vendas: readonly Venda[]): Promise<number> {
-    const unicas = [...new Map(vendas.map((v) => [v.transacao, v])).values()];
-    if (unicas.length === 0) return 0;
-    await this.pool.query(
-      `INSERT INTO financeiro.vendas
-         (transacao, produto_id, produto_nome, comprador_id, status, grupo, pedido_em, aprovado_em,
-          valor_centavos, taxa_centavos, moeda, pagamento, parcelas, assinatura, recorrencia)
-       SELECT * FROM unnest(
-         $1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[],
-         $7::timestamptz[], $8::timestamptz[], $9::bigint[], $10::bigint[], $11::char(3)[],
-         $12::text[], $13::integer[], $14::boolean[], $15::integer[])
-       ON CONFLICT (transacao) DO UPDATE SET
-         produto_id = EXCLUDED.produto_id, produto_nome = EXCLUDED.produto_nome,
-         comprador_id = EXCLUDED.comprador_id, status = EXCLUDED.status, grupo = EXCLUDED.grupo,
-         pedido_em = EXCLUDED.pedido_em, aprovado_em = EXCLUDED.aprovado_em,
-         valor_centavos = EXCLUDED.valor_centavos, taxa_centavos = EXCLUDED.taxa_centavos,
-         moeda = EXCLUDED.moeda, pagamento = EXCLUDED.pagamento, parcelas = EXCLUDED.parcelas,
-         assinatura = EXCLUDED.assinatura, recorrencia = EXCLUDED.recorrencia,
-         sincronizado_em = now()`,
-      [
-        unicas.map((v) => v.transacao),
-        unicas.map((v) => v.produtoId),
-        unicas.map((v) => v.produtoNome),
-        unicas.map((v) => v.compradorId),
-        unicas.map((v) => v.status),
-        unicas.map((v) => v.grupo),
-        unicas.map((v) => v.pedidoEm),
-        unicas.map((v) => v.aprovadoEm),
-        unicas.map((v) => v.valorCentavos),
-        unicas.map((v) => v.taxaCentavos),
-        unicas.map((v) => v.moeda),
-        unicas.map((v) => v.pagamento),
-        unicas.map((v) => v.parcelas),
-        unicas.map((v) => v.assinatura),
-        unicas.map((v) => v.recorrencia),
-      ],
-    );
-    return unicas.length;
+  async gravarVendas(
+    vendas: readonly Venda[],
+    origem: "polling" | "webhook" | "reconciliacao" = "polling",
+  ): Promise<number> {
+    const c = await this.pool.connect();
+    try {
+      await c.query("BEGIN");
+      for (const v of [...new Map(vendas.map((v) => [v.transacao, v])).values()]) {
+        // Serialize insert and status history even when no sale row exists yet.
+        await c.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [v.transacao]);
+        const anterior = await c.query<{ status: string }>(
+          "SELECT status FROM financeiro.vendas WHERE transacao=$1",
+          [v.transacao],
+        );
+        const comissao = v.comissoesCentavos ?? 0;
+        await c.query(
+          `INSERT INTO financeiro.vendas
+          (transacao,produto_id,produto_nome,comprador_id,status,grupo,pedido_em,aprovado_em,valor_centavos,taxa_centavos,moeda,pagamento,parcelas,assinatura,recorrencia,oferta_codigo,desconto_centavos,comissoes_centavos,liquido_centavos,rastreio_origem,rastreio_sck)
+          VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21)
+          ON CONFLICT(transacao) DO UPDATE SET status=excluded.status,grupo=excluded.grupo,
+          aprovado_em=excluded.aprovado_em,valor_centavos=excluded.valor_centavos,taxa_centavos=excluded.taxa_centavos,
+          comissoes_centavos=excluded.comissoes_centavos,liquido_centavos=excluded.liquido_centavos,
+          oferta_codigo=excluded.oferta_codigo,desconto_centavos=excluded.desconto_centavos,
+          rastreio_origem=excluded.rastreio_origem,rastreio_sck=excluded.rastreio_sck,sincronizado_em=now()`,
+          [
+            v.transacao,
+            v.produtoId,
+            v.produtoNome,
+            v.compradorId,
+            v.status,
+            v.grupo,
+            v.pedidoEm,
+            v.aprovadoEm,
+            v.valorCentavos,
+            v.taxaCentavos,
+            v.moeda,
+            v.pagamento,
+            v.parcelas,
+            v.assinatura,
+            v.recorrencia,
+            v.ofertaCodigo ?? null,
+            v.descontoCentavos ?? null,
+            comissao,
+            v.valorCentavos - v.taxaCentavos - comissao,
+            v.rastreioOrigem ?? null,
+            v.rastreioSck ?? null,
+          ],
+        );
+        await c.query("DELETE FROM financeiro.vendas_comissoes WHERE transacao=$1", [v.transacao]);
+        const agrupadas = new Map<string, { tipo: string; moeda: string; valorCentavos: number }>();
+        for (const com of v.comissoes ?? []) {
+          if (com.moeda !== v.moeda) throw new Error("moedas de comissao incompativeis");
+          const chave = com.tipo + ":" + com.moeda,
+            atual = agrupadas.get(chave);
+          agrupadas.set(chave, {
+            ...com,
+            valorCentavos: (atual?.valorCentavos ?? 0) + com.valorCentavos,
+          });
+        }
+        for (const com of agrupadas.values())
+          await c.query("INSERT INTO financeiro.vendas_comissoes VALUES($1,$2,$3,$4)", [
+            v.transacao,
+            com.tipo,
+            com.moeda,
+            com.valorCentavos,
+          ]);
+        if (anterior.rows[0]?.status !== v.status) {
+          const ev = await c.query<{ id: string }>(
+            "INSERT INTO financeiro.vendas_eventos(transacao,status_anterior,status_novo,origem) VALUES($1,$2,$3,$4) RETURNING id",
+            [v.transacao, anterior.rows[0]?.status ?? null, v.status, origem],
+          );
+          if (this.motor) {
+            await this.motor.publicar(
+              "financeiro.venda.alterada",
+              `venda:${ev.rows[0]?.id}`,
+              { transacao: v.transacao },
+              c,
+            );
+            await this.motor.publicar(
+              "financeiro.dados.alterados",
+              `venda-dados:${ev.rows[0]?.id}`,
+              {},
+              c,
+            );
+          }
+        }
+      }
+      await c.query("COMMIT");
+      return new Set(vendas.map((v) => v.transacao)).size;
+    } catch (e) {
+      await c.query("ROLLBACK");
+      throw e;
+    } finally {
+      c.release();
+    }
   }
 
   async lerEstadoSincronizacao(): Promise<EstadoSincronizacaoBanco> {

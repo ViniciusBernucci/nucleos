@@ -1,7 +1,15 @@
 import "reflect-metadata";
-import { ConfigError, loadApiConfig, loadVendasConfig } from "@nucleos/config";
+import {
+  ConfigError,
+  loadApiConfig,
+  loadFinanceiroConfig,
+  loadVendasConfig,
+} from "@nucleos/config";
 import { NestFactory } from "@nestjs/core";
+import { PayloadTooLargeException } from "@nestjs/common";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Pool } from "pg";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { AppModule } from "./app.module.js";
 import { opcoesPool } from "./banco.js";
 import { createApiObservability, observabilityMiddleware } from "./observability.js";
@@ -11,14 +19,17 @@ import { VendasModule } from "./vendas/vendas.module.js";
 import { RegistroHandlers } from "./funcionarios/handlers.js";
 import { MotorFuncionarios } from "./funcionarios/motor.js";
 import { FuncionariosModule } from "./funcionarios/funcionarios.module.js";
+import { FinanceiroModule } from "./financeiro/financeiro.module.js";
 
 // Falha rapida (FND-006): configuracao ausente/invalida impede a subida; a mensagem so lista
 // nomes de variaveis e motivos, nunca valores.
 let config;
 let vendasConfig;
+let financeiroConfig;
 try {
   config = loadApiConfig();
   vendasConfig = loadVendasConfig();
+  financeiroConfig = loadFinanceiroConfig();
 } catch (e) {
   if (e instanceof ConfigError) {
     console.error(`api: ${e.message}`);
@@ -46,11 +57,12 @@ const motor =
   pool === undefined
     ? undefined
     : new MotorFuncionarios(pool, new RegistroHandlers(), undefined, { log });
-const app = await NestFactory.create(
+const app = await NestFactory.create<NestExpressApplication>(
   AppModule.comModulos(
     pool === undefined || motor === undefined
       ? []
       : [
+          FinanceiroModule.registrar(motor, vendasConfig.apiKey, financeiroConfig, vendasConfig),
           VendasModule.registrar({
             config: vendasConfig,
             pool,
@@ -65,11 +77,19 @@ const app = await NestFactory.create(
           ),
           FluxoCaixaModule.registrar({
             apiKey: vendasConfig.apiKey,
-            repositorio: new RepositorioFluxoCaixaPg(pool),
+            repositorio: new RepositorioFluxoCaixaPg(pool, motor),
           }),
         ],
   ),
+  { bodyParser: false },
 );
+app.useBodyParser("json", {
+  limit: "2mb",
+  verify: (req: IncomingMessage, _res: ServerResponse, buf: Buffer) => {
+    if (req.url?.split("?")[0] === "/v1/webhooks/hotmart" && buf.byteLength > 65536)
+      throw new PayloadTooLargeException("corpo excede 64 KB");
+  },
+});
 app.enableShutdownHooks();
 app.use(observabilityMiddleware(createApiObservability(config)));
 await app.listen(config.port, config.host);

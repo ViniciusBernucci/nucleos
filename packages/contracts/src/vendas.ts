@@ -5,13 +5,14 @@
  */
 
 /** Grupos em que cada status da Hotmart e classificado para os indicadores. */
-export type GrupoStatusVenda = "receita" | "reembolso" | "cancelada" | "pendente";
+export type GrupoStatusVenda = "receita" | "reembolso" | "cancelada" | "pendente" | "contestada";
 
 export const GRUPOS_STATUS_VENDA: readonly GrupoStatusVenda[] = [
   "receita",
   "reembolso",
   "cancelada",
   "pendente",
+  "contestada",
 ];
 
 export interface PeriodoVendas {

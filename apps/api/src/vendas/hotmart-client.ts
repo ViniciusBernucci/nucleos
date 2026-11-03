@@ -107,6 +107,11 @@ export function normalizarVenda(item: unknown, chavePseudonimo: string): Venda |
     parcelas: Math.max(1, inteiro(pagamento["installments_number"], 1)),
     assinatura: compra["is_subscription"] === true,
     recorrencia: Math.max(0, inteiro(compra["recurrency_number"], 0)),
+    ofertaCodigo: texto(obj(compra["offer"])["code"]) || null,
+    // History already contains the effective price; do not subtract a coupon twice.
+    descontoCentavos: null,
+    rastreioOrigem: texto(obj(compra["tracking"])["source"]) || null,
+    rastreioSck: texto(obj(compra["tracking"])["source_sck"]) || null,
   };
 }
 
@@ -125,6 +130,57 @@ export class HotmartClient {
     this.#fetch = opcoes.fetch ?? fetch;
     this.#agora = opcoes.agora ?? Date.now;
     this.#esperar = opcoes.esperar ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  }
+
+  /** Only normalized role/currency/value leave this method, never participant identity. */
+  async enriquecer(venda: Venda): Promise<Venda> {
+    const base = URL_HISTORICO[this.#env].replace(/history$/, "");
+    const comissoes: NonNullable<Venda["comissoes"]> = [];
+    let cursor = "";
+    for (let pagina = 0; pagina < MAX_PAGINAS; pagina++) {
+      const params = new URLSearchParams({ transaction: venda.transacao, max_results: "500" });
+      if (cursor) params.set("page_token", cursor);
+      const resposta = await this.#get(`${base}commissions?${params.toString()}`);
+      if (!resposta.ok) throw new HotmartError("http", resposta.status);
+      const corpo = obj(await this.#json(resposta));
+      for (const item of Array.isArray(corpo["items"]) ? corpo["items"] : []) {
+        const r = obj(item),
+          c = obj(r["commission"]);
+        const tipo = texto(r["source"]).toUpperCase();
+        const moeda = texto(c["currency_code"] || c["currency_value"]).toUpperCase();
+        if (!["AFFILIATE", "COPRODUCER", "CO_PRODUCER"].includes(tipo)) continue;
+        if (moeda !== venda.moeda) throw new HotmartError("resposta");
+        comissoes.push({ tipo, moeda, valorCentavos: paraCentavos(c["value"]) });
+      }
+      cursor = texto(obj(corpo["page_info"])["next_page_token"]);
+      if (!cursor) break;
+      if (pagina === MAX_PAGINAS - 1) throw new HotmartError("resposta");
+    }
+    const preco = await this.#get(
+      `${base}price/details?transaction=${encodeURIComponent(venda.transacao)}`,
+    );
+    if (!preco.ok) throw new HotmartError("http", preco.status);
+    // Coupon semantics are inconsistent in the published example. Keep the effective
+    // sale price and explicit unknown discount instead of manufacturing a deduction.
+    await this.#json(preco);
+    return {
+      ...venda,
+      comissoes,
+      comissoesCentavos: comissoes.reduce((total, c) => total + c.valorCentavos, 0),
+    };
+  }
+
+  async transacao(transacao: string, chave: string): Promise<Venda> {
+    const params = new URLSearchParams({ transaction: transacao });
+    const resposta = await this.#get(`${URL_HISTORICO[this.#env]}?${params.toString()}`);
+    if (!resposta.ok) throw new HotmartError("http", resposta.status);
+    const corpo = obj(await this.#json(resposta));
+    const vendas = (Array.isArray(corpo["items"]) ? corpo["items"] : [])
+      .map((i: unknown) => normalizarVenda(i, chave))
+      .filter((v: Venda | null): v is Venda => v !== null);
+    const venda = vendas.find((v: Venda) => v.transacao === transacao);
+    if (!venda) throw new HotmartError("resposta");
+    return this.enriquecer(venda);
   }
 
   async #obterToken(): Promise<string> {

@@ -11,6 +11,7 @@
     "migrar": "node dist/migrar.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1161.0",
     "@nestjs/common": "12.2.0",
     "@nestjs/core": "12.2.0",
     "@nestjs/platform-express": "12.2.0",

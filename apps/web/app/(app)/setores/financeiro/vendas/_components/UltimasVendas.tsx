@@ -12,6 +12,7 @@ const GRUPO_BADGE = {
   reembolso: "badge badge--danger",
   cancelada: "badge badge--warn",
   pendente: "badge badge--info",
+  contestada: "badge badge--danger",
 } as const;
 
 const data = new Intl.DateTimeFormat("pt-BR", {

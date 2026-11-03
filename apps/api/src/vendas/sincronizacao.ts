@@ -22,6 +22,8 @@ export interface OpcoesSincronizacao {
   /** Chave do pseudonimo do comprador (HMAC). */
   chavePseudonimo: string;
   log?: (mensagem: string) => void;
+  enriquecer?: boolean;
+  reconciliacaoSeparada?: boolean;
 }
 
 export class SincronizacaoVendas {
@@ -52,8 +54,9 @@ export class SincronizacaoVendas {
     const inicio = this.#agora();
     const estado = await this.repo.lerEstadoSincronizacao();
     const reconciliar =
-      estado.ultimaReconciliacaoEm === null ||
-      inicio.getTime() - estado.ultimaReconciliacaoEm.getTime() >= INTERVALO_RECONCILIACAO_MS;
+      !this.opcoes.reconciliacaoSeparada &&
+      (estado.ultimaReconciliacaoEm === null ||
+        inicio.getTime() - estado.ultimaReconciliacaoEm.getTime() >= INTERVALO_RECONCILIACAO_MS);
 
     let de: Date;
     if (estado.ultimoSucessoEm === null)
@@ -75,7 +78,10 @@ export class SincronizacaoVendas {
           status,
           this.opcoes.chavePseudonimo,
           async (vendas) => {
-            processadas += await this.repo.gravarVendas(vendas);
+            const enriquecidas = this.opcoes.enriquecer
+              ? await Promise.all(vendas.map((v) => cliente.enriquecer(v)))
+              : vendas;
+            processadas += await this.repo.gravarVendas(enriquecidas);
           },
         );
       } catch (e) {

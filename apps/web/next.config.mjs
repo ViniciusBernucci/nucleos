@@ -9,5 +9,8 @@ try {
 }
 
 /** @type {import('next').NextConfig} */
-const nextConfig = { reactStrictMode: true };
+const nextConfig = {
+  reactStrictMode: true,
+  experimental: { serverActions: { bodySizeLimit: "11mb" } },
+};
 export default nextConfig;

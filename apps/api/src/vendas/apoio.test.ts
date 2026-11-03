@@ -19,7 +19,8 @@ test("grupos de status: desconhecido nunca vira receita", () => {
   assert.equal(grupoDoStatus("COMPLETE"), "receita");
   assert.equal(grupoDoStatus("PARTIALLY_REFUNDED"), "receita");
   assert.equal(grupoDoStatus("REFUNDED"), "reembolso");
-  assert.equal(grupoDoStatus("CHARGEBACK"), "reembolso");
+  assert.equal(grupoDoStatus("CHARGEBACK"), "contestada");
+  assert.equal(grupoDoStatus("DISPUTE"), "contestada");
   assert.equal(grupoDoStatus("CANCELLED"), "cancelada");
   assert.equal(grupoDoStatus("WAITING_PAYMENT"), "pendente");
   assert.equal(grupoDoStatus("NOVO_STATUS_DA_HOTMART"), "pendente");
