@@ -3,17 +3,17 @@
 Data: 2026-11-03. [Registro da entrega](2026-11-03-base-financeira-b.md).
 Base: `a1a0b0e`; commit de código: `c5da47f640eb2204cc8bab9d5566fff6ae73ddbd`.
 Commit: `feat(financeiro): implementar base operacional da frente B`.
-Patch real dos 61 arquivos de código/testes/configuração, sem documentação recursiva.
+Patch real dos 61 arquivos de código/testes/configuração, gerado com `git diff --unified=0`.
+Contexto zero preserva todas as mudanças sem espaços em linhas vazias de contexto.
+Para aplicar como patch, extraia o bloco e use `git apply --unidiff-zero`.
+Documentação/lessons não entram no próprio patch.
 
 ```diff
 diff --git a/.env.example b/.env.example
 index 380c5d1..368084e 100644
 --- a/.env.example
 +++ b/.env.example
-@@ -10,6 +10,13 @@ PG_HOST_PORT=15432
- REDIS_HOST_PORT=16379
- MINIO_HOST_PORT=19000
- MINIO_CONSOLE_HOST_PORT=19001
+@@ -12,0 +13,7 @@ MINIO_CONSOLE_HOST_PORT=19001
 +
 +# Financeiro: valores secretos apenas no ambiente local ou *_FILE, nunca em NEXT_PUBLIC_*.
 +# HOTMART_WEBHOOK_HOTTOK_FILE=
@@ -21,9 +21,6 @@ index 380c5d1..368084e 100644
 +# MINIO_FINANCEIRO_BUCKET=nucleos-financeiro
 +# MINIO_ACCESS_KEY_FILE=
 +# MINIO_SECRET_KEY_FILE=
- MAILPIT_SMTP_HOST_PORT=11025
- MAILPIT_UI_HOST_PORT=18025
- PROXY_HOST_PORT=18080
 diff --git a/apps/api/migrations/0007_alertas.up.sql b/apps/api/migrations/0007_alertas.up.sql
 new file mode 100644
 index 0000000..97f1909
@@ -302,14 +299,8 @@ diff --git a/apps/api/package.json b/apps/api/package.json
 index aec260a..bf7d676 100644
 --- a/apps/api/package.json
 +++ b/apps/api/package.json
-@@ -11,6 +11,7 @@
-     "migrar": "node dist/migrar.js"
-   },
-   "dependencies": {
+@@ -13,0 +14 @@
 +    "@aws-sdk/client-s3": "3.1161.0",
-     "@nestjs/common": "12.2.0",
-     "@nestjs/core": "12.2.0",
-     "@nestjs/platform-express": "12.2.0",
 diff --git a/apps/api/src/financeiro/alertas.ts b/apps/api/src/financeiro/alertas.ts
 new file mode 100644
 index 0000000..51c1aca
@@ -2582,10 +2573,7 @@ diff --git a/apps/api/src/fluxo-caixa/dominio.test.ts b/apps/api/src/fluxo-caixa
 index 00d0125..be4c5dd 100644
 --- a/apps/api/src/fluxo-caixa/dominio.test.ts
 +++ b/apps/api/src/fluxo-caixa/dominio.test.ts
-@@ -18,6 +18,22 @@ import {
-   validarNovoLancamento,
-   validarPagamento,
- } from "./validacao.js";
+@@ -20,0 +21,16 @@ import {
 +test("recorrencia anual vence apenas no mes de aniversario e dentro da vigencia", () => {
 +  const anual = {
 +    id: "1",
@@ -2602,26 +2590,17 @@ index 00d0125..be4c5dd 100644
 +  assert.equal(venceNoMes(anual, "2027-11"), true);
 +  assert.equal(venceNoMes({ ...anual, fim: "2027-10" }, "2027-11"), false);
 +});
- 
- const lanc = (id: string, p: Partial<Lancamento> = {}): Lancamento => ({
-   id,
 diff --git a/apps/api/src/fluxo-caixa/dominio.ts b/apps/api/src/fluxo-caixa/dominio.ts
 index c5b16f9..d7a3255 100644
 --- a/apps/api/src/fluxo-caixa/dominio.ts
 +++ b/apps/api/src/fluxo-caixa/dominio.ts
-@@ -13,7 +13,11 @@ export type ContaRecorrenteBanco = Omit<ContaRecorrente, "vigente">;
- 
- /** A conta vence no mes quando o mes esta entre `inicio` e `fim` (inclusive). */
- export function venceNoMes(conta: ContaRecorrenteBanco, mes: string): boolean {
+@@ -16 +16,5 @@ export function venceNoMes(conta: ContaRecorrenteBanco, mes: string): boolean {
 -  return conta.inicio <= mes && (conta.fim === null || mes <= conta.fim);
 +  return (
 +    conta.inicio <= mes &&
 +    (conta.fim === null || mes <= conta.fim) &&
 +    (conta.periodicidade !== "anual" || conta.inicio.slice(5, 7) === mes.slice(5, 7))
 +  );
- }
- 
- export function contaVigente(conta: ContaRecorrenteBanco, mesCorrente: string): boolean {
 diff --git a/apps/api/src/fluxo-caixa/eventos.test.ts b/apps/api/src/fluxo-caixa/eventos.test.ts
 new file mode 100644
 index 0000000..ed59547
@@ -2674,38 +2653,17 @@ diff --git a/apps/api/src/fluxo-caixa/repositorio-pg.ts b/apps/api/src/fluxo-cai
 index 11a647f..1b7098f 100644
 --- a/apps/api/src/fluxo-caixa/repositorio-pg.ts
 +++ b/apps/api/src/fluxo-caixa/repositorio-pg.ts
-@@ -5,7 +5,9 @@ import type {
-   NovaContaRecorrente,
-   TipoLancamento,
- } from "@nucleos/contracts";
+@@ -8 +8,3 @@ import type {
 -import type { Pool } from "pg";
 +import type { Pool, QueryResult, QueryResultRow } from "pg";
 +import { randomUUID } from "node:crypto";
 +import type { MotorFuncionarios } from "../funcionarios/motor.js";
- import type { ContaRecorrenteBanco } from "./dominio.js";
- import {
-   CategoriaDuplicada,
-@@ -19,7 +21,7 @@ const COLUNAS_LANCAMENTO = `id::text AS id, tipo, descricao, categoria, valor_ce
-   to_char(data, 'YYYY-MM-DD') AS data, conta_recorrente_id::text AS conta_recorrente_id,
-   to_char(competencia, 'YYYY-MM') AS competencia, criado_em`;
- 
+@@ -22 +24 @@ const COLUNAS_LANCAMENTO = `id::text AS id, tipo, descricao, categoria, valor_ce
 -const COLUNAS_CONTA = `id::text AS id, descricao, categoria, valor_centavos, dia_vencimento,
 +const COLUNAS_CONTA = `id::text AS id, descricao, categoria, valor_centavos, dia_vencimento,periodicidade,
-   to_char(inicio, 'YYYY-MM') AS inicio, to_char(fim, 'YYYY-MM') AS fim`;
- 
- const num = (v: unknown): number => Number(v ?? 0);
-@@ -49,6 +51,7 @@ function conta(r: Record<string, unknown>): ContaRecorrenteBanco {
-     categoria: String(r["categoria"]),
-     valorCentavos: num(r["valor_centavos"]),
-     diaVencimento: num(r["dia_vencimento"]),
+@@ -51,0 +54 @@ function conta(r: Record<string, unknown>): ContaRecorrenteBanco {
 +    periodicidade: r["periodicidade"] === "anual" ? "anual" : "mensal",
-     inicio: String(r["inicio"]),
-     fim: (r["fim"] as string | null) ?? null,
-   };
-@@ -58,10 +61,35 @@ function conta(r: Record<string, unknown>): ContaRecorrenteBanco {
- const mesParaData = (mes: string): string => `${mes}-01`;
- 
- export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
+@@ -61 +64,26 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -  constructor(private readonly pool: Pool) {}
 +  constructor(
 +    private readonly pool: Pool,
@@ -2733,173 +2691,70 @@ index 11a647f..1b7098f 100644
 +      c.release();
 +    }
 +  }
- 
-   async saldoAntesDe(dia: string): Promise<number> {
+@@ -64 +92 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -    const { rows } = await this.pool.query(
 +    const { rows } = await this.consultar(
-       `SELECT COALESCE(SUM(CASE WHEN tipo = 'entrada' THEN valor_centavos ELSE -valor_centavos END), 0)
-               AS saldo
-          FROM financeiro.lancamentos WHERE data < $1::date`,
-@@ -71,7 +99,7 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
-   }
- 
-   async lancamentosEntre(de: string, ate: string): Promise<Lancamento[]> {
+@@ -74 +102 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -    const { rows } = await this.pool.query(
 +    const { rows } = await this.consultar(
-       `SELECT ${COLUNAS_LANCAMENTO} FROM financeiro.lancamentos
-         WHERE data BETWEEN $1::date AND $2::date ORDER BY data, id`,
-       [de, ate],
-@@ -80,7 +108,7 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
-   }
- 
-   async pagamentosDaCompetencia(competencia: string): Promise<Lancamento[]> {
+@@ -83 +111 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -    const { rows } = await this.pool.query(
 +    const { rows } = await this.consultar(
-       `SELECT ${COLUNAS_LANCAMENTO} FROM financeiro.lancamentos
-         WHERE conta_recorrente_id IS NOT NULL AND competencia = $1::date`,
-       [mesParaData(competencia)],
-@@ -89,14 +117,14 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
-   }
- 
-   async listarContas(): Promise<ContaRecorrenteBanco[]> {
+@@ -92 +120 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -    const { rows } = await this.pool.query(
 +    const { rows } = await this.consultar(
-       `SELECT ${COLUNAS_CONTA} FROM financeiro.contas_recorrentes ORDER BY descricao, id`,
-     );
-     return (rows as Record<string, unknown>[]).map(conta);
-   }
- 
-   async obterConta(id: string): Promise<ContaRecorrenteBanco | null> {
+@@ -99 +127 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -    const { rows } = await this.pool.query(
 +    const { rows } = await this.consultar(
-       `SELECT ${COLUNAS_CONTA} FROM financeiro.contas_recorrentes WHERE id = $1::bigint`,
-       [id],
-     );
-@@ -105,7 +133,7 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
-   }
- 
-   async ultimaCompetenciaPaga(contaId: string): Promise<string | null> {
+@@ -108 +136 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -    const { rows } = await this.pool.query(
 +    const { rows } = await this.consultar(
-       `SELECT to_char(MAX(competencia), 'YYYY-MM') AS ultima
-          FROM financeiro.lancamentos WHERE conta_recorrente_id = $1::bigint`,
-       [contaId],
-@@ -115,7 +143,7 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
- 
-   async inserirLancamento(novo: NovoLancamentoBanco): Promise<Lancamento> {
-     try {
+@@ -118 +146 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -      const { rows } = await this.pool.query(
 +      const { rows } = await this.consultar(
-         `INSERT INTO financeiro.lancamentos
-            (tipo, descricao, categoria, valor_centavos, data, conta_recorrente_id, competencia)
-          VALUES ($1, $2, $3, $4, $5::date, $6::bigint, $7::date)
-@@ -139,14 +167,14 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
-   }
- 
-   async excluirLancamento(id: string): Promise<boolean> {
+@@ -142 +170 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -    const r = await this.pool.query("DELETE FROM financeiro.lancamentos WHERE id = $1::bigint", [
 +    const r = await this.consultar("DELETE FROM financeiro.lancamentos WHERE id = $1::bigint", [
-       id,
-     ]);
-     return (r.rowCount ?? 0) > 0;
-   }
- 
-   async inserirConta(nova: NovaContaRecorrente): Promise<ContaRecorrenteBanco> {
+@@ -149 +177 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -    const { rows } = await this.pool.query(
 +    const { rows } = await this.consultar(
-       `INSERT INTO financeiro.contas_recorrentes
-          (descricao, categoria, valor_centavos, dia_vencimento, inicio, fim)
-        VALUES ($1, $2, $3, $4, $5::date, $6::date)
-@@ -164,7 +192,7 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
-   }
- 
-   async definirFimConta(id: string, fim: string | null): Promise<boolean> {
+@@ -167 +195 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -    const r = await this.pool.query(
 +    const r = await this.consultar(
-       `UPDATE financeiro.contas_recorrentes SET fim = $2::date, atualizada_em = now()
-         WHERE id = $1::bigint`,
-       [id, fim === null ? null : mesParaData(fim)],
-@@ -174,7 +202,7 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
- 
-   async excluirConta(id: string): Promise<boolean> {
-     try {
+@@ -177 +205 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -      const r = await this.pool.query(
 +      const r = await this.consultar(
-         "DELETE FROM financeiro.contas_recorrentes WHERE id = $1::bigint",
-         [id],
-       );
-@@ -188,14 +216,14 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
-   }
- 
-   async listarCategorias(): Promise<Categoria[]> {
+@@ -191 +219 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -    const { rows } = await this.pool.query(
 +    const { rows } = await this.consultar(
-       `SELECT id::text AS id, tipo, nome FROM financeiro.categorias ORDER BY tipo, lower(nome), id`,
-     );
-     return rows as Categoria[];
-   }
- 
-   async nomeDaCategoria(tipo: TipoLancamento, nome: string): Promise<string | null> {
+@@ -198 +226 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -    const { rows } = await this.pool.query(
 +    const { rows } = await this.consultar(
-       `SELECT nome FROM financeiro.categorias WHERE tipo = $1 AND lower(nome) = lower($2)`,
-       [tipo, nome],
-     );
-@@ -204,7 +232,7 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
- 
-   async inserirCategoria(nova: NovaCategoria): Promise<Categoria> {
-     try {
+@@ -207 +235 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -      const { rows } = await this.pool.query(
 +      const { rows } = await this.consultar(
-         `INSERT INTO financeiro.categorias (tipo, nome) VALUES ($1, $2)
-          RETURNING id::text AS id, tipo, nome`,
-         [nova.tipo, nova.nome],
-@@ -218,9 +246,7 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
-   }
- 
-   async excluirCategoria(id: string): Promise<boolean> {
+@@ -221,3 +249 @@ export class RepositorioFluxoCaixaPg implements RepositorioFluxoCaixa {
 -    const r = await this.pool.query("DELETE FROM financeiro.categorias WHERE id = $1::bigint", [
 -      id,
 -    ]);
 +    const r = await this.consultar("DELETE FROM financeiro.categorias WHERE id = $1::bigint", [id]);
-     return (r.rowCount ?? 0) > 0;
-   }
- }
 diff --git a/apps/api/src/funcionarios/motor.ts b/apps/api/src/funcionarios/motor.ts
 index 86f05c3..beb4668 100644
 --- a/apps/api/src/funcionarios/motor.ts
 +++ b/apps/api/src/funcionarios/motor.ts
-@@ -62,11 +62,13 @@ export class MotorFuncionarios {
-     origem: string,
-     quando: Date,
-     agendamento?: Agendamento,
+@@ -64,0 +65 @@ export class MotorFuncionarios {
 +    configManual?: ObjetoConfig,
-   ): Promise<string> {
-     const a = await atribuicaoMotor(c, id);
-     exigirExecutavel(a);
-     this.autorizador.permitir(a.permissoes_requeridas);
+@@ -69 +70,2 @@ export class MotorFuncionarios {
 -    validarConfiguracao(a.config_schema, a.config, this.registro.obter(a.handler_key));
 +    const config = configManual ?? a.config;
 +    validarConfiguracao(a.config_schema, config, this.registro.obter(a.handler_key));
-     const r = await c.query<{ id: string }>(
-       `INSERT INTO funcionarios.execucoes(atribuicao_id,agendamento_id,agendamento_versao,origem,
-    programada_em,chave_idempotencia,correlacao,config_snapshot) VALUES($1,$2,$3,$4,$5,$6,$7,$8)
-@@ -79,7 +81,7 @@ export class MotorFuncionarios {
-         quando,
-         chave,
-         randomUUID(),
+@@ -82 +84 @@ export class MotorFuncionarios {
 -        a.config,
 +        config,
-       ],
-     );
-     const execucao = r.rows[0]?.id;
-@@ -101,9 +103,17 @@ export class MotorFuncionarios {
-       await auditar(c, "execucao", execucao, "executar", null, { atribuicao_id: id });
-     return execucao;
-   }
+@@ -104 +106 @@ export class MotorFuncionarios {
 -  executarAgora(atribuicaoId: string): Promise<string> {
 +  executarAgora(atribuicaoId: string, config?: ObjetoConfig): Promise<string> {
-     return transacao(this.pool, async (c) =>
+@@ -106 +108,9 @@ export class MotorFuncionarios {
 -      this.#enfileirar(c, atribuicaoId, `manual:${randomUUID()}`, "manual", await this.#agora(c)),
 +      this.#enfileirar(
 +        c,
@@ -2910,15 +2765,11 @@ index 86f05c3..beb4668 100644
 +        undefined,
 +        config,
 +      ),
-     );
-   }
-   async planejar(): Promise<number> {
 diff --git a/apps/api/src/main.ts b/apps/api/src/main.ts
 index afed1c0..9513529 100644
 --- a/apps/api/src/main.ts
 +++ b/apps/api/src/main.ts
-@@ -1,7 +1,15 @@
- import "reflect-metadata";
+@@ -2 +2,6 @@ import "reflect-metadata";
 -import { ConfigError, loadApiConfig, loadVendasConfig } from "@nucleos/config";
 +import {
 +  ConfigError,
@@ -2926,57 +2777,28 @@ index afed1c0..9513529 100644
 +  loadFinanceiroConfig,
 +  loadVendasConfig,
 +} from "@nucleos/config";
- import { NestFactory } from "@nestjs/core";
+@@ -3,0 +9,2 @@ import { NestFactory } from "@nestjs/core";
 +import { PayloadTooLargeException } from "@nestjs/common";
 +import type { NestExpressApplication } from "@nestjs/platform-express";
- import { Pool } from "pg";
+@@ -4,0 +12 @@ import { Pool } from "pg";
 +import type { IncomingMessage, ServerResponse } from "node:http";
- import { AppModule } from "./app.module.js";
- import { opcoesPool } from "./banco.js";
- import { createApiObservability, observabilityMiddleware } from "./observability.js";
-@@ -11,14 +19,17 @@ import { VendasModule } from "./vendas/vendas.module.js";
- import { RegistroHandlers } from "./funcionarios/handlers.js";
- import { MotorFuncionarios } from "./funcionarios/motor.js";
- import { FuncionariosModule } from "./funcionarios/funcionarios.module.js";
+@@ -13,0 +22 @@ import { FuncionariosModule } from "./funcionarios/funcionarios.module.js";
 +import { FinanceiroModule } from "./financeiro/financeiro.module.js";
- 
- // Falha rapida (FND-006): configuracao ausente/invalida impede a subida; a mensagem so lista
- // nomes de variaveis e motivos, nunca valores.
- let config;
- let vendasConfig;
+@@ -18,0 +28 @@ let vendasConfig;
 +let financeiroConfig;
- try {
-   config = loadApiConfig();
-   vendasConfig = loadVendasConfig();
+@@ -21,0 +32 @@ try {
 +  financeiroConfig = loadFinanceiroConfig();
- } catch (e) {
-   if (e instanceof ConfigError) {
-     console.error(`api: ${e.message}`);
-@@ -46,11 +57,12 @@ const motor =
-   pool === undefined
-     ? undefined
-     : new MotorFuncionarios(pool, new RegistroHandlers(), undefined, { log });
+@@ -49 +60 @@ const motor =
 -const app = await NestFactory.create(
 +const app = await NestFactory.create<NestExpressApplication>(
-   AppModule.comModulos(
-     pool === undefined || motor === undefined
-       ? []
-       : [
+@@ -53,0 +65 @@ const app = await NestFactory.create(
 +          FinanceiroModule.registrar(motor, vendasConfig.apiKey, financeiroConfig, vendasConfig),
-           VendasModule.registrar({
-             config: vendasConfig,
-             pool,
-@@ -65,11 +77,19 @@ const app = await NestFactory.create(
-           ),
-           FluxoCaixaModule.registrar({
-             apiKey: vendasConfig.apiKey,
+@@ -68 +80 @@ const app = await NestFactory.create(
 -            repositorio: new RepositorioFluxoCaixaPg(pool),
 +            repositorio: new RepositorioFluxoCaixaPg(pool, motor),
-           }),
-         ],
-   ),
+@@ -71,0 +84 @@ const app = await NestFactory.create(
 +  { bodyParser: false },
- );
+@@ -72,0 +86,7 @@ const app = await NestFactory.create(
 +app.useBodyParser("json", {
 +  limit: "2mb",
 +  verify: (req: IncomingMessage, _res: ServerResponse, buf: Buffer) => {
@@ -2984,77 +2806,41 @@ index afed1c0..9513529 100644
 +      throw new PayloadTooLargeException("corpo excede 64 KB");
 +  },
 +});
- app.enableShutdownHooks();
- app.use(observabilityMiddleware(createApiObservability(config)));
- await app.listen(config.port, config.host);
 diff --git a/apps/api/src/vendas/apoio.test.ts b/apps/api/src/vendas/apoio.test.ts
 index 73d4f0e..e265da9 100644
 --- a/apps/api/src/vendas/apoio.test.ts
 +++ b/apps/api/src/vendas/apoio.test.ts
-@@ -19,7 +19,8 @@ test("grupos de status: desconhecido nunca vira receita", () => {
-   assert.equal(grupoDoStatus("COMPLETE"), "receita");
-   assert.equal(grupoDoStatus("PARTIALLY_REFUNDED"), "receita");
-   assert.equal(grupoDoStatus("REFUNDED"), "reembolso");
+@@ -22 +22,2 @@ test("grupos de status: desconhecido nunca vira receita", () => {
 -  assert.equal(grupoDoStatus("CHARGEBACK"), "reembolso");
 +  assert.equal(grupoDoStatus("CHARGEBACK"), "contestada");
 +  assert.equal(grupoDoStatus("DISPUTE"), "contestada");
-   assert.equal(grupoDoStatus("CANCELLED"), "cancelada");
-   assert.equal(grupoDoStatus("WAITING_PAYMENT"), "pendente");
-   assert.equal(grupoDoStatus("NOVO_STATUS_DA_HOTMART"), "pendente");
 diff --git a/apps/api/src/vendas/dominio.ts b/apps/api/src/vendas/dominio.ts
 index 5ae85ab..fca9ce2 100644
 --- a/apps/api/src/vendas/dominio.ts
 +++ b/apps/api/src/vendas/dominio.ts
-@@ -18,6 +18,12 @@ export interface Venda {
-   parcelas: number;
-   assinatura: boolean;
-   recorrencia: number;
+@@ -20,0 +21,6 @@ export interface Venda {
 +  ofertaCodigo?: string | null;
 +  descontoCentavos?: number | null;
 +  comissoesCentavos?: number;
 +  rastreioOrigem?: string | null;
 +  rastreioSck?: string | null;
 +  comissoes?: { tipo: string; moeda: string; valorCentavos: number }[];
- }
- 
- /** Status que a API de historico da Hotmart aceita em `transaction_status`. */
-@@ -41,7 +47,7 @@ export const STATUS_HOTMART = [
-   "NO_FUNDS",
- ] as const;
- 
+@@ -44 +50 @@ export const STATUS_HOTMART = [
 -const REEMBOLSO = new Set(["REFUNDED", "CHARGEBACK"]);
 +const REEMBOLSO = new Set(["REFUNDED"]);
- const CANCELADA = new Set(["CANCELLED", "EXPIRED", "PROTESTED", "BLOCKED", "NO_FUNDS"]);
- // PARTIALLY_REFUNDED continua como receita: a venda vale, e o valor devolvido nao vem neste endpoint.
- const RECEITA = new Set(["APPROVED", "COMPLETE", "PARTIALLY_REFUNDED"]);
-@@ -49,6 +55,7 @@ const RECEITA = new Set(["APPROVED", "COMPLETE", "PARTIALLY_REFUNDED"]);
- /** Classifica o status da Hotmart; status desconhecido fica pendente (nunca vira receita). */
- export function grupoDoStatus(status: string): GrupoStatusVenda {
-   const s = status.toUpperCase();
+@@ -51,0 +58 @@ export function grupoDoStatus(status: string): GrupoStatusVenda {
 +  if (s === "CHARGEBACK" || s === "DISPUTE") return "contestada";
-   if (RECEITA.has(s)) return "receita";
-   if (REEMBOLSO.has(s)) return "reembolso";
-   if (CANCELADA.has(s)) return "cancelada";
 diff --git a/apps/api/src/vendas/hotmart-client.ts b/apps/api/src/vendas/hotmart-client.ts
 index 993d63d..51db749 100644
 --- a/apps/api/src/vendas/hotmart-client.ts
 +++ b/apps/api/src/vendas/hotmart-client.ts
-@@ -107,6 +107,11 @@ export function normalizarVenda(item: unknown, chavePseudonimo: string): Venda |
-     parcelas: Math.max(1, inteiro(pagamento["installments_number"], 1)),
-     assinatura: compra["is_subscription"] === true,
-     recorrencia: Math.max(0, inteiro(compra["recurrency_number"], 0)),
+@@ -109,0 +110,5 @@ export function normalizarVenda(item: unknown, chavePseudonimo: string): Venda |
 +    ofertaCodigo: texto(obj(compra["offer"])["code"]) || null,
 +    // History already contains the effective price; do not subtract a coupon twice.
 +    descontoCentavos: null,
 +    rastreioOrigem: texto(obj(compra["tracking"])["source"]) || null,
 +    rastreioSck: texto(obj(compra["tracking"])["source_sck"]) || null,
-   };
- }
- 
-@@ -127,6 +132,57 @@ export class HotmartClient {
-     this.#esperar = opcoes.esperar ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
-   }
- 
+@@ -129,0 +135,51 @@ export class HotmartClient {
 +  /** Only normalized role/currency/value leave this method, never participant identity. */
 +  async enriquecer(venda: Venda): Promise<Venda> {
 +    const base = URL_HISTORICO[this.#env].replace(/history$/, "");
@@ -3106,49 +2892,25 @@ index 993d63d..51db749 100644
 +    return this.enriquecer(venda);
 +  }
 +
-   async #obterToken(): Promise<string> {
-     if (this.#token !== undefined && this.#token.expiraEm > this.#agora()) {
-       return this.#token.valor;
 diff --git a/apps/api/src/vendas/repositorio-pg.ts b/apps/api/src/vendas/repositorio-pg.ts
 index a4c04d7..0b053b6 100644
 --- a/apps/api/src/vendas/repositorio-pg.ts
 +++ b/apps/api/src/vendas/repositorio-pg.ts
-@@ -5,6 +5,7 @@ import type {
-   VendaResumo,
- } from "@nucleos/contracts";
- import type { Pool } from "pg";
+@@ -7,0 +8 @@ import type { Pool } from "pg";
 +import type { MotorFuncionarios } from "../funcionarios/motor.js";
- import type { Venda } from "./dominio.js";
- import { FUSO } from "./periodo.js";
- import type {
-@@ -39,7 +40,8 @@ function indicadoresDe(linha: Record<string, unknown>): IndicadoresVendas {
-   return {
-     receitaBrutaCentavos: receita,
-     taxasCentavos: taxas,
+@@ -42 +43,2 @@ function indicadoresDe(linha: Record<string, unknown>): IndicadoresVendas {
 -    receitaLiquidaCentavos: receita - taxas,
 +    receitaLiquidaCentavos:
 +      linha["liquido"] === undefined ? receita - taxas : num(linha["liquido"]),
-     vendas,
-     ticketMedioCentavos: vendas === 0 ? 0 : Math.round(receita / vendas),
-     compradoresUnicos: num(linha["compradores"]),
-@@ -54,6 +56,7 @@ const SQL_INDICADORES = `
-   SELECT
-     COALESCE(SUM(valor_centavos) FILTER (WHERE grupo = 'receita'), 0) AS receita,
-     COALESCE(SUM(taxa_centavos)  FILTER (WHERE grupo = 'receita'), 0) AS taxas,
+@@ -56,0 +59 @@ const SQL_INDICADORES = `
 +    COALESCE(SUM(liquido_centavos) FILTER (WHERE grupo = 'receita'),0) AS liquido,
-     COUNT(*) FILTER (WHERE grupo = 'receita') AS vendas,
-     COUNT(DISTINCT comprador_id) FILTER (WHERE grupo = 'receita') AS compradores,
-     COALESCE(SUM(valor_centavos) FILTER (WHERE grupo = 'reembolso'), 0) AS reembolsado,
-@@ -62,46 +65,106 @@ const SQL_INDICADORES = `
-   FROM financeiro.vendas WHERE ${ONDE}`;
- 
- export class RepositorioVendasPg implements RepositorioVendas {
+@@ -65 +68,4 @@ export class RepositorioVendasPg implements RepositorioVendas {
 -  constructor(private readonly pool: Pool) {}
 +  constructor(
 +    private readonly pool: Pool,
 +    private readonly motor?: MotorFuncionarios,
 +  ) {}
- 
+@@ -67,38 +73,95 @@ export class RepositorioVendasPg implements RepositorioVendas {
 -  async gravarVendas(vendas: readonly Venda[]): Promise<number> {
 -    const unicas = [...new Map(vendas.map((v) => [v.transacao, v])).values()];
 -    if (unicas.length === 0) return 0;
@@ -3282,68 +3044,35 @@ index a4c04d7..0b053b6 100644
 +    } finally {
 +      c.release();
 +    }
-   }
- 
-   async lerEstadoSincronizacao(): Promise<EstadoSincronizacaoBanco> {
 diff --git a/apps/api/src/vendas/sincronizacao.ts b/apps/api/src/vendas/sincronizacao.ts
 index be692cf..a0bb0a0 100644
 --- a/apps/api/src/vendas/sincronizacao.ts
 +++ b/apps/api/src/vendas/sincronizacao.ts
-@@ -22,6 +22,8 @@ export interface OpcoesSincronizacao {
-   /** Chave do pseudonimo do comprador (HMAC). */
-   chavePseudonimo: string;
-   log?: (mensagem: string) => void;
+@@ -24,0 +25,2 @@ export interface OpcoesSincronizacao {
 +  enriquecer?: boolean;
 +  reconciliacaoSeparada?: boolean;
- }
- 
- export class SincronizacaoVendas {
-@@ -52,8 +54,9 @@ export class SincronizacaoVendas {
-     const inicio = this.#agora();
-     const estado = await this.repo.lerEstadoSincronizacao();
-     const reconciliar =
+@@ -55,2 +57,3 @@ export class SincronizacaoVendas {
 -      estado.ultimaReconciliacaoEm === null ||
 -      inicio.getTime() - estado.ultimaReconciliacaoEm.getTime() >= INTERVALO_RECONCILIACAO_MS;
 +      !this.opcoes.reconciliacaoSeparada &&
 +      (estado.ultimaReconciliacaoEm === null ||
 +        inicio.getTime() - estado.ultimaReconciliacaoEm.getTime() >= INTERVALO_RECONCILIACAO_MS);
- 
-     let de: Date;
-     if (estado.ultimoSucessoEm === null)
-@@ -75,7 +78,10 @@ export class SincronizacaoVendas {
-           status,
-           this.opcoes.chavePseudonimo,
-           async (vendas) => {
+@@ -78 +81,4 @@ export class SincronizacaoVendas {
 -            processadas += await this.repo.gravarVendas(vendas);
 +            const enriquecidas = this.opcoes.enriquecer
 +              ? await Promise.all(vendas.map((v) => cliente.enriquecer(v)))
 +              : vendas;
 +            processadas += await this.repo.gravarVendas(enriquecidas);
-           },
-         );
-       } catch (e) {
 diff --git a/apps/api/src/vendas/vendas.module.ts b/apps/api/src/vendas/vendas.module.ts
 index 730091e..724041f 100644
 --- a/apps/api/src/vendas/vendas.module.ts
 +++ b/apps/api/src/vendas/vendas.module.ts
-@@ -29,7 +29,7 @@ export class VendasModule {
-     log = () => undefined,
-     motor,
-   }: OpcoesModuloVendas): DynamicModule {
+@@ -32 +32 @@ export class VendasModule {
 -    const repo = new RepositorioVendasPg(pool);
 +    const repo = new RepositorioVendasPg(pool, motor);
-     const cliente =
-       config.hotmart === undefined
-         ? undefined
-@@ -39,6 +39,8 @@ export class VendasModule {
-       // O segredo do cliente e estavel enquanto a credencial nao for rotacionada.
-       chavePseudonimo: config.hotmart?.clientSecret.reveal() ?? "sem-hotmart",
-       log,
+@@ -41,0 +42,2 @@ export class VendasModule {
 +      enriquecer: true,
 +      reconciliacaoSeparada: true,
-     });
-     if (motor !== undefined && cliente !== undefined) {
-       motor.registro.registrar({
 diff --git a/apps/web/app/(app)/setores/financeiro/_components/Alertas.tsx b/apps/web/app/(app)/setores/financeiro/_components/Alertas.tsx
 new file mode 100644
 index 0000000..69daf38
@@ -4258,28 +3987,16 @@ diff --git a/apps/web/app/(app)/setores/financeiro/vendas/_components/UltimasVen
 index fc8a848..486daeb 100644
 --- a/apps/web/app/(app)/setores/financeiro/vendas/_components/UltimasVendas.tsx
 +++ b/apps/web/app/(app)/setores/financeiro/vendas/_components/UltimasVendas.tsx
-@@ -12,6 +12,7 @@ const GRUPO_BADGE = {
-   reembolso: "badge badge--danger",
-   cancelada: "badge badge--warn",
-   pendente: "badge badge--info",
+@@ -14,0 +15 @@ const GRUPO_BADGE = {
 +  contestada: "badge badge--danger",
- } as const;
- 
- const data = new Intl.DateTimeFormat("pt-BR", {
 diff --git a/apps/web/app/(app)/setores/financeiro/vendas/page.tsx b/apps/web/app/(app)/setores/financeiro/vendas/page.tsx
 index 7d3f58c..7450348 100644
 --- a/apps/web/app/(app)/setores/financeiro/vendas/page.tsx
 +++ b/apps/web/app/(app)/setores/financeiro/vendas/page.tsx
-@@ -76,6 +76,9 @@ async function PainelCompleto({
-   return (
-     <>
-       <Sincronizacao estado={painel.sincronizacao} agora={agora} />
+@@ -78,0 +79,3 @@ async function PainelCompleto({
 +      <a href="/setores/financeiro/vendas/receitas">
 +        Receitas detalhadas, comissões e histórico de status
 +      </a>
-       <Filtros painel={painel} filtros={filtros} agora={agora} />
- 
-       {semDados ? (
 diff --git a/apps/web/app/(app)/setores/financeiro/vendas/receitas/[transacao]/page.tsx b/apps/web/app/(app)/setores/financeiro/vendas/receitas/[transacao]/page.tsx
 new file mode 100644
 index 0000000..77da468
@@ -4504,16 +4221,12 @@ diff --git a/apps/web/next.config.mjs b/apps/web/next.config.mjs
 index b052a3f..34afd7d 100644
 --- a/apps/web/next.config.mjs
 +++ b/apps/web/next.config.mjs
-@@ -9,5 +9,8 @@ try {
- }
- 
- /** @type {import('next').NextConfig} */
+@@ -12 +12,4 @@ try {
 -const nextConfig = { reactStrictMode: true };
 +const nextConfig = {
 +  reactStrictMode: true,
 +  experimental: { serverActions: { bodySizeLimit: "11mb" } },
 +};
- export default nextConfig;
 diff --git a/packages/config/src/financeiro.test.ts b/packages/config/src/financeiro.test.ts
 new file mode 100644
 index 0000000..ea8c0e7
@@ -4609,61 +4322,32 @@ diff --git a/packages/config/src/index.ts b/packages/config/src/index.ts
 index 911b862..0229d2e 100644
 --- a/packages/config/src/index.ts
 +++ b/packages/config/src/index.ts
-@@ -16,3 +16,4 @@ export {
- } from "./vendas.js";
- export { absolutePathSchema, durationMs, portSchema, serviceUrl, sizeBytes } from "./primitives.js";
- export { MAX_SECRET_BYTES, Secret, SecretFileError, readSecretFile } from "./secret.js";
+@@ -18,0 +19 @@ export { MAX_SECRET_BYTES, Secret, SecretFileError, readSecretFile } from "./sec
 +export { loadFinanceiroConfig, type FinanceiroConfig } from "./financeiro.js";
 diff --git a/packages/contracts/src/fluxo-caixa.ts b/packages/contracts/src/fluxo-caixa.ts
 index e77d938..b02b65c 100644
 --- a/packages/contracts/src/fluxo-caixa.ts
 +++ b/packages/contracts/src/fluxo-caixa.ts
-@@ -30,6 +30,7 @@ export interface MovimentoFluxo extends Lancamento {
- }
- 
- export interface ContaRecorrente {
+@@ -32,0 +33 @@ export interface ContaRecorrente {
 +  periodicidade?: "mensal" | "anual";
-   id: string;
-   descricao: string;
-   categoria: string;
 diff --git a/packages/contracts/src/vendas.ts b/packages/contracts/src/vendas.ts
 index c3216fc..f88407d 100644
 --- a/packages/contracts/src/vendas.ts
 +++ b/packages/contracts/src/vendas.ts
-@@ -5,13 +5,14 @@
-  */
- 
- /** Grupos em que cada status da Hotmart e classificado para os indicadores. */
+@@ -8 +8 @@
 -export type GrupoStatusVenda = "receita" | "reembolso" | "cancelada" | "pendente";
 +export type GrupoStatusVenda = "receita" | "reembolso" | "cancelada" | "pendente" | "contestada";
- 
- export const GRUPOS_STATUS_VENDA: readonly GrupoStatusVenda[] = [
-   "receita",
-   "reembolso",
-   "cancelada",
-   "pendente",
+@@ -14,0 +15 @@ export const GRUPOS_STATUS_VENDA: readonly GrupoStatusVenda[] = [
 +  "contestada",
- ];
- 
- export interface PeriodoVendas {
 diff --git a/pnpm-lock.yaml b/pnpm-lock.yaml
 index 685c79b..39c38da 100644
 --- a/pnpm-lock.yaml
 +++ b/pnpm-lock.yaml
-@@ -203,6 +203,9 @@ importers:
- 
-   apps/api:
-     dependencies:
+@@ -205,0 +206,3 @@ importers:
 +      '@aws-sdk/client-s3':
 +        specifier: 3.1161.0
 +        version: 3.1161.0
-       '@nestjs/common':
-         specifier: 12.2.0
-         version: 12.2.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@7.2.0)
-@@ -324,6 +327,78 @@ packages:
-     resolution: {integrity: sha512-60vepv88RwcJtSHrD6MjIL6Ta3SOYbgfnkHb+ppAVK+o9mXprRtulx7VlRl3lN3bbvysAfCS7WMVfhUYemB0IQ==}
-     engines: {node: '>= 16'}
- 
+@@ -326,0 +330,72 @@ packages:
 +  '@aws-sdk/checksums@3.1002.1':
 +    resolution: {integrity: sha512-CXNESwkQC9jdrUG6cKXBfudVt1frGcYQykcCYbNclVrsewuGMbo3PlFjRteMe4OftNAqhyc3xC2jTz7SUqLasQ==}
 +    engines: {node: '>=20.0.0'}
@@ -4736,13 +4420,7 @@ index 685c79b..39c38da 100644
 +    resolution: {integrity: sha512-sl4Bm6yiMNYrZKkqqDFWN0UfnWhlS8ivKxrYl+6t0gCLrqr8y3B2IqZZbFRkfaVVp7C/baApyh71P+LeE1A2sQ==}
 +    engines: {node: '>=18.0.0'}
 +
-   '@babel/code-frame@7.29.7':
-     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
-     engines: {node: '>=6.9.0'}
-@@ -751,6 +826,30 @@ packages:
-     resolution: {integrity: sha512-dEyx4uHh6Pc6ZkdU9Xe8rA4h12Odq6QKU/fqseBn07xwVwskhHiF3KHhqmw5BR+jAiFTvKTmwCafFql/k1pSzA==}
-     engines: {node: '>=18.17.0', npm: '>=9.5.0'}
- 
+@@ -753,0 +829,24 @@ packages:
 +  '@smithy/core@3.38.1':
 +    resolution: {integrity: sha512-U/mB2XiwTLaf+NSgLSWwJfptsMT/H8aBi0aTAA/E5e2/TagFeGCqAyhKGG0w0A9IWTkm4qYEmLoD/HB6aYfnRA==}
 +    engines: {node: '>=18.0.0'}
@@ -4767,23 +4445,11 @@ index 685c79b..39c38da 100644
 +    resolution: {integrity: sha512-r7jh49VJxGerfAcTQA6gXcKc+98zOp/tqRwzYjgOE+iSQsP6cEU1hq2QzbuipmP68QtYdY9wKEhiCQZIzHgZ4Q==}
 +    engines: {node: '>=18.0.0'}
 +
-   '@standard-schema/spec@1.1.0':
-     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
- 
-@@ -948,6 +1047,9 @@ packages:
-     resolution: {integrity: sha512-Ifk1KcLrxaGt1occQagQNFNNOqRt1LFuehEnHHzB8Z6cRgIxRU1TBaiIsUiCdA+gy5PL7Y1IX31DNKkRmxtXjQ==}
-     engines: {node: '>=18'}
- 
+@@ -950,0 +1050,3 @@ packages:
 +  bowser@2.15.0:
 +    resolution: {integrity: sha512-xic6KSZglg/I4ymp45fdM4GWfYpBK79Fxd/TOvJktlaPgQqqDxvmGwOPZl2V0dyeS3Lj5c180bLhXF43iyAjZQ==}
 +
-   brace-expansion@5.0.12:
-     resolution: {integrity: sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==}
-     engines: {node: 20 || >=22}
-@@ -1991,6 +2093,171 @@ snapshots:
-       '@types/json-schema': 7.0.15
-       js-yaml: 4.3.2
- 
+@@ -1993,0 +2096,165 @@ snapshots:
 +  '@aws-sdk/checksums@3.1002.1':
 +    dependencies:
 +      '@aws-sdk/core': 3.979.1
@@ -4949,13 +4615,7 @@ index 685c79b..39c38da 100644
 +
 +  '@aws/lambda-invoke-store@0.3.0': {}
 +
-   '@babel/code-frame@7.29.7':
-     dependencies:
-       '@babel/helper-validator-identifier': 7.29.7
-@@ -2343,6 +2610,39 @@ snapshots:
-     transitivePeerDependencies:
-       - supports-color
- 
+@@ -2345,0 +2613,33 @@ snapshots:
 +  '@smithy/core@3.38.1':
 +    dependencies:
 +      '@smithy/types': 4.19.0
@@ -4989,17 +4649,7 @@ index 685c79b..39c38da 100644
 +    dependencies:
 +      tslib: 2.8.1
 +
-   '@standard-schema/spec@1.1.0': {}
- 
-   '@swc/helpers@0.5.23':
-@@ -2562,6 +2862,8 @@ snapshots:
-     transitivePeerDependencies:
-       - supports-color
- 
+@@ -2564,0 +2865,2 @@ snapshots:
 +  bowser@2.15.0: {}
 +
-   brace-expansion@5.0.12:
-     dependencies:
-       balanced-match: 4.0.4
 ```
-
