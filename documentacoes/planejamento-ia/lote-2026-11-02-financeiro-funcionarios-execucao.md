@@ -25,10 +25,12 @@ Escopo e verificações: [registro P0](../financeiro/2026-11-02-fluxo-de-caixa.m
   entrega f02cfa5, merge 67db27b; revisão independente PASS.
 - B (FIN-103→101→102→104→105→106): EM_IMPLEMENTACAO,
   branch feat/lote-1102-b-base-financeira, base a1a0b0e.
-- M (FIN-301): EM_IMPLEMENTACAO em paralelo a B,
-  branch feat/lote-1102-m-meta-ads, base a1a0b0e.
+- M (FIN-301): CANDIDATA_IMPLEMENTADA / LEITURA_INDEPENDENTE_CONCLUIDA,
+  branch feat/lote-1102-m-meta-ads, implementação 4690f1c, candidata adaa9b7,
+  relatório 9e144ba; aprovação ainda depende de PG/HTTP em ambiente autorizado.
 - C e D: NÃO INICIADAS, aguardam dependências.
-- Revisões corretivas B/M/C/D: NÃO EXECUTADAS.
+- Revisão M: sem achados médios/altos/críticos demonstrados; validação PG pendente.
+  Revisões B/C/D: NÃO EXECUTADAS.
 - Integração A: build TS/Python, 28 PG/HTTP, contratos e Gitleaks PASS;
   suíte/lint gerais sem PASS pelas limitações documentadas.
 - Testes manuais e aceite visual: PENDENTES conforme manifesto §8.
@@ -156,3 +158,15 @@ parcial intacto, conforme o paralelismo do manifesto §6. A integração permane
 269e28e, limpa antes deste registro; A não será reimplementada nem sua revisão repetida.
 Revisões corretivas B/M, integração, C/D e roteiro manual continuam pendentes.
 Instrumentação Node legado não foi iniciada; contadores de tokens por skill indisponíveis.
+
+### Candidata M preservada
+
+Implementação 4690f1c; documentação/patch final adaa9b7; relatório independente 9e144ba.
+Build TypeScript/Python, sete unitários, ESLint/Prettier focais, Gitleaks e diff-check
+PASS. `make lint` falha na formatação preexistente de NavLink/layout; `make test` falha
+nos cenários Unix de configuração no Windows. Nenhum desses comandos gerais recebeu PASS.
+
+Nenhum achado médio/alto/crítico foi demonstrado pela leitura independente. PG/HTTP
+essenciais permanecem NÃO VALIDADOS: a pergunta ao usuário sobre bancos temporários no
+core local ainda aguarda resposta explícita. Nenhuma migration de desenvolvimento foi
+aplicada. M não foi integrada; segue roteiro manual pendente. B continua em implementação.
