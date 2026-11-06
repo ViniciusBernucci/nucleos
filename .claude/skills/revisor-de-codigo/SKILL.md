@@ -1,54 +1,83 @@
 ---
 name: revisor-de-codigo
-description: Revisa um diff com foco em problemas de impacto médio, alto ou crítico. No fluxo enxuto autorizado, aplica correções e testes em um ciclo; na chamada direta de revisão, produz achados sem editar.
+description: Revisa o diff de uma tarefa contra a especificação e os riscos de código, e corrige no mesmo ciclo os problemas de severidade média, alta ou crítica. Use em sessão nova, depois do commit do executor; não faz QA de tela, não revisa estilo e não roda em loop.
 ---
 
 # Revisor de código
 
-Siga o [contrato Go](../_shared/context-compiler.md) nos despachos do runtime.
-Leia o [fluxo enxuto](../_shared/fluxo-enxuto.md) quando o brief indicar esse perfil.
+Revise o que a tarefa mudou e **corrija você mesmo** os problemas de severidade média ou maior, num
+**único ciclo**. O objetivo é confiabilidade, não perfeição. Se o usuário pedir "só revise", não
+edite: entregue apenas os achados.
 
-## Escopo e evidência
+Rode em **sessão nova**, de preferência. Quem escreveu o código tende a não ver os próprios erros.
 
-Confirme base SHA, HEAD, worktree e mudanças staged/unstaged/untracked que pertencem ao
-lote. Não compare silenciosamente com outra base. Use o brief consolidado, aceites,
-regras e contratos; leia segmentos pertinentes do diff e rastreie dependências concretas.
-Não releia catálogos, lockfiles ou todo o histórico. Registre lacunas essenciais como BLOCKED.
+## 1. Fixe o escopo
 
-Procure somente problemas fundamentados de impacto MÉDIO, ALTO ou CRÍTICO: segurança,
-autorização, perda/corrupção de dados, quebra de requisitos/contratos, regressões,
-transações/migrations e performance com impacto concreto. Não procure nem corrija
-estilo, nomes, comentários, preferências arquiteturais ou refatorações opcionais.
-Suspeita sem caminho demonstrado é limitação, não bug confirmado nem autorização para editar.
+- Confirme a raiz Git, a branch e que `git status` está limpo.
+- **Base:** o SHA base do prompt da tarefa. Sem ele, use `git merge-base origin/main HEAD`. Base
+  ambígua: pergunte. Confira com `git rev-parse` e veja se o diff não está vazio.
+- Diff: `git diff {base}...HEAD` e `git log {base}..HEAD --oneline`.
+- **Spec:** o `00-plano` citado no prompt ou no registro de entrega. Sem spec, pergunte onde está;
+  se não existir, pule o eixo Spec e diga isso no resultado.
+- Leia `CLAUDE.md` e `.claude/rules/` do repositório.
 
-Consulte somente o checklist pertinente:
-[correção/performance](references/correcao-performance.md) ou
-[segurança](references/seguranca.md). Não abra especialistas/subagentes automaticamente.
+Leia o diff arquivo por arquivo. Abra o código ao redor só para rastrear uma dependência concreta
+(quem chama, o que é chamado, de onde vem o dado). Não releia o repositório inteiro nem abra
+subagentes.
 
-## MODO=REVISAO_CORRETIVA_ENXUTA
+## 2. Revise em dois eixos
 
-Este modo exige autorização explícita no brief do step ou no pedido do usuário. Faça
-uma revisão independente consolidada do lote. Para cada achado, registre ID, severidade,
-cenário, causa, arquivo/linha e evidência. Corrija somente problemas demonstrados dentro
-do escopo e arquitetura aprovados, sem aguardar auditor ou chamar outra skill.
+**Spec:** a mudança faz o que foi pedido?
+- critério `CA-xx` ausente ou parcial;
+- critério que parece implementado, mas está errado;
+- comportamento que ninguém pediu (escopo extra).
 
-Há UM ciclo: identificar achados, aplicar correções pertinentes, executar testes afetados
-e conferir o próprio diff de correção. Não reinicie a revisão completa nem abra outra
-sessão de revalidação. Essa conferência não é uma segunda revisão independente.
-Não faça commits/merges; a etapa determinística de entrega cuida do Git.
+**Risco:** o que pode dar errado em uso real? Use o
+[checklist de risco](references/checklist-risco.md) só nas partes da stack que o diff toca.
 
-Se a correção exigir decisão nova de produto/arquitetura, acesso não autorizado ou não
-puder ser comprovada dentro do ciclo/orçamento, preserve o trabalho e devolva BLOCKED
-com a pendência. Não faça loop infinito nem declare PASS para escapar do limite.
+## 3. Classifique
 
-Grave relatório com cobertura, achados/correções, testes realmente executados e riscos
-residuais. PASS exige nenhum problema médio/alto/crítico conhecido pendente no escopo
-e verificações essenciais comprovadas. Retorne o JSON do runtime com o caminho do relatório.
-Não realize testes de tela nem declare QA visual aprovado; haverá teste manual no final.
+| Severidade | Exemplos |
+| --- | --- |
+| **crítico** | perda ou corrupção de dados; brecha de segurança explorável; escrita em `sqlsrv_CRM`/`sqlsrv_CorporeRM`; funcionalidade inteira quebrada |
+| **alto** | `CA-xx` não atendido ou errado; bug no caminho comum; contrato quebrado entre back e front; N requisições por item de lista; autorização faltando |
+| **médio** | bug em caso de borda plausível; N+1 ou outra perda de performance concreta; erro engolido; escrita múltipla sem transação; caminho crítico novo sem teste |
 
-## Revisão direta sem autorização de correção
+Severidade baixa (estilo, nomes, preferências, refatoração opcional) **não é procurada nem
+relatada**.
 
-Pedido de revisão por si só continua somente leitura de código/Git. Produza relatório
-com achados fundamentados e limitações; não aplique correções, commit ou push.
-Uma revisão da própria implementação é identificada como autorrevisão.
-Auditoria ampla, entrevista e QA de tela não fazem parte deste papel.
+Todo achado precisa de **cenário concreto** (entrada ou estado → resultado errado) e
+`arquivo:linha`. Antes de confirmar, verifique se já existe proteção em outro ponto (validação,
+middleware, policy, constraint). Suspeita sem caminho demonstrado vai para "precisa validar" e não
+é corrigida.
+
+Problema que **já existia antes do diff** não é corrigido: vira follow-up com evidência.
+
+## 4. Corrija (um ciclo)
+
+- Corrija os achados confirmados de severidade média ou maior com a **mudança mínima**, dentro do
+  escopo e da arquitetura existentes, seguindo as regras do repositório.
+- Para bug corrigido em caminho testável, acrescente ou ajuste o teste que pegaria esse bug.
+- Rode as validações afetadas (`CLAUDE.md` → Validação). Testes que tocam banco só depois de
+  `banco.md`.
+- Releia **apenas o diff das suas correções**. Não faça uma segunda revisão completa.
+
+**Não corrija, e relate como pendência**, quando a correção:
+- exigir decisão de produto ou de arquitetura;
+- mudar um contrato combinado na spec;
+- não puder ser validada (por exemplo, falta prova de isolamento do banco).
+
+## 5. Registre e commite
+
+- Acrescente ao registro de entrega da tarefa uma parte **"Revisão"** com:
+  - base e HEAD revisados;
+  - os eixos cobertos;
+  - por achado: ID (`R-01…`), severidade, eixo, cenário, `arquivo:linha` e o que foi feito
+    (corrigido, pendente ou follow-up);
+  - validações executadas, com o resultado;
+  - o que ficou em "precisa validar".
+- Commite correções e registro juntos na branch da tarefa: `fix: correções da revisão de
+  {assunto}`. Sem achados, commite só o registro: `docs: revisão de {assunto} sem achados`.
+- No chat: resumo por severidade, o que foi corrigido, o que ficou pendente e o SHA do commit.
+
+Revisão não é QA de tela: o teste manual continua com o usuário.

@@ -1,28 +1,46 @@
 ---
 name: grill-me
-description: Entrevista requisitos de uma demanda ou lote até esclarecer decisões de produto e critérios de aceite. Use para questionar um plano antes da especificação técnica.
+description: Entrevista requisitos de uma demanda ou lote até esclarecer decisões de produto e critérios de aceite. Use para questionar um plano antes da especificação técnica; não implementa nem define arquitetura.
 ---
 
 # Grill me
 
-Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Questões que dependam do usuário deixam a etapa `BLOCKED`, com as perguntas no relatório; não presuma respostas numa execução headless.
+Questione o plano até que as decisões importantes estejam claras. Leia a demanda, o código e os
+documentos disponíveis **antes** de entrevistar.
 
-No planejamento enxuto, participe na mesma sessão do planejador. Não execute preparação/indexação/process do Node legado nem abra outro agente. Telemetria de planejamento não exposta permanece desconhecida; o runtime registra a execução posterior.
+## Como perguntar
 
-## Registro de execução e contexto compacto
+- Em português. **Até 4 decisões independentes por rodada.** Use a ferramenta de perguntas do
+  cliente quando existir; senão, uma lista numerada. Decisão que depende de outra espera a próxima
+  rodada.
+- Cada pergunta traz opções concretas, a consequência de cada uma e a sua recomendação, quando
+  houver. Escreva a pergunta de modo que "sim" aceite a recomendação.
+- Temas: resultado esperado, quem usa, situação atual, restrições, regra de negócio, erros,
+  permissões, dados legados, limites e critérios de sucesso.
+- **Não pergunte o que dá para verificar** no repositório ou na documentação: verifique. Não repita
+  pergunta já respondida.
+- Confronte premissas com evidência. Se a ideia parecer ruim ou irrealista, diga.
+- **Confronte o que o usuário diz com o código.** Se divergirem, mostre: "o código cancela a PN
+  inteira, mas você disse que o cancelamento pode ser parcial; qual vale?". Termo vago ou com dois
+  sentidos ("conta", "aprovação") vira pergunta, com um cenário de borda concreto.
 
-Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
+## O que registrar
 
-## Memória do planejamento
+- **Decisões**, cada uma com a origem: usuário, evidência (arquivo/trecho) ou hipótese.
+- **Hipóteses** ainda não confirmadas.
+- **Questões abertas.** Sem resposta essencial, a questão continua aberta: não declare o requisito
+  resolvido.
+- **Exemplos Dado/Quando/Então** dos comportamentos combinados.
+- **Fora do escopo.**
 
-No lote, consulte o `planning-context.json` existente antes de perguntar. Persista ID, origem e referência de cada decisão/hipótese e questão essencial aberta; atualize o mesmo contexto, sem transcrever documentos já canônicos. Não trate resposta antiga como vigente quando evidência atual a contradiz. Devolva referências ao planejador.
+Não implemente nem crie arquitetura durante a entrevista.
 
-Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
+A entrevista termina quando não restam decisões a perguntar **e** o usuário confirma o resumo do
+entendimento. Sem essa confirmação, não siga para a próxima etapa.
 
-Questione o plano até que as decisões importantes estejam claras. Leia a demanda e o código/documentos disponíveis antes de entrevistar. Não invoque skills ausentes como “grilling”.
+## Saída
 
-Pergunte em português, uma decisão relevante por vez, sobre resultado esperado, quem usa, situação atual, restrições, regra de negócio, erros, permissões, dados legados, limites e critérios de sucesso. Confronte premissas com evidência e explique consequências de alternativas. Evite perguntar fatos verificáveis no repositório ou repetir respostas.
-
-Registre decisões, hipóteses, questões abertas, exemplos Dado/Quando/Então e fora do escopo. Não implemente nem crie arquitetura durante a entrevista. Sem resposta essencial, preserve a questão e não declare o requisito resolvido.
-
-No fluxo do planejador-de-lote, devolva a entrevista ao próprio planejador, na mesma sessão. Ele consolida especificação, unidades, checks e pacote executável. Não chame tech-lead/worktree-planner automaticamente. Perguntas essenciais pertencem ao planejamento; o run posterior não deve depender de nova entrevista. Na chamada direta, entregue decisões e perguntas restantes sem iniciar implementação.
+- **Chamada pelo `planejador-de-lote-v1`:** devolva o registro ao planejador, que segue para o
+  tech-lead. Não chame outras etapas.
+- **Chamada direta:** entregue no chat o registro acima e as perguntas restantes. Não encadeie
+  outras skills nem comece a implementação.

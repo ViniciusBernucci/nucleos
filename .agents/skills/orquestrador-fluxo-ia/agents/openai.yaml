@@ -1,4 +1,0 @@
-interface:
-  display_name: "Orquestrador do Fluxo de IA"
-  short_description: "Executa lotes com contexto e gates determinísticos"
-  default_prompt: "Use $orquestrador-fluxo-ia para executar o manifesto com contexto integrado, review independente, QA, integração local e limpeza segura."

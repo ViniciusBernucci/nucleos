@@ -9,3 +9,8 @@ packages/sdk/src/generated/*.ts text eol=lf
 *.mjs text eol=lf
 *.cjs text eol=lf
 lefthook.yml text eol=lf
+# A distribuicao das skills preserva os bytes recebidos, inclusive finais de linha.
+skills/skills/** -text
+.claude/skills/** -text
+.agents/skills/** -text
+.agent/skills/** -text

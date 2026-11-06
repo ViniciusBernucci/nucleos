@@ -1,46 +1,108 @@
 ---
 name: worktree-planner
-description: Planeja isolamento de tickets em worktrees, contratos entre frentes, sequência de integração e prompts de execução. Use quando solicitado planejamento com worktrees ou no fluxo Intranet/Orca; não substitui o backlog do Tech Lead nem intercepta toda solicitação de implementação.
+description: Planeja o isolamento de tickets já especificados em worktrees da Intranet (backend e frontend), com base fixa, branches, prompts prontos por frente e plano de integração na branch de revisão. Use depois do tech-lead; não cria worktrees, não implementa, não faz merge.
 ---
-
-Esta skill é opcional para pedido especializado ou modo legado explícito; não compõe o fluxo enxuto padrão. Novos lotes usam planejador-de-lote + grill-me, implementação e uma revisão corretiva. Não se autoencadeie no perfil enxuto. Para gates históricos consulte [perfis legados](../_shared/perfis-de-risco-legado.md).
-
 
 # Planejador de worktrees
 
-Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Planeje o isolamento e entregue os contratos; a criação e o despacho das worktrees pertencem ao runtime.
+Transforme tickets já especificados num plano operacional. **Não crie worktrees, não implemente,
+não rode Git de escrita.** O usuário cria as worktrees no ORCA; outra sessão executa cada prompt.
+Só `git fetch` é permitido, para registrar a base.
 
-## Registro de execução e contexto compacto
+Reutilize o `00-plano` do tech-lead. Não refaça a entrevista. Lacuna essencial impede marcar o
+prompt como pronto: registre o bloqueio.
 
-Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
+## Topologia
 
-## Manifesto executável V2
+| Camada | Repositório Git (checkout principal) |
+| --- | --- |
+| Backend (Laravel) | `docker-intranet/app` (o `docker-intranet` sozinho não é Git) |
+| Frontend (Angular) | `intranetNova` |
 
-Gere a parte operacional do JSON definido no [protocolo V2](../_shared/protocolo-v2.md): caminhos absolutos reais, SHA base completo, branch final, definition com fontes/IDs e grupos de integração. Compartilhe `ticket` entre camadas da mesma tarefa, para limites globais de rodadas. Referencie a especificação única; não repita 00/99 nem prompts extensos de tarefa simples. Inclua o helper embarcado, sem pressupor instalação de Contexto/MCP. Retorne ao planejador; não inicialize agentes ou worktrees por planejar.
+Confirme os dois com `git rev-parse --show-toplevel`. A worktree do ORCA tem a estrutura do
+repositório da camada, sem o prefixo do checkout principal.
 
-Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
+## Base
 
-Prepare um plano operacional a partir de uma tarefa já definida. Não implemente nem execute Git de escrita; gere arquivos e comandos revisáveis. Leia o ticket, critérios de aceite, dependências, regras locais e topologia real dos repositórios.
+- Para cada repositório envolvido: `git fetch origin` e `git rev-parse origin/main`. Registre no
+  manifesto e nos prompts o ref `origin/main` e o **SHA completo**.
+- Tarefa independente nasce desse SHA. Tarefa que depende do código de outra nasce do commit final
+  da tarefa de origem, que só existe depois que ela termina. Registre a dependência e diga que o
+  prompt só pode começar então.
+- Não inclua `git pull` nos prompts: mudaria a base que foi planejada.
 
-No fluxo Intranet, aplique [perfis](../_shared/perfis-de-risco.md) e [contexto econômico](../_shared/contexto-e-automacao.md): especificação única, prompts por referência e artefatos proporcionais. Não copie contratos/regras já acessíveis ao executor.
+## Frentes
 
-## Perfil
+- **No máximo uma worktree por camada por feature.** Tickets da mesma feature e da mesma camada
+  ficam no mesmo prompt. Features independentes do lote têm worktrees próprias. Separação diferente
+  pedida pelo usuário prevalece.
+- Separe frentes só com independência real. Antes de sugerir paralelismo, identifique arquivos,
+  símbolos e contratos disputados. Nada de paralelismo fictício.
+- Branch: `feat|fix|refactor|chore/{chave}-{assunto}`, **igual nos dois repositórios** quando a
+  feature cruza as camadas. A camada aparece no nome do arquivo do prompt, não na branch.
 
-- IntranetNova/docker-intranet com Orca e ClickUp: leia [perfil Intranet](references/intranet.md). Ele preserva os contratos de branches, registro, review pós-commit e índice diário. Confirme a topologia antes de usar seus caminhos.
-- Outros projetos: descubra repositório(s), base, nomes e diretório de worktrees pela configuração local e pedido. Não importe limites de duas worktrees, caminhos Windows, SQL Server, ClickUp ou políticas de commit da Intranet.
+## Prompt por frente (`01-…-backend-…md` / `02-…-frontend-…md`)
 
-## Plano portátil
+Texto pronto, sem placeholders pendentes. Cabeçalho: repositório, camada, branch, base (ref + SHA),
+tickets, perfil de risco, caminho absoluto do manifesto e do `00-plano`, dependências.
 
-1. Reutilize a especificação do Tech Lead quando existir; não rediscuta critérios já aprovados. Resolva lacunas que impedem um aceite observável. Sem critérios essenciais, registre o bloqueio e não gere um prompt executável incompleto.
-2. Separe frentes apenas quando houver independência real. Identifique colisões de arquivos, símbolos compartilhados, contrato de API e ordem de integração. Trabalho dependente pode exigir sequência ou branch base diferente, não paralelismo fictício.
-3. Registre caminhos reais, branch base e identificação do ponto inicial, branch da tarefa, arquivos esperados, limites de leitura/escrita, critérios de aceite, validação e handoff. Não gere comandos com placeholders pendentes.
-4. Produza plano geral, contratos por frente e referências consumidas pelo Context Compiler, no padrão documental do projeto. O planejador-de-lote consolida o cabeçalho, workflow e catálogo. O estado operacional pertence ao runtime; gere estado V2 para `orquestrador-fluxo-ia` somente no modo legado explícito. Sem padrão, use `documentacoes/planejamento/worktrees/`. Nomeie sem sobrescrever planos anteriores.
-5. Inclua nos prompts somente instruções indisponíveis por referência. Confirme caminhos absolutos das skills e especificação; o executor lê esses arquivos sem depender de descoberta nativa. Transcreva contrato somente quando o acesso ao original não existir, registrando a razão. Não copie o texto e mande reler o original.
-6. Descreva criação, integração e limpeza, com verificação de branch, estado local e trabalho ainda não integrado antes de qualquer remoção. A execução depende do pedido; gerar o plano não autoriza merge, push ou exclusão.
-7. Inclua no prompt a preparação automática pelo criador/executor conforme [worktrees automáticas](../_shared/worktrees-automaticas.md): helper real, raiz da worktree e origem de configuração confirmada. O usuário não executa init. Planejamento apenas descreve; execução prepara e registra recibo antes de delegar.
+Seção **"Prompt para o executor (Claude, Codex ou Antigravity)"**, nesta ordem:
 
-Não embuta revisão técnica nos prompts de implementação. O workflow configura `revisor-de-codigo` conforme o risco e o runtime despacha essa etapa independente. Não confunda commit local com aprovação.
+1. **Conferência da worktree.** Você está numa worktree criada pelo ORCA. Antes de qualquer
+   escrita, confira:
+   - `git rev-parse --show-toplevel` (a worktree) e `git rev-parse --git-common-dir` (aponta para o
+     repositório da camada);
+   - `git branch --show-current` igual à branch do plano. Se o ORCA gerou outro nome, renomeie com
+     `git branch -m {branch-do-plano}`, só se esse nome ainda não existir (nunca `-M`);
+   - `git status --porcelain` vazio;
+   - `git merge-base --is-ancestor {SHA-base} HEAD` com sucesso.
 
-No fluxo do planejador-de-lote, devolva os arquivos ao planejador para consolidar o manifesto e terminar o planejamento. Não inicie execução sem pedido já existente; a execução Go usa `contexto run`, sem uma LLM coordenadora.
+   Qualquer divergência: **pare e reporte**. Nunca escreva em outro checkout.
+2. **Leituras.** `CLAUDE.md` e `.claude/rules/` desta worktree, o `00-plano` (caminho absoluto) e
+   os contratos de API pertinentes. Ler fora da worktree é permitido; escrever, só nela.
+3. **Preparação da camada.**
+   - Frontend: `proxy.conf.json` copiado do checkout principal quando existir (não é versionado).
+     `node_modules` restaurado pelo lockfile (`npm ci`), sem alterar `package.json` nem o lockfile.
+   - Backend: validação e testes conforme o `CLAUDE.md` do backend (PHPUnit só no container; banco
+     só depois de `banco.md`).
+4. **Implementação.** Tickets e critérios `CA-xx` desta frente, por ID, com os arquivos prováveis e
+   o que está fora do escopo. Acrescente só decisões operacionais desta camada; não copie a
+   especificação.
+5. **Registro de entrega e commit.** Conforme `documentacao.md` e `git.md`: registro em
+   `docs/historico/entregas/`, commit na branch da tarefa com o registro junto. Sem push, sem PR,
+   sem merge.
+6. **Relatório final** no chat: SHA do commit, caminho do registro, validações executadas com
+   resultado, e o que ficou sem validar e por quê. Para cada critério `CA-xx` da frente: ATENDIDO,
+   NÃO ATENDIDO ou NÃO VALIDADO, com a evidência.
 
-Saída: frentes/worktrees, dependências, ordem de integração, caminhos dos planos, arquivo de estado e bloqueios concretos.
+Depois, uma seção **"Prompt de revisão (sessão nova, mesma worktree)"**, em poucas linhas: use a
+skill `revisor-de-codigo` na branch da frente, com a base `{SHA}` e a spec `{caminho do 00-plano}`.
+
+## Integração (`99-merge-e-limpeza-{slug}.md`)
+
+Ações futuras, executadas só quando o usuário pedir:
+
+1. Para cada repositório, no checkout principal com `git status` limpo: criar
+   `revisao/AAAA-MM-DD-{slug}` a partir do SHA base do lote. Nunca `main`/`master`.
+2. Merge `--no-ff` das branches das tarefas, na ordem de dependência do manifesto. Conflito:
+   **pare** e reporte. Não resolva por conta própria se a resolução mudar comportamento.
+3. Validação após a integração: `php -l` nos PHP alterados / `npx --no-install ng build`, mais os
+   testes pertinentes conforme as regras.
+4. A branch `revisao/…` fica ativa no checkout principal para o usuário testar as telas.
+5. Limpeza: remover uma worktree (pelo ORCA ou com `git worktree remove`) só depois de confirmar
+   que a branch dela está integrada (`git branch --merged revisao/…`) e que a worktree está limpa.
+   Não apague branches.
+
+Sem push e sem PR em nenhuma etapa.
+
+## Conferência antes de devolver
+
+Todo prompt tem caminhos reais, branch, base com SHA, critérios verificáveis, contratos entre as
+camadas, validação viável, registro, commit e fora do escopo. Nenhum prompt pede push/PR, apaga
+branch, atualiza a base em silêncio ou depende de ferramenta exclusiva de um cliente.
+
+## Saída
+
+- **Chamado pelo planejador:** devolva os caminhos dos prompts e do 99, a ordem e os bloqueios.
+- **Chamado direto:** entregue o mesmo no chat, a partir da especificação indicada, e termine no
+  plano. Não inicie a execução.

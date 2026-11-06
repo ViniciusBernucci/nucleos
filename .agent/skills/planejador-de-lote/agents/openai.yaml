@@ -1,6 +1,0 @@
-interface:
-  display_name: "Planejador de Lote"
-  short_description: "Planeja e entrega pacote validado para o Context Compiler"
-  default_prompt: "Use $planejador-de-lote para planejar esta demanda e entregar automaticamente o manifesto, workflow e catálogo validados para o Context Compiler, sem iniciar execução."
-policy:
-  allow_implicit_invocation: true

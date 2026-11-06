@@ -1,62 +1,55 @@
-# Skills para Codex, Claude e Antigravity
+# Skills do Nucleos
 
-A fonte canônica otimizada permanece em `skills/`. As pastas abaixo
-contêm cópias completas e idênticas, incluindo `_shared`, referências, scripts e
-metadados existentes.
+A fonte canônica é `skills/skills/`, relativa à raiz do repositório. Em 2026-11-06,
+ela foi substituída pelas cinco skills fornecidas em
+`C:/Users/vinicius.silva/Documents/Documentos/00 - Dev/docker-intranet/app/.claude/skills`.
+Os 11 arquivos foram preservados sem alteração, incluindo metadados de descoberta
+e o checklist do revisor.
 
-| Agente | Pasta de descoberta no projeto |
+| Skill | Uso |
 | --- | --- |
-| Codex | `.agents/skills/` |
+| `arquiteto-de-software` | Investigar e revisar decisões de arquitetura |
+| `grill-me` | Entrevistar requisitos e critérios de aceite |
+| `planejador-de-lote-v1` | Encadear entrevista, especificação e plano Markdown |
+| `tech-lead` | Especificar tickets, contratos, dependências e riscos |
+| `worktree-planner` | Preparar prompts por frente e plano de integração |
+| `revisor-de-codigo` | Revisar e corrigir achados médios, altos e críticos em um ciclo |
+
+## Descoberta e sincronização
+
+| Cliente | Pasta na raiz do projeto |
+| --- | --- |
 | Claude Code | `.claude/skills/` |
-| Antigravity (App, CLI e IDE) | `.agents/skills/` |
-| Antigravity (compatibilidade legada) | `.agent/skills/` |
+| Codex e Antigravity | `.agents/skills/` |
+| Antigravity legado | `.agent/skills/` |
 
-Abra este repositório como projeto no agente desejado. Para usar em outro projeto,
-copie a pasta de descoberta correspondente para a raiz dele, preservando `_shared`
-e os demais recursos. Codex e Antigravity compartilham a mesma pasta padrão.
-
-## Sincronização
-
-Mantenha as skills em `skills/`. Depois de uma alteração futura, atualize as
-cópias com Node.js 18 ou superior:
+Edite somente a fonte e execute na raiz:
 
 ```sh
-node scripts/sincronizar-skills.mjs --check
-node scripts/sincronizar-skills.mjs --apply
-node scripts/sincronizar-skills.mjs --check
+node scripts/instalar-skills.mjs --apply
+node scripts/instalar-skills.mjs --check
 ```
 
-`--check` compara os bytes de todos os arquivos e retorna código 1 se encontrar
-arquivos ausentes, diferentes ou extras. `--apply` copia os arquivos da fonte,
-substituindo cópias diferentes; arquivos extras são apontados e preservados.
-O script preserva configurações globais e outros projetos. O único espelho gerado dentro de `skills/` é `_shared/observatory/token_observatory.py`, a partir do fonte canônico `observatory/payload/runtime/token_observatory.py`; os demais arquivos em `skills/` são a fonte das cópias.
+O `--check` compara bytes e reprova arquivos ausentes, diferentes ou extras.
+O `--apply` atualiza as cópias sem apagar extras; a instalação limpa inicial
+retirou previamente todas as pastas antigas. Não há cópias de descoberta dentro
+de `skills/.agents/`, `skills/.claude/` ou `skills/.agent/`. O entrypoint
+`skills/scripts/sincronizar-skills.mjs` delega ao instalador da raiz.
 
-A organização prepara a descoberta das skills. Ferramentas, integrações e
-permissões exigidas pelos fluxos continuam dependendo do ambiente de cada agente.
-Os entrypoints antigos de sincronização delegam ao mesmo script. Execute --check
-antes de --apply; o apply exige diagnóstico da fonte atual. Dados .contexto não são copiados.
+As regras de [AGENTS.md](../AGENTS.md#aplicação-das-skills-importadas-neste-projeto)
+definem a aplicação no monorepo NestJS/Next.js/Python/PostgreSQL, os caminhos locais
+e os limites de Git e dados. As referências específicas da Intranet nos arquivos
+recebidos não alteram essas regras. A instalação não inclui o antigo runtime
+`_shared/contexto` nem inicia execução ou configuração de ferramentas externas.
 
-Padrões consultados: [Codex](https://developers.openai.com/blog/skills-agents-sdk),
-[Claude Code](https://code.claude.com/docs/en/skills) e
-[Antigravity](https://antigravity.google/docs/skills).
+Recarregue o projeto ou abra uma nova sessão nos clientes após a substituição.
+As pastas e os metadados foram preparados para descoberta; a execução nos aplicativos
+depende da sessão e das ferramentas disponíveis em cada cliente.
 
-## Modelos mínimos de regras por projeto
-
-Use [modelos/CLAUDE.md](modelos/CLAUDE.md) e [modelos/AGENTS.md](modelos/AGENTS.md)
-como blocos para incorporar às regras de outro projeto. Se o arquivo já existir,
-acrescente o conteúdo sem substituir as regras atuais. Os modelos contêm o mesmo
-contrato essencial e ficam separados para não alterar as regras ativas desta distribuição.
-
-Veja [como usar e o que configurar por projeto](modelos/README.md). A instalação das
-skills continua igual; os modelos não instalam o Contexto nem ferramentas externas.
-
-
-## Fluxo V2 integrado
-
-O Contexto agora acompanha `_shared/contexto`, sem instalação de MCP/npm. Requer Node.js >=22.13 e Git no host. O agente prepara o SQLite local automaticamente, e o runtime controla estados/rodadas enquanto o cliente chama agentes independentes. Veja [como aplicar e usar](docs/fluxo-v2.md) e [o protocolo](skills/_shared/protocolo-v2.md).
-
-## Otimização de contexto e QA por risco
-
-Novos planos declaram risk_level R0–R4. QA separado é obrigatório em R3/R4; R0–R2 exigem testes aplicáveis, aceite e review independente, acionando QA condicional para riscos sem cobertura. Dispensa por política é COBERTO_NO_REVIEW, sem fabricar QA PASS. Tarefas históricas preservam seus gates até classificação explícita. Veja [política e diagnóstico](docs/otimizacao-contexto.md).
-
-Todas as skills têm instruções de registro de atividade e handoffs compactos com checkpoints SQLite. Erros do Contexto geram logs saneados com recuperação; timeout Git é configurável, sem retry cego de mutações. O [Observatório](skills/token-observatory/SKILL.md) acompanha a distribuição e o kit instalável em `observatory/`; registra processos, qualidade e contadores nativos sem APIs pagas. Contagens e atribuições ausentes continuam desconhecidas.
+Em 2026-11-06, a limpeza do monorepo também incorporou à fonte a skill
+`arquiteto-de-software`, já presente nas três pastas de descoberta (total: seis skills).
+Os antigos modelos de regras em `skills/modelos/` foram retirados por descreverem
+o fluxo anterior. As referências `_shared/` citadas pelo arquiteto não vieram na distribuição
+disponível; não há runtime ou helpers desses links instalados. O roteiro arquitetural
+foi preservado com a skill.
+As regras de projeto e o corpo da skill continuam disponíveis.
