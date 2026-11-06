@@ -1,1 +1,0 @@
-"""Servico event-dispatcher."""

@@ -3,6 +3,8 @@
 Criada em 2026-10-25. Ultima atualizacao: 2026-11-02 (lesson 18 do fluxo de caixa: Server Actions de escrita e integridade no PostgreSQL; antes, em 2026-11-01, lesson 12 com diagnostico de conexao e ciclo de vida do ambiente; lessons 16 e 17 com token Basic e atualizacao por Server Action; lessons 12 e 13 revisadas para .env no MVP; lessons 16 e 17 do painel de vendas; lesson 00 atualizada com o banco unico; antes, lesson 14 marcada como conceitual apos a remocao dos mocks do front end).
 
 `lessons/` e uma trilha progressiva e didatica da stack do projeto, nao um changelog.
+A revisão de 2026-11-06 acrescenta a lesson 22 sobre monorepo e monólito modular,
+e atualiza a lesson 02 para os limites Python dos componentes realmente presentes.
 A atualização de 2026-11-02 inclui a aplicação real da fila na lesson 11 e a lesson 19
 de agendamento persistente, que combina as bases de fila, configuração e Server Actions.
 A revisão corretiva da frente A acrescenta à lesson 11 a ordem de locks entre tabelas
@@ -70,3 +72,4 @@ A numeracao segue dependencia de aprendizagem: qualidade estatica (02) e Compose
 - [20 - Webhook seguro e idempotência](20%20-%20Webhook%20seguro%20e%20idempotencia.md) (blocos 5 e 7; entrega [Base financeira B](../documentacoes/financeiro/2026-11-03-base-financeira-b.md), 2026-11-03; limite bruto tambem nas variantes de rota, conforme [revisao B](../documentacoes/reviews/2026-11-03-frente-b-revisao-corretiva.md)). Pré-requisitos: lessons 11, 13, 16 e 19.
 
 - [21 - Agentes de IA com ferramentas de leitura e orcamento](21%20-%20Agentes%20de%20IA%20com%20ferramentas%20de%20leitura%20e%20orcamento.md) (Python, seguranca e limites de custo; [entrega financeira](../documentacoes/financeiro/2026-11-06-conclusao-financeiro-funcionarios.md), 2026-11-06). Pre-requisitos: lessons 11, 13, 19 e 20. Lessons 00 e 18 atualizadas nesta entrega com o leitor SQL e competencia/centavos.
+- [22 - Monorepo e monolito modular no MVP](22%20-%20Monorepo%20e%20monolito%20modular%20no%20MVP.md) (TypeScript, Python e organização do workspace; [limpeza do MVP](../documentacoes/transversal/2026-11-06-limpeza-monorepo-mvp.md), 2026-11-06). Pré-requisitos: lessons 02, 03 e 21.

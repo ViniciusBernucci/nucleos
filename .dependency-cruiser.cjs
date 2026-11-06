@@ -37,14 +37,6 @@ module.exports = {
       from: { path: "^packages/" },
       to: { path: "^apps/" },
     },
-    {
-      name: "provisioner-so-no-tenant-provisioner",
-      comment:
-        "SDK/codigo do provisioner nao e importado por outros apps (ver tenant-runtime em Python).",
-      severity: "error",
-      from: { path: "^apps/(?!tenant-provisioner/)" },
-      to: { path: "^apps/tenant-provisioner/" },
-    },
     { name: "no-circular", severity: "error", from: {}, to: { circular: true } },
   ],
   options: {

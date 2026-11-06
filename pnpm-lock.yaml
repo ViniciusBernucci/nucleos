@@ -241,15 +241,6 @@ importers:
         specifier: 8.23.1
         version: 8.23.1
 
-  apps/tenant-provisioner:
-    dependencies:
-      '@nucleos/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
-      '@nucleos/observability':
-        specifier: workspace:*
-        version: link:../../packages/observability
-
   apps/web:
     dependencies:
       '@nucleos/contracts':

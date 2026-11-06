@@ -5,14 +5,11 @@ fonte única. Regras aninhadas complementam, sem dispensar documentação/lesson
 
 ## Fluxos e autonomia
 
-- Planejador-de-lote mantém grill-me na mesma sessão e termina no pacote. O usuário
-  inicia context run: uma worktree por lote, unidades coerentes sequenciais, checks,
-  uma revisão corretiva de impactos médios/altos/críticos, checks integrados e entrega
-  determinística em revisao/. Um ciclo de correções/testes; bloqueio real é registrado.
+- Planejador-de-lote-v1 encadeia grill-me, tech-lead e worktree-planner na mesma
+  sessão e termina em especificação, tickets, prompts e manifesto Markdown.
+  Planejar não inicia implementação, não cria worktrees e não autoriza commits.
 - Testes de tela/aceite visual são manuais no final. DONE técnico não significa QA visual.
   Não abrir auditor, review-loop ou QA de tela por IA no perfil enxuto.
-- Planejador-de-lote-avulso é independente: entrevista, especificação e plano Markdown,
-  sem compilador/Node e sem iniciar implementação.
 - Em CONTEXTO_EXECUTION=step, o Go controla sequência, limites, logs, hashes e estado.
   Faça somente o brief. Não invoque outros CLIs de IA, orquestrador/flow, preparação,
   indexação/process/handoff Node ou subagentes sem autorização. A revisão corretiva
@@ -72,11 +69,19 @@ Banco/serviço real exige ambiente isolado declarado e comprovado.
   `.claude/skills/` (Claude Code), `.agents/skills/` (Codex e Antigravity) e
   `.agent/skills/` (Antigravity legado). Edite somente a fonte e depois rode
   `node scripts/instalar-skills.mjs --apply` e `node scripts/instalar-skills.mjs --check`.
+- **Conjunto instalado:** `arquiteto-de-software`, `grill-me`, `planejador-de-lote-v1`, `revisor-de-codigo`,
+  `tech-lead` e `worktree-planner`. Não invoque as skills antigas removidas.
 - **Perfil:** preset `generic`. Este projeto NAO e Intranet: ignore `references/intranet.md`,
   ORCA, SQL Server, ClickUp e `{FONTE_CLAUDE}`; use a instalacao das skills deste repositorio.
 - **Repositorios:** um unico repositorio Git, `nucleos` (raiz `.`, camada `monorepo`), com
   branch padrao `main` e branch de trabalho `developer`. Camadas conforme o ADR de
   2026-10-25 (secao 14): `apps/`, `services/`, `packages/` e `infrastructure/`; consulte o estado atual antes de planejar.
+- **MVP local vigente:** web Next.js, API NestJS modular por dominio e `services/ai-gateway`
+  para o CFO. Os esbocos sem negocio de provisioner, tenant-runtime, tool-gateway e
+  event-dispatcher foram removidos na limpeza autorizada de 2026-11-06. Nao recrie
+  servicos ou pastas de infraestrutura por antecipacao. Veja a
+  [arquitetura atual](documentacoes/arquitetura/README.md) e a proposta ADR-027;
+  a topologia multi-tenant de producao continua sujeita aos ADRs e gates existentes.
 - **Fuso operacional:** `America/Sao_Paulo`.
 - **Documentos:** planos, manifesto e estado do lote em `documentacoes/planejamento-ia/`;
   relatorios de review, auditoria e QA em `documentacoes/reviews/`. O registro de cada
@@ -104,3 +109,29 @@ Banco/serviço real exige ambiente isolado declarado e comprovado.
   PostgreSQL Docker existente em `127.0.0.1:15432`, conectando ao banco administrativo
   `postgres`, sem acessar `nucleos_dev`, sem nova instancia e com remocao comprovada
   ao final. Essa autorizacao nao cobre migrations de desenvolvimento nem APIs externas.
+
+## Aplicação das skills importadas neste projeto
+
+Os arquivos recebidos da Intranet são preservados sem alteração. Para usá-los no
+Nucleos, estas regras locais prevalecem sobre os exemplos e caminhos daquele projeto:
+
+- Leia `AGENTS.md` como regra canônica; `CLAUDE.md` e a regra do Antigravity já
+  apontam para ela. `.claude/rules/` só é consultada se existir neste repositório.
+- Backend e frontend pertencem ao mesmo Git: `apps/api/` (NestJS), `apps/web/`
+  (Next.js), com serviços Python em `services/`. Não procure os repositórios
+  `docker-intranet/app` ou `intranetNova`, nem exija ORCA, Laravel ou Angular.
+- A pasta do lote é `documentacoes/planejamento-ia/AAAA-MM-DD/`, com caminhos
+  absolutos nos prompts. `docs/` e `docs/historico/entregas/` correspondem à
+  documentação pertinente em `documentacoes/`, seguindo os procedimentos deste
+  projeto. Contratos e formato de erros são os reais da API e de `packages/contracts/`.
+- Planeje worktrees em `../nucleos-worktrees/<branch>` por feature independente
+  deste monorepo; tickets de API e web que compartilham arquivos ficam na mesma
+  frente. Criar worktrees, implementar e integrar continuam sendo ações futuras,
+  dependentes do pedido de execução do usuário.
+- Use os comandos pertinentes de `documentacoes/engenharia/comandos-validacao-ia.md`
+  para a stack afetada, em lugar de PHP/PHPUnit ou Angular CLI. No checklist de
+  review, aplique os riscos pertinentes à stack real; exemplos de SQL Server,
+  conexões `sqlsrv_*`, PN e contratos da Intranet não são requisitos do Nucleos.
+- A instrução de commitar em uma skill ou prompt não concede autorização: sem
+  pedido explícito, registre a entrega e os diffs sem criar commits. Mantenha
+  todas as restrições de dados, integração, publicação e aceite visual acima.

@@ -2,7 +2,7 @@
   "name": "nucleos-enterprise",
   "private": true,
   "version": "0.0.0",
-  "description": "Monorepo Nucleos Enterprise (ver documentacoes/transversal, ADR secao 14)",
+  "description": "Monorepo do MVP Nucleos: web Next.js, API modular NestJS e gateway de IA Python",
   "packageManager": "pnpm@12.15.0",
   "engines": {
     "node": ">=24.22.1 <25",
@@ -17,8 +17,8 @@
     "test": "turbo run test",
     "lint:eslint": "turbo run build --filter=\"./packages/*\" && eslint .",
     "lint:arch": "depcruise apps packages --config .dependency-cruiser.cjs",
-    "format:check": "prettier --check --no-error-on-unmatched-pattern \\\"apps/**/*.{ts,tsx,mjs}\\\" \\\"packages/**/*.ts\\\" \\\"tools/**/*.{mjs,cjs}\\\" \\\"*.{mjs,cjs}\\\" lefthook.yml",
-    "format": "prettier --write --no-error-on-unmatched-pattern \\\"apps/**/*.{ts,tsx,mjs}\\\" \\\"packages/**/*.ts\\\" \\\"tools/**/*.{mjs,cjs}\\\" \\\"*.{mjs,cjs}\\\" lefthook.yml",
+    "format:check": "prettier --check --no-error-on-unmatched-pattern \"apps/**/*.{ts,tsx,mjs}\" \"packages/**/*.ts\" \"tools/**/*.{mjs,cjs}\" \"*.{mjs,cjs}\" lefthook.yml",
+    "format": "prettier --write --no-error-on-unmatched-pattern \"apps/**/*.{ts,tsx,mjs}\" \"packages/**/*.ts\" \"tools/**/*.{mjs,cjs}\" \"*.{mjs,cjs}\" lefthook.yml",
     "lint:quality": "pnpm run lint:eslint && pnpm run lint:arch && pnpm run format:check"
   },
   "devDependencies": {

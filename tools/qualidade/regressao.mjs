@@ -67,7 +67,7 @@ try {
     deveFalhar(`depcruise ${regra}`, dep, regra);
   }
 
-  // 4) Python: ruff (eval), mypy --strict (sem tipos), import-linter (servicos/SDK).
+  // 4) Python: ruff (eval), mypy --strict (sem tipos), import-linter (packages/servicos).
   deveFalhar(
     "ruff eval_inseguro.py",
     exec("uv", [
@@ -100,8 +100,12 @@ try {
       env: { ...process.env, PYTHONPATH: join(reg, "python", "imports") },
     },
   );
-  deveFalhar("import-linter servicos independentes", il, "nao importam uns aos outros BROKEN");
-  deveFalhar("import-linter SDK do provisioner", il, "SDK do provisioner BROKEN");
+  deveFalhar("import-linter packages sem servicos", il, "nao importam servicos BROKEN");
+  deveFalhar(
+    "import-linter contratos independentes",
+    il,
+    "nao importam outros pacotes internos BROKEN",
+  );
 
   // 5) gitleaks: segredo sintetico gerado agora (nada de segredo armazenado no repositorio).
   const seg = join(tmpRaiz, "segredo");

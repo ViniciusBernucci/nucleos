@@ -1,5 +1,7 @@
 # 02 - Qualidade estatica em TypeScript e Python
 
+Atualização de 2026-11-06: fronteiras Python alinhadas ao MVP local (ADR-027).
+
 Criada em 2026-10-26. Ultima atualizacao: 2026-10-26.
 Versoes dos exemplos: Node 24.22.1, TypeScript 5.9.3, Python 3.13.17 (ESLint 10.13.0, typescript-eslint 8.72.0, dependency-cruiser 18.7.0, ruff 0.17.2, mypy 2.4.0, import-linter 2.15, gitleaks 8.30.1, lefthook 2.2.2). Todos os comandos abaixo foram executados na raiz do repositorio em 2026-10-26.
 
@@ -112,7 +114,7 @@ TypeScript (`.dependency-cruiser.cjs`) tem regras como `web-nao-importa-api` e `
 x 2 dependency violations (2 errors, 0 warnings).
 ```
 
-Python (`.importlinter`) usa contratos. O de independencia diz que os servicos nao se importam. Prova: um arquivo `services/tool-gateway/src/tool_gateway/exemplo_lesson.py` com a linha `import ai_gateway` e `uv run --frozen lint-imports` termina com `Contracts: 1 kept, 1 broken` e `tool_gateway is not allowed to import ai_gateway`. Remova os arquivos criados.
+Python (`.importlinter`) usa contratos. Desde a [limpeza do MVP](../documentacoes/transversal/2026-11-06-limpeza-monorepo-mvp.md), os pacotes compartilhados nao importam `ai_gateway`, e `nucleos_contracts` nao depende de outros pacotes internos. A regra acompanha os componentes existentes: nao precisamos manter servicos vazios para testar arquitetura. As fixtures em `tools/qualidade/regressao/python/imports/` exercitam as duas violacoes; o runner `node tools/qualidade/regressao.mjs` exige que ambas sejam rejeitadas. A execucao normal `uv run --frozen lint-imports` deve manter os dois contratos.
 
 ## Exemplo 4 - Segredos e commits
 

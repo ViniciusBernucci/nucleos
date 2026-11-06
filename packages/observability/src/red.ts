@@ -30,9 +30,16 @@ export class RedMetrics {
   private readonly duration: Histogram;
 
   constructor(meter: Meter) {
-    this.requests = meter.createCounter("http.server.requests", { description: "Requisicoes HTTP (rate)" });
-    this.errors = meter.createCounter("http.server.errors", { description: "Respostas 5xx (errors)" });
-    this.duration = meter.createHistogram("http.server.request.duration", { unit: "s", description: "Duracao (duration)" });
+    this.requests = meter.createCounter("http.server.requests", {
+      description: "Requisicoes HTTP (rate)",
+    });
+    this.errors = meter.createCounter("http.server.errors", {
+      description: "Respostas 5xx (errors)",
+    });
+    this.duration = meter.createHistogram("http.server.request.duration", {
+      unit: "s",
+      description: "Duracao (duration)",
+    });
   }
 
   record(sample: RedSample): void {

@@ -1,6 +1,19 @@
 import { z } from "zod";
 
-const SECRET_QUERY = new Set(["password", "sslpassword", "passfile", "pass", "passwd", "pwd", "token", "apikey", "api_key", "secret", "credential", "credentials"]);
+const SECRET_QUERY = new Set([
+  "password",
+  "sslpassword",
+  "passfile",
+  "pass",
+  "passwd",
+  "pwd",
+  "token",
+  "apikey",
+  "api_key",
+  "secret",
+  "credential",
+  "credentials",
+]);
 
 /** Parametro de query que carrega (ou aponta para) credencial: recusado em DATABASE_URL e similares. */
 function isSecretQueryParam(name: string): boolean {
@@ -66,7 +79,10 @@ export function serviceUrl(protocols: readonly string[]): z.ZodType<string, stri
         return;
       }
       if ([...u.searchParams.keys()].some(isSecretQueryParam)) {
-        ctx.addIssue({ code: "custom", message: "credencial na query da url e proibida (use *_FILE)" });
+        ctx.addIssue({
+          code: "custom",
+          message: "credencial na query da url e proibida (use *_FILE)",
+        });
         return;
       }
     });

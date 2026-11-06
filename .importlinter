@@ -1,26 +1,28 @@
-# Regras de arquitetura de imports Python (ENT-FND-002). Executar: lint-imports
+# Pacotes compartilhados nao dependem do servico que os consome (ADR-027).
+# Executar: uv run --frozen lint-imports
 [importlinter]
 root_packages =
     ai_gateway
-    tool_gateway
-    event_dispatcher
-    tenant_runtime
+    nucleos_config
+    nucleos_contracts
+    nucleos_observability
 include_external_packages = True
 
-[importlinter:contract:servicos-independentes]
-name = Servicos Python nao importam uns aos outros
-type = independence
-modules =
-    ai_gateway
-    tool_gateway
-    event_dispatcher
-    tenant_runtime
-
-[importlinter:contract:tenant-runtime-sem-sdk-provisioner]
-name = tenant-runtime nao importa o SDK do provisioner
+[importlinter:contract:packages-sem-servicos]
+name = Pacotes compartilhados nao importam servicos
 type = forbidden
 source_modules =
-    tenant_runtime
+    nucleos_config
+    nucleos_contracts
+    nucleos_observability
 forbidden_modules =
-    tenant_provisioner
-    nucleos_provisioner
+    ai_gateway
+
+[importlinter:contract:contratos-independentes]
+name = Contratos Python nao importam outros pacotes internos
+type = forbidden
+source_modules =
+    nucleos_contracts
+forbidden_modules =
+    nucleos_config
+    nucleos_observability

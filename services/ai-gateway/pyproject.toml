@@ -1,7 +1,7 @@
 [project]
 name = "nucleos-ai-gateway"
 version = "0.0.0"
-description = "Servico ai-gateway (hello-world de FND-001; sem logica de negocio)"
+description = "Gateway de IA do MVP: CFO consultivo, ferramentas de leitura e limites de custo"
 requires-python = ">=3.12"
 dependencies = [
     "anthropic==2.6.0",

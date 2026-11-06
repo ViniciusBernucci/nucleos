@@ -6,8 +6,12 @@
     "Nucleos-Especificacao-Mestra.md",
     "documentacoes",
     "lessons",
-    "back",
-    "front"
+    "apps",
+    "services",
+    "packages",
+    "infrastructure",
+    "scripts",
+    "tools"
   ],
   "exclude": [
     "node_modules",
@@ -22,7 +26,12 @@
     "dist",
     "build",
     "bin",
-    "obj"
+    "obj",
+    ".venv",
+    ".run",
+    ".turbo",
+    ".next",
+    "__pycache__"
   ],
   "workflow": {
     "schema": 1,
@@ -33,7 +42,9 @@
     "deliveryDir": "documentacoes",
     "reviewBranchPrefix": "revisao/",
     "defaultProfile": "padrao",
-    "rules": ["AGENTS.md"],
+    "rules": [
+      "AGENTS.md"
+    ],
     "repositories": [
       {
         "name": "nucleos",

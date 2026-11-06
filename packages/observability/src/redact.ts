@@ -14,7 +14,8 @@ export const SENSITIVE_KEYS: ReadonlySet<string> = new Set([
   "api_key",
 ]);
 
-const SENSITIVE_PATTERN = /authorization|cookie|passw|token|secret|prompt|content|api[-_]?key|credential|private[-_]?key|session/i;
+const SENSITIVE_PATTERN =
+  /authorization|cookie|passw|token|secret|prompt|content|api[-_]?key|credential|private[-_]?key|session/i;
 const VALUE_PATTERNS = [
   /\bBearer\s+\S+/gi,
   /\beyJ[\w-]+(?:\.[\w-]*)*/g,
@@ -85,7 +86,12 @@ export function redact(value: unknown, allowlist: Iterable<string> | AllowMap): 
   return walk(value, rules, 0, undefined);
 }
 
-function walk(value: unknown, rules: ReadonlyMap<string, StringRule | undefined>, depth: number, rule: StringRule | undefined): unknown {
+function walk(
+  value: unknown,
+  rules: ReadonlyMap<string, StringRule | undefined>,
+  depth: number,
+  rule: StringRule | undefined,
+): unknown {
   if (value === null || typeof value === "boolean" || typeof value === "number") return value;
   if (typeof value === "string") {
     if (rule === undefined) return REDACTED;
@@ -97,7 +103,8 @@ function walk(value: unknown, rules: ReadonlyMap<string, StringRule | undefined>
     return { name: typeof name === "string" && NAME_PATTERN.test(name) ? name : REDACTED };
   }
   if (depth >= MAX_DEPTH) return "[TRUNCATED]";
-  if (Array.isArray(value)) return value.slice(0, MAX_ITEMS).map((item) => walk(item, rules, depth + 1, rule));
+  if (Array.isArray(value))
+    return value.slice(0, MAX_ITEMS).map((item) => walk(item, rules, depth + 1, rule));
   if (isPlainObject(value)) {
     const out: Record<string, unknown> = {};
     let dropped = 0;

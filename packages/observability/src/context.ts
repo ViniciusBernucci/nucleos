@@ -37,7 +37,10 @@ export function setTrustedTenant(tenantId: string, actorType: ActorType = "user"
  * Aceita `X-Request-Id` somente com `trustEdge=true` (borda confiavel, definida em FND-007) e formato
  * seguro (evita injecao em log); padrao `false`, ausente ou invalido => UUID novo.
  */
-export function resolveCorrelationId(header: string | string[] | undefined, trustEdge = false): string {
+export function resolveCorrelationId(
+  header: string | string[] | undefined,
+  trustEdge = false,
+): string {
   const candidate = Array.isArray(header) ? header[0] : header;
   if (trustEdge && candidate !== undefined && VALID_ID.test(candidate)) return candidate;
   return randomUUID();
@@ -71,6 +74,8 @@ export function createJobEnvelope<T>(type: string, payload: T): JobEnvelope<T> {
 
 /** Executa o job restaurando o `correlation_id` do envelope (propagacao HTTP -> job -> log). */
 export function runJob<T, R>(envelope: JobEnvelope<T>, fn: (envelope: JobEnvelope<T>) => R): R {
-  const correlationId = VALID_ID.test(envelope.correlation_id) ? envelope.correlation_id : randomUUID();
+  const correlationId = VALID_ID.test(envelope.correlation_id)
+    ? envelope.correlation_id
+    : randomUUID();
   return storage.run({ correlationId, actorType: "system" }, () => fn(envelope));
 }

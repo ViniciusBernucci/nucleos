@@ -13,24 +13,24 @@ fazer a instalação uma vez, em cada máquina ou clone novo.
 
 ### Instalação rápida (recomendada)
 
-O script `scripts/instalar-contexto.sh` faz os passos 1 a 5 sozinho e confere cada um.
+O script `tools/contexto-legado/instalar-contexto.sh` faz os passos 1 a 5 sozinho e confere cada um.
 Dentro da pasta `nucleos`, rode:
 
 ```bash
 git switch developer
-bash scripts/instalar-contexto.sh
+bash tools/contexto-legado/instalar-contexto.sh
 ```
 
 Se você usa o Codex, rode assim (registra o servidor na configuração global do Codex):
 
 ```bash
-bash scripts/instalar-contexto.sh --codex
+bash tools/contexto-legado/instalar-contexto.sh --codex
 ```
 
 Cada etapa aparece como `[ok]`. Um `[erro]` explica o que corrigir; depois é só rodar o
 script de novo, quantas vezes precisar. A última linha deve ser `Instalacao concluida.`
 
-O script também aplica a configuração versionada em `scripts/contexto-projeto.json`
+O script também aplica a configuração versionada em `tools/contexto-legado/contexto-projeto.json`
 (arquivos indexados e convenções usadas pelas skills). Ele não usa `sudo`, não instala
 Node nem Git, não troca de branch e não altera arquivos versionados. Se a pasta `contexto` não existir ao lado de `nucleos`, ele a baixa
 do GitHub.
@@ -41,11 +41,11 @@ Também dá para pedir que o Claude Code ou o Codex façam a instalação. Dentr
 `nucleos`, cole um dos comandos abaixo. O agente abre já com o pedido.
 
 ```bash
-claude "Instale o Contexto neste repositorio rodando 'bash scripts/instalar-contexto.sh'. Se aparecer [erro], corrija seguindo a mensagem e a secao Contexto do README.md e rode o script de novo ate aparecer 'Instalacao concluida.'. Pergunte antes de usar sudo, instalar pacotes, trocar de branch ou alterar arquivos versionados. No final, mostre a saida completa do script."
+claude "Instale o Contexto neste repositorio rodando 'bash tools/contexto-legado/instalar-contexto.sh'. Se aparecer [erro], corrija seguindo a mensagem e a secao Contexto do README.md e rode o script de novo ate aparecer 'Instalacao concluida.'. Pergunte antes de usar sudo, instalar pacotes, trocar de branch ou alterar arquivos versionados. No final, mostre a saida completa do script."
 ```
 
 ```bash
-codex "Instale o Contexto neste repositorio rodando 'bash scripts/instalar-contexto.sh --codex'. Se aparecer [erro], corrija seguindo a mensagem e a secao Contexto do README.md e rode o script de novo ate aparecer 'Instalacao concluida.'. Pergunte antes de usar sudo, instalar pacotes, trocar de branch ou alterar arquivos versionados. No final, mostre a saida completa do script."
+codex "Instale o Contexto neste repositorio rodando 'bash tools/contexto-legado/instalar-contexto.sh --codex'. Se aparecer [erro], corrija seguindo a mensagem e a secao Contexto do README.md e rode o script de novo ate aparecer 'Instalacao concluida.'. Pergunte antes de usar sudo, instalar pacotes, trocar de branch ou alterar arquivos versionados. No final, mostre a saida completa do script."
 ```
 
 Os avisos `[aviso]` sobre o `.mcp.json` só somem depois que os passos 6 a 8 forem feitos

@@ -11,7 +11,10 @@ export interface Observability {
   red: RedMetrics;
 }
 
-export function createObservability(logger: LoggerOptions, telemetry: TelemetryConfig): Observability {
+export function createObservability(
+  logger: LoggerOptions,
+  telemetry: TelemetryConfig,
+): Observability {
   const t = createTelemetry(telemetry);
   return { logger: createLogger(logger), telemetry: t, red: new RedMetrics(t.meter) };
 }
@@ -33,7 +36,10 @@ export function observeRequest(
   options: ObserveOptions,
   next: () => void,
 ): void {
-  const correlationId = resolveCorrelationId(req.headers[CORRELATION_HEADER], options.trustEdge ?? false);
+  const correlationId = resolveCorrelationId(
+    req.headers[CORRELATION_HEADER],
+    options.trustEdge ?? false,
+  );
   const method = req.method ?? "GET";
   const started = performance.now();
   const span = kit.telemetry.tracer.startSpan(`HTTP ${method}`, {
@@ -70,7 +76,11 @@ export function observeRequest(
   runWithContext({ correlationId, actorType: "anonymous", span }, next);
 }
 
-export function observeHttp(kit: Observability, handler: RequestListener, options: ObserveOptions): RequestListener {
+export function observeHttp(
+  kit: Observability,
+  handler: RequestListener,
+  options: ObserveOptions,
+): RequestListener {
   return (req, res) => {
     observeRequest(kit, req, res, options, () => {
       handler(req, res);

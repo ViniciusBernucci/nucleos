@@ -15,6 +15,12 @@ export default tseslint.config(
       "**/.turbo/**",
       "**/.run/**",
       "**/node_modules/**",
+      "**/.venv/**",
+      "**/__pycache__/**",
+      "**/.pytest_cache/**",
+      "**/.mypy_cache/**",
+      "**/.ruff_cache/**",
+      "**/.import_linter_cache/**",
       "**/next-env.d.ts", // gerado pelo Next.js (REVIEW-004): versionado, nao linta
       "**/generated/**", // gerado por packages/contracts/scripts/gerar.mjs (FND-003): drift e verificado, tsc linta
       ...(regressao ? [] : ["tools/qualidade/regressao/**"]), // fixtures que DEVEM falhar

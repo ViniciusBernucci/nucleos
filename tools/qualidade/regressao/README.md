@@ -5,3 +5,8 @@ codigo do produto: sao excluidos de ESLint, Prettier, ruff e dependency-cruiser 
 normais, e so sao lidos por `tools/qualidade/regressao.mjs` (`make lint-regressao`), que
 confirma que cada violacao FALHA com a regra esperada. Se um controle deixar de pegar sua
 violacao, o runner falha. O segredo sintetico nao e armazenado: e gerado em tempo de execucao.
+
+No MVP local (ADR-027), as fixtures Python verificam a direção entre pacotes e
+serviço: pacotes compartilhados não importam `ai_gateway`, e contratos não importam
+outros pacotes internos. Os antigos serviços de probes não são necessários para
+exercitar essas regras. As fixtures TypeScript continuam protegendo apps/pacotes.

@@ -13,10 +13,7 @@ members = [
     "nucleos-config",
     "nucleos-contracts",
     "nucleos-enterprise-python",
-    "nucleos-event-dispatcher",
     "nucleos-observability",
-    "nucleos-tenant-runtime",
-    "nucleos-tool-gateway",
 ]
 
 [[package]]
@@ -1094,17 +1091,6 @@ dev = [
 ]
 
 [[package]]
-name = "nucleos-event-dispatcher"
-version = "0.0.0"
-source = { editable = "services/event-dispatcher" }
-dependencies = [
-    { name = "nucleos-observability" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "nucleos-observability", editable = "packages/observability-py" }]
-
-[[package]]
 name = "nucleos-observability"
 version = "0.0.0"
 source = { editable = "packages/observability-py" }
@@ -1122,28 +1108,6 @@ requires-dist = [
     { name = "opentelemetry-sdk", specifier = "==1.45.1" },
     { name = "structlog", specifier = "==26.1.0" },
 ]
-
-[[package]]
-name = "nucleos-tenant-runtime"
-version = "0.0.0"
-source = { editable = "services/tenant-runtime" }
-dependencies = [
-    { name = "nucleos-observability" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "nucleos-observability", editable = "packages/observability-py" }]
-
-[[package]]
-name = "nucleos-tool-gateway"
-version = "0.0.0"
-source = { editable = "services/tool-gateway" }
-dependencies = [
-    { name = "nucleos-observability" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "nucleos-observability", editable = "packages/observability-py" }]
 
 [[package]]
 name = "opentelemetry-api"

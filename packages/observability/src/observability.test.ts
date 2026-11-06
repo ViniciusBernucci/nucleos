@@ -30,7 +30,11 @@ const sink = () => {
 };
 const base = { service: "svc", version: "9.9.9", env: "test" };
 
-function get(port: number, path: string, headers: Record<string, string> = {}): Promise<{ status: number; body: string; headers: Record<string, unknown> }> {
+function get(
+  port: number,
+  path: string,
+  headers: Record<string, string> = {},
+): Promise<{ status: number; body: string; headers: Record<string, unknown> }> {
   return new Promise((resolve, reject) => {
     const req = request({ host: "127.0.0.1", port, path, headers }, (res) => {
       let body = "";
@@ -66,11 +70,19 @@ test("correlation id: padrao NAO confia no cliente; com trustEdge aceita so form
 test("AC-1: requisicao sintetica gera log, metrica e trace com o mesmo correlation_id; HTTP -> job -> log", async () => {
   const spans = new InMemorySpanExporter();
   const metricExporter = new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
-  const reader = new PeriodicExportingMetricReader({ exporter: metricExporter, exportIntervalMillis: 3600_000 });
+  const reader = new PeriodicExportingMetricReader({
+    exporter: metricExporter,
+    exportIntervalMillis: 3600_000,
+  });
   const out = sink();
   const kit = createObservability(
     { ...base, destination: out },
-    { ...base, enabled: true, spanProcessors: [new SimpleSpanProcessor({ exporter: spans })], metricReaders: [reader] },
+    {
+      ...base,
+      enabled: true,
+      spanProcessors: [new SimpleSpanProcessor({ exporter: spans })],
+      metricReaders: [reader],
+    },
   );
   const server = createServer(
     observeHttp(
@@ -99,7 +111,10 @@ test("AC-1: requisicao sintetica gera log, metrica e trace com o mesmo correlati
   );
   const port = await listen(server);
   try {
-    const res = await get(port, `/demo/123?token=${SENTINEL}`, { "x-request-id": "edge-req-1234", authorization: `Bearer ${SENTINEL}` });
+    const res = await get(port, `/demo/123?token=${SENTINEL}`, {
+      "x-request-id": "edge-req-1234",
+      authorization: `Bearer ${SENTINEL}`,
+    });
     assert.equal(res.status, 200);
     assert.equal(res.headers[CORRELATION_HEADER], "edge-req-1234");
     await new Promise((r) => setTimeout(r, 50));
@@ -108,7 +123,19 @@ test("AC-1: requisicao sintetica gera log, metrica e trace com o mesmo correlati
     const httpLog = records.find((r) => r["event"] === "http.request");
     const jobLog = records.find((r) => r["event"] === "job.done");
     assert.ok(httpLog && jobLog);
-    for (const field of ["ts", "level", "service", "version", "env", "trace_id", "span_id", "correlation_id", "tenant_id", "actor_type", "event"]) {
+    for (const field of [
+      "ts",
+      "level",
+      "service",
+      "version",
+      "env",
+      "trace_id",
+      "span_id",
+      "correlation_id",
+      "tenant_id",
+      "actor_type",
+      "event",
+    ]) {
       assert.ok(field in httpLog, `campo fixo ausente: ${field}`);
     }
     assert.equal(httpLog["correlation_id"], "edge-req-1234");
@@ -122,10 +149,16 @@ test("AC-1: requisicao sintetica gera log, metrica e trace com o mesmo correlati
     assert.equal(span.spanContext().spanId, httpLog["span_id"]);
 
     await reader.forceFlush();
-    const metrics = metricExporter.getMetrics().flatMap((m) => m.scopeMetrics.flatMap((s) => s.metrics));
+    const metrics = metricExporter
+      .getMetrics()
+      .flatMap((m) => m.scopeMetrics.flatMap((s) => s.metrics));
     const requests = metrics.find((m) => m.descriptor.name === "http.server.requests");
     assert.ok(requests);
-    assert.deepEqual(requests.dataPoints[0]?.attributes, { method: "GET", route: "/demo", status_class: "2xx" });
+    assert.deepEqual(requests.dataPoints[0]?.attributes, {
+      method: "GET",
+      route: "/demo",
+      status_class: "2xx",
+    });
     assert.ok(metrics.some((m) => m.descriptor.name === "http.server.request.duration"));
 
     // AC-2 (biblioteca): nada do request (query, header) aparece no log.
@@ -138,7 +171,9 @@ test("AC-1: requisicao sintetica gera log, metrica e trace com o mesmo correlati
 
 test("HTTP: sem trustEdge o x-request-id do cliente e substituido por UUID", async () => {
   const kit = createObservability({ ...base, destination: sink() }, { ...base, enabled: false });
-  const server = createServer(observeHttp(kit, (_req, res) => void res.writeHead(200).end("ok"), { routeOf: () => "/x" }));
+  const server = createServer(
+    observeHttp(kit, (_req, res) => void res.writeHead(200).end("ok"), { routeOf: () => "/x" }),
+  );
   const port = await listen(server);
   try {
     const res = await get(port, "/x", { "x-request-id": "abcdefgh12" });
@@ -174,15 +209,27 @@ test("getter que lanca na saida nao derruba o processo e o span e encerrado", as
 
 test("cardinalidade: rota nao declarada vira unmatched; label tenant_id e proibido", () => {
   const kit = createObservability({ ...base, destination: sink() }, { ...base, enabled: false });
-  assert.throws(() => createBusinessCounter(kit.telemetry.meter, "x", { tenant_id: ["a"] }), /proibido/);
+  assert.throws(
+    () => createBusinessCounter(kit.telemetry.meter, "x", { tenant_id: ["a"] }),
+    /proibido/,
+  );
   const count = createBusinessCounter(kit.telemetry.meter, "orders", { outcome: ["ok", "error"] });
   count(1, { outcome: "qualquer" });
 });
 
 test("AC-3: telemetria desabilitada e no-op; OTLP inalcancavel nao altera a resposta nem derruba", async () => {
   assert.equal(telemetryConfigFromEnv({}, base).enabled, false);
-  assert.equal(telemetryConfigFromEnv({ OTEL_EXPORTER_OTLP_ENDPOINT: "http://x:1", OTEL_SDK_DISABLED: "true" }, base).enabled, false);
-  assert.equal(telemetryConfigFromEnv({ OTEL_EXPORTER_OTLP_ENDPOINT: "http://x:1/" }, base).otlpEndpoint, "http://x:1");
+  assert.equal(
+    telemetryConfigFromEnv(
+      { OTEL_EXPORTER_OTLP_ENDPOINT: "http://x:1", OTEL_SDK_DISABLED: "true" },
+      base,
+    ).enabled,
+    false,
+  );
+  assert.equal(
+    telemetryConfigFromEnv({ OTEL_EXPORTER_OTLP_ENDPOINT: "http://x:1/" }, base).otlpEndpoint,
+    "http://x:1",
+  );
   const disabled = createTelemetry({ ...base, enabled: false });
   disabled.tracer.startSpan("x").end();
   await disabled.shutdown();
@@ -193,7 +240,9 @@ test("AC-3: telemetria desabilitada e no-op; OTLP inalcancavel nao altera a resp
       { ...base, destination: out },
       { ...base, enabled, otlpEndpoint: "http://127.0.0.1:1", metricIntervalMs: 50 },
     );
-    const server = createServer(observeHttp(kit, (_req, res) => void res.writeHead(200).end("ok"), { routeOf: () => "/x" }));
+    const server = createServer(
+      observeHttp(kit, (_req, res) => void res.writeHead(200).end("ok"), { routeOf: () => "/x" }),
+    );
     const port = await listen(server);
     try {
       const res = await get(port, "/x");
@@ -218,9 +267,15 @@ test("sondas: /healthz e /readyz sem versoes; 503 quando dependencia falha", asy
   });
   const port = await listen(server);
   try {
-    assert.deepEqual(JSON.parse((await get(port, "/healthz")).body), { status: "ok", service: "svc" });
+    assert.deepEqual(JSON.parse((await get(port, "/healthz")).body), {
+      status: "ok",
+      service: "svc",
+    });
     const ready = await get(port, "/readyz");
-    assert.deepEqual([ready.status, JSON.parse(ready.body)], [200, { status: "ready", service: "svc" }]);
+    assert.deepEqual(
+      [ready.status, JSON.parse(ready.body)],
+      [200, { status: "ready", service: "svc" }],
+    );
     dbUp = false;
     const notReady = await get(port, "/readyz");
     assert.equal(notReady.status, 503);
@@ -246,7 +301,10 @@ test("readyz: checks em paralelo com timeout por check; check pendurado => 503 e
     const elapsed = Date.now() - started;
     assert.equal(ready.status, 503);
     assert.equal(health.status, 200);
-    assert.ok(elapsed < 3500, `3 checks pendurados deveriam levar ~2s (paralelo), levou ${elapsed}ms`);
+    assert.ok(
+      elapsed < 3500,
+      `3 checks pendurados deveriam levar ~2s (paralelo), levou ${elapsed}ms`,
+    );
   } finally {
     server.close();
   }

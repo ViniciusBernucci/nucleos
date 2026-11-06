@@ -1,4 +1,4 @@
-"""Servidor HTTP minimo (stdlib) com /healthz e /readyz observados (FND-009)."""
+"""Gateway HTTP do CFO com autenticacao interna, probes e observabilidade."""
 
 import hmac
 import json

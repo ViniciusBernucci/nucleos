@@ -53,10 +53,7 @@ function openNoFollow(path: string): number {
   try {
     // O_NOFOLLOW: link simbolico no ultimo componente => ELOOP. O_NONBLOCK: nao trava em FIFO.
     // (o Node ja abre com close-on-exec)
-    return openSync(
-      path,
-      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
-    );
+    return openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   } catch (e) {
     const code = (e as NodeJS.ErrnoException).code;
     if (code === "ELOOP") throw new SecretFileError("link-simbolico");

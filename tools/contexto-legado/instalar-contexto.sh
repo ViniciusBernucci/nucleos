@@ -2,9 +2,9 @@
 # Instala e confere o Contexto (memoria local dos agentes de IA) neste checkout.
 # Idempotente: pode ser executado de novo sem efeitos colaterais.
 # Nao usa sudo, nao instala Node/Git, nao troca de branch e nao altera arquivos versionados.
-# Aplica scripts/contexto-projeto.json (include, exclude e workflow) em .contexto/project.json.
+# Aplica tools/contexto-legado/contexto-projeto.json (include, exclude e workflow) em .contexto/project.json.
 #
-# Uso: bash scripts/instalar-contexto.sh [--codex]
+# Uso: bash tools/contexto-legado/instalar-contexto.sh [--codex]
 #   --codex  registra tambem o servidor MCP na configuracao global do Codex
 # Variavel opcional: CONTEXTO_DIR (padrao: pasta "contexto" ao lado do repositorio)
 set -euo pipefail
@@ -81,13 +81,13 @@ if (keys.every(key => JSON.stringify(config[key]) === JSON.stringify(project[key
 for (const key of keys) config[key] = project[key];
 fs.writeFileSync(file, JSON.stringify(config, null, 2) + "\n");
 console.log("atualizada");
-' "$ROOT/.contexto/project.json" "$ROOT/scripts/contexto-projeto.json")"
+' "$ROOT/.contexto/project.json" "$ROOT/tools/contexto-legado/contexto-projeto.json")"
 if [ "$CONFIG_STATUS" = "atualizada" ]; then
   expect '"registered":true' "setup --config-from falhou." contexto setup --config-from "$ROOT"
   expect '"sources"' "index falhou." contexto index
-  ok "Configuracao de scripts/contexto-projeto.json aplicada e indice refeito"
+  ok "Configuracao de tools/contexto-legado/contexto-projeto.json aplicada e indice refeito"
 else
-  ok "Configuracao de scripts/contexto-projeto.json ja aplicada"
+  ok "Configuracao de tools/contexto-legado/contexto-projeto.json ja aplicada"
 fi
 
 # 5. Teste de busca e do servidor MCP

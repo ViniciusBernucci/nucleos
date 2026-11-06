@@ -49,15 +49,9 @@ python_version = "3.12"
 explicit_package_bases = true
 mypy_path = [
   "services/ai-gateway/src",
-  "services/tool-gateway/src",
-  "services/event-dispatcher/src",
-  "services/tenant-runtime/src",
   "packages/config-py/src",
 ]
 files = [
   "services/ai-gateway/src",
   "packages/config-py/src",
-  "services/tool-gateway/src",
-  "services/event-dispatcher/src",
-  "services/tenant-runtime/src/tenant_runtime/policy",
 ]
