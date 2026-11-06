@@ -1,20 +1,14 @@
-# Diffs da reinstalação limpa das skills
+# Diff do commit — Distribuição das skills
 
 Data: 2026-11-06. [Registro da entrega](2026-11-06-reinstalacao-limpa-skills.md).
+[Publicação e agrupamento dos commits](2026-11-06-publicacao-developer.md).
 
-Nenhum commit criado nesta tarefa. Base de comparação própria: `8fd672f1c2a9053bc74ac71d841f3329802e9376`.
-Diff staged: vazio. O patch reúne as alterações
-unstaged e os arquivos novos, sem renames e sem diffs de `documentacoes/` ou `lessons/`.
-Os arquivos novos foram obtidos com `git diff --no-index -- /dev/null <arquivo>`.
-Binários são identificados e listados abaixo, sem representação textual do conteúdo.
+Commit: `8029c6814cd5febb06c255708987f7b469bd36f4`. Patch textual de código/configuração/ferramentas extraído com
+`git show --format= --no-ext-diff`, excluindo `documentacoes/` e `lessons/` para evitar
+recursão. Não há alterações staged/unstaged representadas como commits fictícios.
+SHA-256 dos bytes do diff: `c3cb880d07305fd7a519e91aec75cd42778e4127c11277f32ce70d063788f628`.
 
-## Binários
-
-| Caminho | Estado | Bytes no HEAD inicial | SHA-256 no HEAD inicial |
-| --- | --- | --- | --- |
-| `.agents/skills/archify/renderers/shared/diagnostics.mjs` | removido | 8272 | `4635119e65f77f28f0a81c038642c7d7de318ba9400073f37decd59df258dcd6` |
-
-## Patch completo
+Binários aparecem apenas como indicação de mudança, sem conteúdo binário exposto.
 
 ````diff
 diff --git a/.agent/skills/README.md b/.agent/skills/README.md
@@ -4217,874 +4211,6 @@ index 3f2a42f..0000000
 -Encerre executores e use `flow cleanup-check` antes de `flow cleanup` no lote. Fora dele, `archive --project RAIZ_REAL` apenas preserva o histórico e informa `archived:true`/`cleanup_safe`; não remove a worktree nem prova ausência de executores.
 -
 -Ownership, topologia, branch preservada, estado Git limpo, ausência de operação pendente e de ignorados únicos continuam obrigatórios. Links/junctions, node_modules, arquivos operacionais desconhecidos ou atividade concorrente bloqueiam remoção. Nunca exclusão recursiva/force, nunca limpeza de worktree externa ao lote. Arquivo histórico não reativa gates em outra raiz.
-diff --git a/.agent/skills/arquiteto-de-software/SKILL.md b/.agent/skills/arquiteto-de-software/SKILL.md
-deleted file mode 100644
-index 398d584..0000000
---- a/.agent/skills/arquiteto-de-software/SKILL.md
-+++ /dev/null
-@@ -1,28 +0,0 @@
-----
--name: arquiteto-de-software
--description: Investiga e define ou revisa arquitetura, domínios, dados, contratos e decisões estruturais com base nos requisitos e no sistema existente. Use para decisões arquiteturais e handoff técnico; não para planejar sprints, implementar ou revisar rotineiramente um diff.
-----
--
--# Arquiteto de software
--
--Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Entregue a decisão ou análise da etapa; não inicie outros papéis do workflow.
--
--## Registro de execução e contexto compacto
--
--Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
--
--Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
--
--Construa a menor arquitetura que atende os requisitos conhecidos e permite evolução. Identifique se o pedido é greenfield, evolução, legado ou revisão focal; não presuma projeto novo.
--
--Leia AGENTS.md, requisitos, ADRs, documentação e código relacionado antes de propor mudanças. Diferencie estado observado, requisito aprovado, hipótese e decisão proposta. Pergunte somente o que muda materialmente uma decisão; avance nas partes independentes.
--
--Para análise ampla, consulte o [roteiro arquitetural](references/roteiro-arquitetural.md). Ele é um catálogo de dimensões e formatos: selecione somente os aplicáveis. Não execute todas as etapas nem gere toda a árvore documental para responder a uma questão pontual.
--
--Avalie limites de domínio, ownership de dados, contratos, consistência, segurança, integrações, migrações, operação e custo conforme o risco. Compare alternativas reais e registre trade-offs. Não escolha microserviços, DDD, filas ou infraestrutura por padrão.
--
--Respeite ADRs aceitos. Mudanças estruturais devem explicar o conflito, alternativas e proposta de novo ADR; não silenciosamente redefinir o sistema. Decisão proposta não é decisão aceita.
--
--Siga a organização documental existente. Registre ADR para decisão estrutural relevante, não detalhes triviais. No planejamento de uma arquitetura completa, produza `TECH-LEAD-HANDOFF.md` com objetivo, estado atual/alvo, domínios, componentes, stack, contratos, requisitos, riscos, hipóteses, migrações, dependências e restrições de sequência. Em revisão focal, atualize apenas os artefatos afetados.
--
--Entregue decisão/recomendação, evidências, artefatos alterados e questões em aberto. O Tech Lead planeja tickets e sprints; o arquiteto não implementa nem aprova a própria entrega.
-diff --git a/.agent/skills/arquiteto-de-software/references/roteiro-arquitetural.md b/.agent/skills/arquiteto-de-software/references/roteiro-arquitetural.md
-deleted file mode 100644
-index caae97c..0000000
---- a/.agent/skills/arquiteto-de-software/references/roteiro-arquitetural.md
-+++ /dev/null
-@@ -1,828 +0,0 @@
--# Arquiteto de Software
--
--## Papel
--
--Atue como Principal Software Architect.
--
--Sua responsabilidade é transformar necessidades de negócio em uma arquitetura
--coerente, documentada, sustentável e implementável.
--
--Você deve pensar como:
--
--- Arquiteto de Software;
--- Arquiteto de Soluções;
--- Arquiteto Backend;
--- Arquiteto Frontend;
--- Arquiteto de Dados;
--- Arquiteto de Integrações;
--- Arquiteto de Segurança;
--- Arquiteto de Cloud;
--- Engenheiro de Plataforma.
--
--Sua principal responsabilidade NÃO é criar sprints nem implementar features.
--
--Seu trabalho deve preparar o projeto para o Tech Lead.
--
-----
--
--# Objetivo
--
--Responder com clareza:
--
--O QUE o sistema precisa fazer?
--
--COMO o sistema deve ser estruturado?
--
--QUAIS são os seus domínios?
--
--QUAIS componentes existirão?
--
--COMO os componentes se comunicam?
--
--QUEM possui cada dado?
--
--QUAIS tecnologias são adequadas?
--
--QUAIS riscos existem?
--
--QUAIS decisões arquiteturais devem ser preservadas?
--
-----
--
--# MODOS DE OPERAÇÃO
--
--Identifique automaticamente o cenário.
--
--## GREENFIELD
--
--Projeto ainda não implementado.
--
--## DESENVOLVIMENTO INICIAL
--
--Alguma estrutura já existe, mas a arquitetura ainda está sendo formada.
--
--## PROJETO EM DESENVOLVIMENTO
--
--Existem funcionalidades, código, banco, testes e documentação.
--
--## SISTEMA LEGADO
--
--Existe sistema operacional cuja arquitetura precisa ser compreendida antes de
--qualquer mudança.
--
--## REVISÃO ARQUITETURAL
--
--Arquitetura existente precisa ser revisada.
--
--Nunca presuma que um projeto é greenfield.
--
-----
--
--# ETAPA 0 — Inspeção
--
--Antes de propor arquitetura, analise o que estiver disponível:
--
--- AGENTS.md;
--- README;
--- documentação;
--- código fonte;
--- migrations;
--- banco;
--- APIs;
--- Docker;
--- CI/CD;
--- infraestrutura;
--- testes;
--- ADRs;
--- backlog;
--- sprints;
--- arquivos de configuração;
--- dependências;
--- histórico relevante.
--
--Em projeto existente:
--
--CÓDIGO É EVIDÊNCIA.
--
--Não redesenhe antes de compreender o que já existe.
--
-----
--
--# ETAPA 1 — Investigação do produto
--
--Descubra:
--
--## Produto
--
--- Qual problema é resolvido?
--- Quem é o usuário?
--- Quem paga?
--- Quem administra?
--- Quais atores existem?
--- Quais fluxos principais existem?
--- O que constitui sucesso?
--
--## Escala
--
--- quantidade esperada de usuários;
--- usuários simultâneos;
--- volume de dados;
--- volume de requests;
--- volume de arquivos;
--- crescimento esperado.
--
--## Operação
--
--- disponibilidade;
--- tolerância a falhas;
--- necessidade de processamento assíncrono;
--- notificações;
--- integrações;
--- relatórios;
--- auditoria.
--
--## Segurança
--
--- dados sensíveis;
--- autenticação;
--- autorização;
--- multi-tenancy;
--- compliance;
--- LGPD quando aplicável.
--
--## Restrições
--
--- orçamento;
--- prazo;
--- stack;
--- equipe;
--- cloud;
--- fornecedores;
--- legado.
--
-----
--
--# ETAPA 2 — Perguntas ao usuário
--
--Faça perguntas somente quando a resposta puder alterar materialmente a arquitetura.
--
--Não transforme o processo em entrevista infinita.
--
--Quando for possível continuar:
--
--registre:
--
--ASSUNCAO-001
--
--Descrição:
--
--Impacto:
--
--Necessita validação:
--
--SIM / NÃO
--
-----
--
--# ETAPA 3 — Estado atual
--
--Em projetos existentes documente:
--
--## Aplicações
--
--## Serviços
--
--## Banco
--
--## Infraestrutura
--
--## Autenticação
--
--## Autorização
--
--## Integrações
--
--## Filas
--
--## Jobs
--
--## Cache
--
--## Arquivos
--
--## Observabilidade
--
--## Deploy
--
--## Testes
--
-----
--
--# ETAPA 4 — Gap arquitetural
--
--Compare:
--
--ESTADO ATUAL
--
--vs.
--
--REQUISITOS
--
--vs.
--
--ESTADO NECESSÁRIO
--
--Identifique:
--
--- documentação ausente;
--- decisões não documentadas;
--- inconsistências;
--- acoplamento;
--- duplicação;
--- débito técnico;
--- risco de segurança;
--- risco de escala;
--- risco operacional;
--- arquitetura divergente da documentação.
--
--Quando houver gap relevante, registrar no padrão do projeto; sugestão:
--
--documentacoes/arquitetura/analise-gap-arquitetural.md
--
--Classificar:
--
--CRÍTICO
--ALTO
--MÉDIO
--BAIXO
--
-----
--
--# ETAPA 5 — Modelo de domínio
--
--Identifique:
--
--- domínios;
--- subdomínios;
--- bounded contexts quando fizer sentido;
--- entidades;
--- agregados;
--- value objects;
--- serviços de domínio;
--- comandos;
--- consultas;
--- eventos;
--- invariantes.
--
--Para cada domínio:
--
--## Responsabilidade
--
--## Entidades
--
--## Regras
--
--## Entradas
--
--## Saídas
--
--## Eventos produzidos
--
--## Eventos consumidos
--
--## Dados pertencentes ao domínio
--
--## Dependências
--
--Evite DDD cerimonial.
--
--Use somente quando agregar clareza.
--
-----
--
--# ETAPA 6 — Arquitetura alvo
--
--Avalie opções como:
--
--- monólito modular;
--- arquitetura em camadas;
--- Clean Architecture;
--- Hexagonal;
--- Vertical Slice;
--- event-driven;
--- serviços;
--- microserviços;
--- serverless;
--- híbrida.
--
--Não escolha microserviços automaticamente.
--
--Documente:
--
--## Arquitetura escolhida
--
--## Contexto
--
--## Motivo
--
--## Alternativas avaliadas
--
--## Benefícios
--
--## Trade-offs
--
--## Consequências
--
--## Quando reconsiderar
--
-----
--
--# ETAPA 7 — Componentes
--
--Identifique componentes necessários.
--
--Exemplos:
--
--- aplicação web;
--- aplicação mobile;
--- portal administrativo;
--- API;
--- serviço de autenticação;
--- workers;
--- scheduler;
--- broker;
--- cache;
--- banco;
--- busca;
--- object storage;
--- CDN;
--- IA;
--- notificações;
--- analytics.
--
--Para cada componente:
--
--## Responsabilidade
--
--## Tecnologia
--
--## Interfaces
--
--## Dependências
--
--## Dados pertencentes
--
--## Forma de escala
--
--## Comportamento de falha
--
--## Fronteira de segurança
--
-----
--
--# ETAPA 8 — Escolha de tecnologias
--
--Avaliar:
--
--- adequação ao problema;
--- produtividade;
--- suporte a desenvolvimento assistido por IA;
--- performance;
--- concorrência;
--- escalabilidade;
--- segurança;
--- maturidade;
--- testes;
--- observabilidade;
--- comunidade;
--- custo;
--- complexidade operacional;
--- lock-in;
--- conhecimento da equipe.
--
--Não escolher tecnologia por moda.
--
-----
--
--# ETAPA 9 — ADRs
--
--Decisões estruturais devem gerar ADR.
--
--Local:
--
--documentacoes/arquitetura/adr/
--
--Formato:
--
--# ADR-XXX — Título
--
--## Status
--
--Proposta / Aceita / Substituída / Descontinuada
--
--## Contexto
--
--## Problema
--
--## Decisão
--
--## Alternativas avaliadas
--
--## Benefícios
--
--## Trade-offs
--
--## Consequências
--
--## Quando revisar
--
--Não criar ADR para detalhes triviais.
--
-----
--
--# ETAPA 10 — Arquitetura de dados
--
--Definir:
--
--- banco;
--- schemas;
--- entidades;
--- tabelas;
--- relacionamentos;
--- PKs;
--- FKs;
--- uniques;
--- constraints;
--- índices;
--- queries críticas;
--- soft delete;
--- auditoria;
--- multi-tenancy;
--- retenção;
--- criptografia;
--- dados sensíveis;
--- backups;
--- migrations.
--
--Identifique:
--
--- tabelas de alto crescimento;
--- risco de N+1;
--- queries críticas;
--- cardinalidade;
--- índices importantes.
--
--Criar Mermaid ER quando útil.
--
-----
--
--# ETAPA 11 — Arquitetura de APIs
--
--Definir:
--
--- REST / GraphQL / RPC;
--- versionamento;
--- autenticação;
--- autorização;
--- paginação;
--- filtros;
--- ordenação;
--- pesquisa;
--- validação;
--- erros;
--- idempotência;
--- rate limit;
--- correlation ID;
--- webhooks.
--
--Endpoints críticos devem especificar:
--
--METHOD /rota
--
--Objetivo
--
--Ator
--
--Autorização
--
--Request
--
--Response
--
--Validação
--
--Regras
--
--Erros
--
--Eventos
--
--Idempotência
--
--Observabilidade
--
-----
--
--# ETAPA 12 — Eventos e processamento assíncrono
--
--Determinar necessidade de:
--
--- filas;
--- workers;
--- jobs;
--- scheduler;
--- domain events;
--- integration events;
--- retries;
--- DLQ.
--
--Para cada fluxo:
--
--Produtor
--
--Consumidor
--
--Payload
--
--Retry
--
--Idempotência
--
--Falha
--
--DLQ
--
--Observabilidade
--
-----
--
--# ETAPA 13 — Segurança
--
--Avaliar:
--
--- autenticação;
--- autorização;
--- roles;
--- permissions;
--- isolamento entre tenants;
--- sessão;
--- tokens;
--- secrets;
--- criptografia;
--- rate limit;
--- brute force;
--- auditoria;
--- logs sensíveis;
--- XSS;
--- CSRF;
--- SQL injection;
--- SSRF;
--- uploads;
--- dependências;
--- acesso administrativo;
--- webhooks.
--
--Transformar descobertas importantes em requisitos explícitos.
--
-----
--
--# ETAPA 14 — Infraestrutura
--
--Definir arquiteturalmente:
--
--LOCAL
--
--DESENVOLVIMENTO
--
--TESTE
--
--STAGING
--
--PRODUÇÃO
--
--Considerar:
--
--- compute;
--- containers;
--- banco;
--- cache;
--- fila;
--- storage;
--- CDN;
--- DNS;
--- TLS;
--- networking;
--- firewall;
--- secrets;
--- backups;
--- observabilidade.
--
--Evitar overengineering.
--
-----
--
--# ETAPA 15 — Observabilidade
--
--Definir:
--
--## Logs
--
--Logs estruturados.
--
--## Métricas
--
--- latência;
--- erros;
--- tráfego;
--- banco;
--- filas;
--- recursos;
--- métricas de negócio.
--
--## Tracing
--
--Quando necessário.
--
--## Alertas
--
--Alertas devem ser acionáveis.
--
-----
--
--# ETAPA 16 — Diagramas
--
--Criar Mermaid quando útil para:
--
--1. contexto;
--2. containers;
--3. componentes;
--4. deploy;
--5. sequências críticas;
--6. domínios;
--7. dados.
--
--Diagramas devem aumentar entendimento.
--
-----
--
--# ETAPA 17 — Riscos
--
--Criar registro:
--
--RISK-XXX
--
--Descrição:
--
--Probabilidade:
--BAIXA / MÉDIA / ALTA
--
--Impacto:
--BAIXO / MÉDIO / ALTO / CRÍTICO
--
--Área:
--
--Mitigação:
--
--Contingência:
--
--Trigger de revisão:
--
-----
--
--# ETAPA 18 — Documentação
--
--Preferir:
--
--documentacoes/
--├── arquitetura/
--│   ├── visao-geral.md
--│   ├── estado-atual.md
--│   ├── estado-alvo.md
--│   ├── decisoes-tecnologicas.md
--│   ├── integracoes.md
--│   ├── seguranca.md
--│   ├── infraestrutura.md
--│   ├── riscos.md
--│   ├── TECH-LEAD-HANDOFF.md
--│   └── adr/
--│
--├── dominio/
--│   └── modelo-dominio.md
--│
--├── banco/
--│   └── modelo-dados.md
--│
--├── api/
--│   └── especificacao-api.md
--│
--└── requisitos/
--    └── requisitos-tecnicos.md
--
--Se o projeto já tiver padrão documental, respeitá-lo.
--
-----
--
--# ETAPA 19 — Handoff ao Tech Lead
--
--Em definição arquitetural completa com handoff de execução, criar:
--
--documentacoes/arquitetura/TECH-LEAD-HANDOFF.md
--
--Contendo:
--
--# Objetivo do sistema
--
--# Estado atual
--
--# Arquitetura alvo
--
--# Domínios
--
--# Componentes
--
--# Stack
--
--# ADRs importantes
--
--# Requisitos funcionais
--
--# Requisitos não funcionais
--
--# Segurança
--
--# Infraestrutura
--
--# Integrações
--
--# Dados
--
--# APIs
--
--# Filas e assíncrono
--
--# Estratégia de testes esperada
--
--# Dependências técnicas
--
--# Riscos
--
--# Assunções
--
--# Débito técnico
--
--# Migrações necessárias
--
--# Restrições de sequenciamento
--
--# Decisões que não devem ser alteradas sem novo ADR
--
-----
--
--# RELATÓRIO FINAL
--
--Ao finalizar, apresentar:
--
--## Estado do projeto
--
--## Arquitetura definida
--
--## Documentação analisada
--
--## Documentação criada
--
--## ADRs criados
--
--## Domínios identificados
--
--## Componentes
--
--## Riscos críticos
--
--## Assunções
--
--## Problemas encontrados
--
--## Questões que ainda precisam de decisão humana
--
--## Pronto para o Tech Lead?
--
--SIM / NÃO
--
--Se NÃO:
--
--explique exatamente o bloqueio.
--
-----
--
--# REGRA DE OURO
--
--Construa a MENOR arquitetura capaz de atender corretamente aos requisitos
--conhecidos e evoluir com segurança.
--
--Evite:
--
--SUBENGENHARIA
--
--e
--
--OVERENGINEERING PREMATURO.
 diff --git a/.agent/skills/auditor-de-review/SKILL.md b/.agent/skills/auditor-de-review/SKILL.md
 deleted file mode 100644
 index e336962..0000000
@@ -6073,6 +5199,101 @@ index 4aedac2..0000000
 -Devolva planos, sequência, prompts e bloqueios ao planejador avulso. Não inicie
 -orquestrador ou compilador. O plano deve poder ser entregue diretamente a outra sessão.
 \ No newline at end of file
+diff --git a/.agent/skills/planejador-de-lote-v1/SKILL.md b/.agent/skills/planejador-de-lote-v1/SKILL.md
+new file mode 100644
+index 0000000..3f4c622
+--- /dev/null
++++ b/.agent/skills/planejador-de-lote-v1/SKILL.md
+@@ -0,0 +1,77 @@
++---
++name: planejador-de-lote-v1
++description: Planeja uma feature ou um lote de features da Intranet encadeando grill-me → tech-lead → worktree-planner e entrega especificação, tickets, prompts por worktree e plano de integração em Markdown. Use para planejar antes de implementar; não cria worktrees, não implementa, não commita.
++---
++
++# Planejador de lote (v1)
++
++Coordena o planejamento de uma ou mais demandas até planos prontos para outra sessão executar.
++**Planejar não implementa.** Esta skill não cria worktrees, não altera código, não commita, não faz
++merge e não roda testes. Pode ler o repositório e rodar `git fetch` para registrar a base.
++
++## Antes de começar
++
++- Leia o `CLAUDE.md` e o `.claude/rules/` dos repositórios que a demanda toca:
++  backend `docker-intranet/app`, frontend `intranetNova`. Confirme cada raiz com
++  `git rev-parse --show-toplevel`.
++- Carregar uma etapa significa ler o `SKILL.md` dela e seguir suas instruções **nesta mesma
++  sessão**. As etapas são as skills irmãs `../grill-me/SKILL.md`, `../tech-lead/SKILL.md` e
++  `../worktree-planner/SKILL.md`. Não abra outros agentes para repetir o planejamento.
++
++## Pasta do lote
++
++Tudo é gravado em `docker-intranet/.claude/worktrees/AAAA-MM-DD/` (fuso `America/Sao_Paulo`). Do
++backend o caminho é `../.claude/worktrees/`; do frontend, `../docker-intranet/.claude/worktrees/`.
++Nos arquivos gerados, escreva sempre o **caminho absoluto**, porque as worktrees do ORCA ficam em
++outro lugar.
++
++- Liste a pasta antes de escrever. **Nunca sobrescreva outro lote.** Reutilize arquivos só quando
++  for a retomada do mesmo lote; em colisão de nome, acrescente um sufixo e corrija os links.
++- Arquivos do lote:
++  - `lote-AAAA-MM-DD-{slug}.md`: manifesto (este planejador).
++  - `00-plano-{chave}-{assunto}.md`: especificação canônica de cada demanda (tech-lead).
++  - `01-{chave}-backend-{assunto}.md` / `02-{chave}-frontend-{assunto}.md`: prompt por worktree
++    (worktree-planner).
++  - `99-merge-e-limpeza-{slug}.md`: integração e limpeza do lote (worktree-planner).
++
++## Encadeamento
++
++1. **Demandas.** Identifique as demandas que o usuário escolheu. Com ID do ClickUp e conector
++   disponível, leia a tarefa **somente para leitura**. Sem ID, gere uma chave local estável em
++   kebab-case e registre "não possui ID vinculado". Leia o código e a documentação pertinentes antes
++   de perguntar.
++2. **grill-me.** Esclareça objetivo, comportamento atual, regras de negócio, bordas e fora do
++   escopo. Reaproveite respostas entre demandas do mesmo lote. Falta de requisito não é permissão
++   para inventá-lo.
++3. **tech-lead.** Assim que a entrevista permitir critérios observáveis, carregue-o com todas as
++   respostas. Ele grava o `00-plano`, com tickets, critérios, contratos e perfil de risco. Questão
++   essencial sem resposta deixa a demanda `BLOQUEADA_NO_PLANEJAMENTO`; continue as demais.
++4. **worktree-planner.** Com os tickets prontos, carregue-o. Ele registra as bases e grava os
++   prompts 01/02 e o 99, sem repetir a entrevista.
++5. **Manifesto.** Consolide o `lote-AAAA-MM-DD-{slug}.md`.
++
++Não peça ao usuário para invocar as etapas: encadeie sozinho. Pergunte só o que só ele pode decidir.
++
++## Manifesto
++
++- Identificador do lote, data/fuso, branch de integração `revisao/AAAA-MM-DD-{slug}`.
++- Demandas incluídas e excluídas, com motivo.
++- Base de cada repositório: `origin/main` + SHA completo.
++- Por demanda: chave, ID externo (ou "não possui"), camadas, perfil de risco e justificativa, link
++  para o `00-plano`, IDs dos critérios, worktrees/prompts, dependências e status.
++- Ordem de execução e de integração. Dependências formam um grafo sem ciclos.
++- Riscos e pendências.
++
++Referencie em vez de copiar: critérios e contratos já estão no `00-plano`.
++
++## Conclusão
++
++- Marque `PRONTA_PARA_IMPLEMENTAR` só quando critérios essenciais, contratos, prompts e validação
++  viável estiverem definidos. Hipótese não é aprovação: registre a origem de cada decisão
++  (usuário, evidência no código/documento, hipótese).
++- Entregue no chat: caminho do manifesto, resumo do lote, pendências e próximos passos:
++  1. criar no ORCA as worktrees listadas no manifesto (repositório, branch e base);
++  2. entregar a cada sessão executora o prompt `01`/`02` correspondente;
++  3. depois do commit de cada frente, abrir uma sessão nova na mesma worktree com o "Prompt de
++     revisão";
++  4. pedir a integração do `99` quando as frentes estiverem revisadas.
+diff --git a/.agent/skills/planejador-de-lote-v1/agents/openai.yaml b/.agent/skills/planejador-de-lote-v1/agents/openai.yaml
+new file mode 100644
+index 0000000..b373fff
+--- /dev/null
++++ b/.agent/skills/planejador-de-lote-v1/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Planejador de Lote v1"
++  short_description: "Encadeia grill-me → tech-lead → worktree-planner e entrega o lote em Markdown"
++  default_prompt: "Use $planejador-de-lote-v1 para entrevistar, especificar e gerar os prompts de worktree e o manifesto deste lote, sem implementar."
++policy:
++  allow_implicit_invocation: true
 diff --git a/.agent/skills/planejador-de-lote/SKILL.md b/.agent/skills/planejador-de-lote/SKILL.md
 deleted file mode 100644
 index e04184f..0000000
@@ -7106,6 +6327,79 @@ index 1a61a9f..d1f8c72 100644
 +- No chat: resumo por severidade, o que foi corrigido, o que ficou pendente e o SHA do commit.
 +
 +Revisão não é QA de tela: o teste manual continua com o usuário.
+diff --git a/.agent/skills/revisor-de-codigo/agents/openai.yaml b/.agent/skills/revisor-de-codigo/agents/openai.yaml
+new file mode 100644
+index 0000000..a47b4bf
+--- /dev/null
++++ b/.agent/skills/revisor-de-codigo/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Revisor de Código"
++  short_description: "Revisa spec e riscos do diff e corrige o que for médio, alto ou crítico em um ciclo"
++  default_prompt: "Use $revisor-de-codigo para revisar e corrigir esta branch contra a base e a spec indicadas."
++policy:
++  allow_implicit_invocation: true
+diff --git a/.agent/skills/revisor-de-codigo/references/checklist-risco.md b/.agent/skills/revisor-de-codigo/references/checklist-risco.md
+new file mode 100644
+index 0000000..c12fb47
+--- /dev/null
++++ b/.agent/skills/revisor-de-codigo/references/checklist-risco.md
+@@ -0,0 +1,55 @@
++# Checklist de risco
++
++Aplique só às linhas alteradas e ao contexto imediato que elas afetam. Cada item é uma pista para
++investigar, não um achado automático: confirme o cenário antes de classificar.
++
++## Lógica e dados (qualquer stack)
++
++- `null`/`undefined` não tratado no caminho **real** do dado.
++- Comparação com tipo trocado (string vs int em ID), off-by-one, condição sempre verdadeira ou
++  sempre falsa, `return` antecipado que engole um caso válido.
++- Escrita em várias tabelas sem `DB::transaction`, ou transação que não cobre todas as escritas.
++- Leitura → decisão → escrita sem lock; duplo envio sem proteção (dois usuários aprovando a mesma
++  PN).
++- Erro engolido: `catch` vazio, ou que só loga e segue como se tivesse dado certo.
++- Regra nova que ignora dados legados já existentes na tabela.
++- Bordas: lista vazia, um item só, zero, string vazia vs `null`, ordenação por coluna não única,
++  fuso horário entre Angular e SQL Server.
++
++## Laravel
++
++- **N+1:** Eloquent dentro de loop, falta de `with()`, `count()` por item, accessor que dispara
++  query. `save()` por item onde caberia `insert`/`upsert`.
++- **SQL injection:** `DB::raw`, `whereRaw`, `selectRaw`, `orderByRaw` ou `DB::statement` com
++  interpolação ou concatenação de entrada externa.
++- **Mass assignment:** `$request->all()` em `create`/`update`/`fill`; campo sensível (`status`,
++  `role`, valores) em `$fillable` sem controle.
++- **Autorização/IDOR:** rota sem middleware de auth; `Model::find($request->id)` sem escopo do
++  usuário; ação sobre recurso de terceiro sem Policy/Gate.
++- **Exposição:** Model devolvido sem Resource, vazando coluna sensível; segredo, senha, token ou
++  dado pessoal em log ou resposta.
++- **Upload:** sem validação de MIME/extensão, gravado em caminho público, nome de arquivo vindo do
++  usuário.
++- **Outros:** `exec`/`shell_exec`/`Process` com entrada externa; `unserialize` de dado externo;
++  `Http::get($url)` com URL do usuário; `redirect($request->input(...))`.
++- **Banco:** migration sem `connection('sqlsrv_NEW_CRM')` explícita, ou que toque
++  `sqlsrv_CRM`/`sqlsrv_CorporeRM` → **crítico**.
++- **Contrato:** resposta fora do formato `{ message, errors }`; endpoint novo ou alterado sem
++  contrato atualizado em `.claude/context/api-contracts/`.
++
++## Angular
++
++- **N requisições por item:** `forkJoin(itens.map(...))`, `subscribe` dentro de loop → **alto no
++  mínimo**. Já derrubou produção; precisa de endpoint batch.
++- Subscription longa sem `takeUntilDestroyed()`/`async` (confirme se ela não completa sozinha).
++- Função pesada chamada no template, sobretudo dentro de `@for`; `@for` sem `track`.
++- **XSS:** `bypassSecurityTrust*`, `[innerHTML]` com dado externo, `innerHTML` via `ElementRef`.
++- Segredo no bundle (`environment.ts`, service): tudo o que vai para o front é público.
++- Autorização só no front (botão ou rota escondidos) sem checagem equivalente no backend.
++- Tipo TypeScript que não bate com o Resource do backend.
++
++## Testes
++
++- Caminho crítico novo sem teste: diga qual caminho, não peça "mais cobertura".
++- Teste que nunca falharia: assert que recalcula o esperado do mesmo jeito que o código, ou mock
++  do próprio objeto testado.
 diff --git a/.agent/skills/revisor-de-codigo/references/correcao-performance.md b/.agent/skills/revisor-de-codigo/references/correcao-performance.md
 deleted file mode 100644
 index 6eacdd0..0000000
@@ -8406,6 +7700,18 @@ index b0405b4..794a92c 100644
 +- **Chamada direta:** entregue tickets, prioridades, dependências, bloqueios e o próximo passo
 +  recomendado. Grave em arquivo só se o usuário pedir.
 +- Preparar Markdown não é publicar. Nada vai para o ClickUp sem pedido explícito.
+diff --git a/.agent/skills/tech-lead/agents/openai.yaml b/.agent/skills/tech-lead/agents/openai.yaml
+new file mode 100644
+index 0000000..877f0a9
+--- /dev/null
++++ b/.agent/skills/tech-lead/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Tech Lead"
++  short_description: "Especificação canônica, tickets, critérios e perfil de risco"
++  default_prompt: "Use $tech-lead para transformar estes requisitos em especificação e tickets com critérios de aceite."
++policy:
++  allow_implicit_invocation: true
 diff --git a/.agent/skills/token-observatory/SKILL.md b/.agent/skills/token-observatory/SKILL.md
 deleted file mode 100644
 index 464ab84..0000000
@@ -8585,6 +7891,18 @@ index d637ad0..6ff60d5 100644
 +- **Chamado pelo planejador:** devolva os caminhos dos prompts e do 99, a ordem e os bloqueios.
 +- **Chamado direto:** entregue o mesmo no chat, a partir da especificação indicada, e termine no
 +  plano. Não inicie a execução.
+diff --git a/.agent/skills/worktree-planner/agents/openai.yaml b/.agent/skills/worktree-planner/agents/openai.yaml
+new file mode 100644
+index 0000000..a312547
+--- /dev/null
++++ b/.agent/skills/worktree-planner/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Planejador de Worktrees"
++  short_description: "Base, branches, prompts por worktree e plano de integração"
++  default_prompt: "Use $worktree-planner para planejar as worktrees, os prompts por frente e a integração destes tickets."
++policy:
++  allow_implicit_invocation: true
 diff --git a/.agent/skills/worktree-planner/references/intranet.md b/.agent/skills/worktree-planner/references/intranet.md
 deleted file mode 100644
 index 0cde4d6..0000000
@@ -321626,874 +320944,6 @@ index edce1e9..0000000
 -  },
 -  "updateManifestUrl": "https://tt-a1i.github.io/archify/skill-updates/archify/stable.json"
 -}
-diff --git a/.agents/skills/arquiteto-de-software/SKILL.md b/.agents/skills/arquiteto-de-software/SKILL.md
-deleted file mode 100644
-index 398d584..0000000
---- a/.agents/skills/arquiteto-de-software/SKILL.md
-+++ /dev/null
-@@ -1,28 +0,0 @@
-----
--name: arquiteto-de-software
--description: Investiga e define ou revisa arquitetura, domínios, dados, contratos e decisões estruturais com base nos requisitos e no sistema existente. Use para decisões arquiteturais e handoff técnico; não para planejar sprints, implementar ou revisar rotineiramente um diff.
-----
--
--# Arquiteto de software
--
--Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Entregue a decisão ou análise da etapa; não inicie outros papéis do workflow.
--
--## Registro de execução e contexto compacto
--
--Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
--
--Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
--
--Construa a menor arquitetura que atende os requisitos conhecidos e permite evolução. Identifique se o pedido é greenfield, evolução, legado ou revisão focal; não presuma projeto novo.
--
--Leia AGENTS.md, requisitos, ADRs, documentação e código relacionado antes de propor mudanças. Diferencie estado observado, requisito aprovado, hipótese e decisão proposta. Pergunte somente o que muda materialmente uma decisão; avance nas partes independentes.
--
--Para análise ampla, consulte o [roteiro arquitetural](references/roteiro-arquitetural.md). Ele é um catálogo de dimensões e formatos: selecione somente os aplicáveis. Não execute todas as etapas nem gere toda a árvore documental para responder a uma questão pontual.
--
--Avalie limites de domínio, ownership de dados, contratos, consistência, segurança, integrações, migrações, operação e custo conforme o risco. Compare alternativas reais e registre trade-offs. Não escolha microserviços, DDD, filas ou infraestrutura por padrão.
--
--Respeite ADRs aceitos. Mudanças estruturais devem explicar o conflito, alternativas e proposta de novo ADR; não silenciosamente redefinir o sistema. Decisão proposta não é decisão aceita.
--
--Siga a organização documental existente. Registre ADR para decisão estrutural relevante, não detalhes triviais. No planejamento de uma arquitetura completa, produza `TECH-LEAD-HANDOFF.md` com objetivo, estado atual/alvo, domínios, componentes, stack, contratos, requisitos, riscos, hipóteses, migrações, dependências e restrições de sequência. Em revisão focal, atualize apenas os artefatos afetados.
--
--Entregue decisão/recomendação, evidências, artefatos alterados e questões em aberto. O Tech Lead planeja tickets e sprints; o arquiteto não implementa nem aprova a própria entrega.
-diff --git a/.agents/skills/arquiteto-de-software/references/roteiro-arquitetural.md b/.agents/skills/arquiteto-de-software/references/roteiro-arquitetural.md
-deleted file mode 100644
-index caae97c..0000000
---- a/.agents/skills/arquiteto-de-software/references/roteiro-arquitetural.md
-+++ /dev/null
-@@ -1,828 +0,0 @@
--# Arquiteto de Software
--
--## Papel
--
--Atue como Principal Software Architect.
--
--Sua responsabilidade é transformar necessidades de negócio em uma arquitetura
--coerente, documentada, sustentável e implementável.
--
--Você deve pensar como:
--
--- Arquiteto de Software;
--- Arquiteto de Soluções;
--- Arquiteto Backend;
--- Arquiteto Frontend;
--- Arquiteto de Dados;
--- Arquiteto de Integrações;
--- Arquiteto de Segurança;
--- Arquiteto de Cloud;
--- Engenheiro de Plataforma.
--
--Sua principal responsabilidade NÃO é criar sprints nem implementar features.
--
--Seu trabalho deve preparar o projeto para o Tech Lead.
--
-----
--
--# Objetivo
--
--Responder com clareza:
--
--O QUE o sistema precisa fazer?
--
--COMO o sistema deve ser estruturado?
--
--QUAIS são os seus domínios?
--
--QUAIS componentes existirão?
--
--COMO os componentes se comunicam?
--
--QUEM possui cada dado?
--
--QUAIS tecnologias são adequadas?
--
--QUAIS riscos existem?
--
--QUAIS decisões arquiteturais devem ser preservadas?
--
-----
--
--# MODOS DE OPERAÇÃO
--
--Identifique automaticamente o cenário.
--
--## GREENFIELD
--
--Projeto ainda não implementado.
--
--## DESENVOLVIMENTO INICIAL
--
--Alguma estrutura já existe, mas a arquitetura ainda está sendo formada.
--
--## PROJETO EM DESENVOLVIMENTO
--
--Existem funcionalidades, código, banco, testes e documentação.
--
--## SISTEMA LEGADO
--
--Existe sistema operacional cuja arquitetura precisa ser compreendida antes de
--qualquer mudança.
--
--## REVISÃO ARQUITETURAL
--
--Arquitetura existente precisa ser revisada.
--
--Nunca presuma que um projeto é greenfield.
--
-----
--
--# ETAPA 0 — Inspeção
--
--Antes de propor arquitetura, analise o que estiver disponível:
--
--- AGENTS.md;
--- README;
--- documentação;
--- código fonte;
--- migrations;
--- banco;
--- APIs;
--- Docker;
--- CI/CD;
--- infraestrutura;
--- testes;
--- ADRs;
--- backlog;
--- sprints;
--- arquivos de configuração;
--- dependências;
--- histórico relevante.
--
--Em projeto existente:
--
--CÓDIGO É EVIDÊNCIA.
--
--Não redesenhe antes de compreender o que já existe.
--
-----
--
--# ETAPA 1 — Investigação do produto
--
--Descubra:
--
--## Produto
--
--- Qual problema é resolvido?
--- Quem é o usuário?
--- Quem paga?
--- Quem administra?
--- Quais atores existem?
--- Quais fluxos principais existem?
--- O que constitui sucesso?
--
--## Escala
--
--- quantidade esperada de usuários;
--- usuários simultâneos;
--- volume de dados;
--- volume de requests;
--- volume de arquivos;
--- crescimento esperado.
--
--## Operação
--
--- disponibilidade;
--- tolerância a falhas;
--- necessidade de processamento assíncrono;
--- notificações;
--- integrações;
--- relatórios;
--- auditoria.
--
--## Segurança
--
--- dados sensíveis;
--- autenticação;
--- autorização;
--- multi-tenancy;
--- compliance;
--- LGPD quando aplicável.
--
--## Restrições
--
--- orçamento;
--- prazo;
--- stack;
--- equipe;
--- cloud;
--- fornecedores;
--- legado.
--
-----
--
--# ETAPA 2 — Perguntas ao usuário
--
--Faça perguntas somente quando a resposta puder alterar materialmente a arquitetura.
--
--Não transforme o processo em entrevista infinita.
--
--Quando for possível continuar:
--
--registre:
--
--ASSUNCAO-001
--
--Descrição:
--
--Impacto:
--
--Necessita validação:
--
--SIM / NÃO
--
-----
--
--# ETAPA 3 — Estado atual
--
--Em projetos existentes documente:
--
--## Aplicações
--
--## Serviços
--
--## Banco
--
--## Infraestrutura
--
--## Autenticação
--
--## Autorização
--
--## Integrações
--
--## Filas
--
--## Jobs
--
--## Cache
--
--## Arquivos
--
--## Observabilidade
--
--## Deploy
--
--## Testes
--
-----
--
--# ETAPA 4 — Gap arquitetural
--
--Compare:
--
--ESTADO ATUAL
--
--vs.
--
--REQUISITOS
--
--vs.
--
--ESTADO NECESSÁRIO
--
--Identifique:
--
--- documentação ausente;
--- decisões não documentadas;
--- inconsistências;
--- acoplamento;
--- duplicação;
--- débito técnico;
--- risco de segurança;
--- risco de escala;
--- risco operacional;
--- arquitetura divergente da documentação.
--
--Quando houver gap relevante, registrar no padrão do projeto; sugestão:
--
--documentacoes/arquitetura/analise-gap-arquitetural.md
--
--Classificar:
--
--CRÍTICO
--ALTO
--MÉDIO
--BAIXO
--
-----
--
--# ETAPA 5 — Modelo de domínio
--
--Identifique:
--
--- domínios;
--- subdomínios;
--- bounded contexts quando fizer sentido;
--- entidades;
--- agregados;
--- value objects;
--- serviços de domínio;
--- comandos;
--- consultas;
--- eventos;
--- invariantes.
--
--Para cada domínio:
--
--## Responsabilidade
--
--## Entidades
--
--## Regras
--
--## Entradas
--
--## Saídas
--
--## Eventos produzidos
--
--## Eventos consumidos
--
--## Dados pertencentes ao domínio
--
--## Dependências
--
--Evite DDD cerimonial.
--
--Use somente quando agregar clareza.
--
-----
--
--# ETAPA 6 — Arquitetura alvo
--
--Avalie opções como:
--
--- monólito modular;
--- arquitetura em camadas;
--- Clean Architecture;
--- Hexagonal;
--- Vertical Slice;
--- event-driven;
--- serviços;
--- microserviços;
--- serverless;
--- híbrida.
--
--Não escolha microserviços automaticamente.
--
--Documente:
--
--## Arquitetura escolhida
--
--## Contexto
--
--## Motivo
--
--## Alternativas avaliadas
--
--## Benefícios
--
--## Trade-offs
--
--## Consequências
--
--## Quando reconsiderar
--
-----
--
--# ETAPA 7 — Componentes
--
--Identifique componentes necessários.
--
--Exemplos:
--
--- aplicação web;
--- aplicação mobile;
--- portal administrativo;
--- API;
--- serviço de autenticação;
--- workers;
--- scheduler;
--- broker;
--- cache;
--- banco;
--- busca;
--- object storage;
--- CDN;
--- IA;
--- notificações;
--- analytics.
--
--Para cada componente:
--
--## Responsabilidade
--
--## Tecnologia
--
--## Interfaces
--
--## Dependências
--
--## Dados pertencentes
--
--## Forma de escala
--
--## Comportamento de falha
--
--## Fronteira de segurança
--
-----
--
--# ETAPA 8 — Escolha de tecnologias
--
--Avaliar:
--
--- adequação ao problema;
--- produtividade;
--- suporte a desenvolvimento assistido por IA;
--- performance;
--- concorrência;
--- escalabilidade;
--- segurança;
--- maturidade;
--- testes;
--- observabilidade;
--- comunidade;
--- custo;
--- complexidade operacional;
--- lock-in;
--- conhecimento da equipe.
--
--Não escolher tecnologia por moda.
--
-----
--
--# ETAPA 9 — ADRs
--
--Decisões estruturais devem gerar ADR.
--
--Local:
--
--documentacoes/arquitetura/adr/
--
--Formato:
--
--# ADR-XXX — Título
--
--## Status
--
--Proposta / Aceita / Substituída / Descontinuada
--
--## Contexto
--
--## Problema
--
--## Decisão
--
--## Alternativas avaliadas
--
--## Benefícios
--
--## Trade-offs
--
--## Consequências
--
--## Quando revisar
--
--Não criar ADR para detalhes triviais.
--
-----
--
--# ETAPA 10 — Arquitetura de dados
--
--Definir:
--
--- banco;
--- schemas;
--- entidades;
--- tabelas;
--- relacionamentos;
--- PKs;
--- FKs;
--- uniques;
--- constraints;
--- índices;
--- queries críticas;
--- soft delete;
--- auditoria;
--- multi-tenancy;
--- retenção;
--- criptografia;
--- dados sensíveis;
--- backups;
--- migrations.
--
--Identifique:
--
--- tabelas de alto crescimento;
--- risco de N+1;
--- queries críticas;
--- cardinalidade;
--- índices importantes.
--
--Criar Mermaid ER quando útil.
--
-----
--
--# ETAPA 11 — Arquitetura de APIs
--
--Definir:
--
--- REST / GraphQL / RPC;
--- versionamento;
--- autenticação;
--- autorização;
--- paginação;
--- filtros;
--- ordenação;
--- pesquisa;
--- validação;
--- erros;
--- idempotência;
--- rate limit;
--- correlation ID;
--- webhooks.
--
--Endpoints críticos devem especificar:
--
--METHOD /rota
--
--Objetivo
--
--Ator
--
--Autorização
--
--Request
--
--Response
--
--Validação
--
--Regras
--
--Erros
--
--Eventos
--
--Idempotência
--
--Observabilidade
--
-----
--
--# ETAPA 12 — Eventos e processamento assíncrono
--
--Determinar necessidade de:
--
--- filas;
--- workers;
--- jobs;
--- scheduler;
--- domain events;
--- integration events;
--- retries;
--- DLQ.
--
--Para cada fluxo:
--
--Produtor
--
--Consumidor
--
--Payload
--
--Retry
--
--Idempotência
--
--Falha
--
--DLQ
--
--Observabilidade
--
-----
--
--# ETAPA 13 — Segurança
--
--Avaliar:
--
--- autenticação;
--- autorização;
--- roles;
--- permissions;
--- isolamento entre tenants;
--- sessão;
--- tokens;
--- secrets;
--- criptografia;
--- rate limit;
--- brute force;
--- auditoria;
--- logs sensíveis;
--- XSS;
--- CSRF;
--- SQL injection;
--- SSRF;
--- uploads;
--- dependências;
--- acesso administrativo;
--- webhooks.
--
--Transformar descobertas importantes em requisitos explícitos.
--
-----
--
--# ETAPA 14 — Infraestrutura
--
--Definir arquiteturalmente:
--
--LOCAL
--
--DESENVOLVIMENTO
--
--TESTE
--
--STAGING
--
--PRODUÇÃO
--
--Considerar:
--
--- compute;
--- containers;
--- banco;
--- cache;
--- fila;
--- storage;
--- CDN;
--- DNS;
--- TLS;
--- networking;
--- firewall;
--- secrets;
--- backups;
--- observabilidade.
--
--Evitar overengineering.
--
-----
--
--# ETAPA 15 — Observabilidade
--
--Definir:
--
--## Logs
--
--Logs estruturados.
--
--## Métricas
--
--- latência;
--- erros;
--- tráfego;
--- banco;
--- filas;
--- recursos;
--- métricas de negócio.
--
--## Tracing
--
--Quando necessário.
--
--## Alertas
--
--Alertas devem ser acionáveis.
--
-----
--
--# ETAPA 16 — Diagramas
--
--Criar Mermaid quando útil para:
--
--1. contexto;
--2. containers;
--3. componentes;
--4. deploy;
--5. sequências críticas;
--6. domínios;
--7. dados.
--
--Diagramas devem aumentar entendimento.
--
-----
--
--# ETAPA 17 — Riscos
--
--Criar registro:
--
--RISK-XXX
--
--Descrição:
--
--Probabilidade:
--BAIXA / MÉDIA / ALTA
--
--Impacto:
--BAIXO / MÉDIO / ALTO / CRÍTICO
--
--Área:
--
--Mitigação:
--
--Contingência:
--
--Trigger de revisão:
--
-----
--
--# ETAPA 18 — Documentação
--
--Preferir:
--
--documentacoes/
--├── arquitetura/
--│   ├── visao-geral.md
--│   ├── estado-atual.md
--│   ├── estado-alvo.md
--│   ├── decisoes-tecnologicas.md
--│   ├── integracoes.md
--│   ├── seguranca.md
--│   ├── infraestrutura.md
--│   ├── riscos.md
--│   ├── TECH-LEAD-HANDOFF.md
--│   └── adr/
--│
--├── dominio/
--│   └── modelo-dominio.md
--│
--├── banco/
--│   └── modelo-dados.md
--│
--├── api/
--│   └── especificacao-api.md
--│
--└── requisitos/
--    └── requisitos-tecnicos.md
--
--Se o projeto já tiver padrão documental, respeitá-lo.
--
-----
--
--# ETAPA 19 — Handoff ao Tech Lead
--
--Em definição arquitetural completa com handoff de execução, criar:
--
--documentacoes/arquitetura/TECH-LEAD-HANDOFF.md
--
--Contendo:
--
--# Objetivo do sistema
--
--# Estado atual
--
--# Arquitetura alvo
--
--# Domínios
--
--# Componentes
--
--# Stack
--
--# ADRs importantes
--
--# Requisitos funcionais
--
--# Requisitos não funcionais
--
--# Segurança
--
--# Infraestrutura
--
--# Integrações
--
--# Dados
--
--# APIs
--
--# Filas e assíncrono
--
--# Estratégia de testes esperada
--
--# Dependências técnicas
--
--# Riscos
--
--# Assunções
--
--# Débito técnico
--
--# Migrações necessárias
--
--# Restrições de sequenciamento
--
--# Decisões que não devem ser alteradas sem novo ADR
--
-----
--
--# RELATÓRIO FINAL
--
--Ao finalizar, apresentar:
--
--## Estado do projeto
--
--## Arquitetura definida
--
--## Documentação analisada
--
--## Documentação criada
--
--## ADRs criados
--
--## Domínios identificados
--
--## Componentes
--
--## Riscos críticos
--
--## Assunções
--
--## Problemas encontrados
--
--## Questões que ainda precisam de decisão humana
--
--## Pronto para o Tech Lead?
--
--SIM / NÃO
--
--Se NÃO:
--
--explique exatamente o bloqueio.
--
-----
--
--# REGRA DE OURO
--
--Construa a MENOR arquitetura capaz de atender corretamente aos requisitos
--conhecidos e evoluir com segurança.
--
--Evite:
--
--SUBENGENHARIA
--
--e
--
--OVERENGINEERING PREMATURO.
 diff --git a/.agents/skills/auditor-de-review/SKILL.md b/.agents/skills/auditor-de-review/SKILL.md
 deleted file mode 100644
 index e336962..0000000
@@ -323482,6 +321932,101 @@ index 4aedac2..0000000
 -Devolva planos, sequência, prompts e bloqueios ao planejador avulso. Não inicie
 -orquestrador ou compilador. O plano deve poder ser entregue diretamente a outra sessão.
 \ No newline at end of file
+diff --git a/.agents/skills/planejador-de-lote-v1/SKILL.md b/.agents/skills/planejador-de-lote-v1/SKILL.md
+new file mode 100644
+index 0000000..3f4c622
+--- /dev/null
++++ b/.agents/skills/planejador-de-lote-v1/SKILL.md
+@@ -0,0 +1,77 @@
++---
++name: planejador-de-lote-v1
++description: Planeja uma feature ou um lote de features da Intranet encadeando grill-me → tech-lead → worktree-planner e entrega especificação, tickets, prompts por worktree e plano de integração em Markdown. Use para planejar antes de implementar; não cria worktrees, não implementa, não commita.
++---
++
++# Planejador de lote (v1)
++
++Coordena o planejamento de uma ou mais demandas até planos prontos para outra sessão executar.
++**Planejar não implementa.** Esta skill não cria worktrees, não altera código, não commita, não faz
++merge e não roda testes. Pode ler o repositório e rodar `git fetch` para registrar a base.
++
++## Antes de começar
++
++- Leia o `CLAUDE.md` e o `.claude/rules/` dos repositórios que a demanda toca:
++  backend `docker-intranet/app`, frontend `intranetNova`. Confirme cada raiz com
++  `git rev-parse --show-toplevel`.
++- Carregar uma etapa significa ler o `SKILL.md` dela e seguir suas instruções **nesta mesma
++  sessão**. As etapas são as skills irmãs `../grill-me/SKILL.md`, `../tech-lead/SKILL.md` e
++  `../worktree-planner/SKILL.md`. Não abra outros agentes para repetir o planejamento.
++
++## Pasta do lote
++
++Tudo é gravado em `docker-intranet/.claude/worktrees/AAAA-MM-DD/` (fuso `America/Sao_Paulo`). Do
++backend o caminho é `../.claude/worktrees/`; do frontend, `../docker-intranet/.claude/worktrees/`.
++Nos arquivos gerados, escreva sempre o **caminho absoluto**, porque as worktrees do ORCA ficam em
++outro lugar.
++
++- Liste a pasta antes de escrever. **Nunca sobrescreva outro lote.** Reutilize arquivos só quando
++  for a retomada do mesmo lote; em colisão de nome, acrescente um sufixo e corrija os links.
++- Arquivos do lote:
++  - `lote-AAAA-MM-DD-{slug}.md`: manifesto (este planejador).
++  - `00-plano-{chave}-{assunto}.md`: especificação canônica de cada demanda (tech-lead).
++  - `01-{chave}-backend-{assunto}.md` / `02-{chave}-frontend-{assunto}.md`: prompt por worktree
++    (worktree-planner).
++  - `99-merge-e-limpeza-{slug}.md`: integração e limpeza do lote (worktree-planner).
++
++## Encadeamento
++
++1. **Demandas.** Identifique as demandas que o usuário escolheu. Com ID do ClickUp e conector
++   disponível, leia a tarefa **somente para leitura**. Sem ID, gere uma chave local estável em
++   kebab-case e registre "não possui ID vinculado". Leia o código e a documentação pertinentes antes
++   de perguntar.
++2. **grill-me.** Esclareça objetivo, comportamento atual, regras de negócio, bordas e fora do
++   escopo. Reaproveite respostas entre demandas do mesmo lote. Falta de requisito não é permissão
++   para inventá-lo.
++3. **tech-lead.** Assim que a entrevista permitir critérios observáveis, carregue-o com todas as
++   respostas. Ele grava o `00-plano`, com tickets, critérios, contratos e perfil de risco. Questão
++   essencial sem resposta deixa a demanda `BLOQUEADA_NO_PLANEJAMENTO`; continue as demais.
++4. **worktree-planner.** Com os tickets prontos, carregue-o. Ele registra as bases e grava os
++   prompts 01/02 e o 99, sem repetir a entrevista.
++5. **Manifesto.** Consolide o `lote-AAAA-MM-DD-{slug}.md`.
++
++Não peça ao usuário para invocar as etapas: encadeie sozinho. Pergunte só o que só ele pode decidir.
++
++## Manifesto
++
++- Identificador do lote, data/fuso, branch de integração `revisao/AAAA-MM-DD-{slug}`.
++- Demandas incluídas e excluídas, com motivo.
++- Base de cada repositório: `origin/main` + SHA completo.
++- Por demanda: chave, ID externo (ou "não possui"), camadas, perfil de risco e justificativa, link
++  para o `00-plano`, IDs dos critérios, worktrees/prompts, dependências e status.
++- Ordem de execução e de integração. Dependências formam um grafo sem ciclos.
++- Riscos e pendências.
++
++Referencie em vez de copiar: critérios e contratos já estão no `00-plano`.
++
++## Conclusão
++
++- Marque `PRONTA_PARA_IMPLEMENTAR` só quando critérios essenciais, contratos, prompts e validação
++  viável estiverem definidos. Hipótese não é aprovação: registre a origem de cada decisão
++  (usuário, evidência no código/documento, hipótese).
++- Entregue no chat: caminho do manifesto, resumo do lote, pendências e próximos passos:
++  1. criar no ORCA as worktrees listadas no manifesto (repositório, branch e base);
++  2. entregar a cada sessão executora o prompt `01`/`02` correspondente;
++  3. depois do commit de cada frente, abrir uma sessão nova na mesma worktree com o "Prompt de
++     revisão";
++  4. pedir a integração do `99` quando as frentes estiverem revisadas.
+diff --git a/.agents/skills/planejador-de-lote-v1/agents/openai.yaml b/.agents/skills/planejador-de-lote-v1/agents/openai.yaml
+new file mode 100644
+index 0000000..b373fff
+--- /dev/null
++++ b/.agents/skills/planejador-de-lote-v1/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Planejador de Lote v1"
++  short_description: "Encadeia grill-me → tech-lead → worktree-planner e entrega o lote em Markdown"
++  default_prompt: "Use $planejador-de-lote-v1 para entrevistar, especificar e gerar os prompts de worktree e o manifesto deste lote, sem implementar."
++policy:
++  allow_implicit_invocation: true
 diff --git a/.agents/skills/planejador-de-lote/SKILL.md b/.agents/skills/planejador-de-lote/SKILL.md
 deleted file mode 100644
 index e04184f..0000000
@@ -324515,6 +323060,79 @@ index 1a61a9f..d1f8c72 100644
 +- No chat: resumo por severidade, o que foi corrigido, o que ficou pendente e o SHA do commit.
 +
 +Revisão não é QA de tela: o teste manual continua com o usuário.
+diff --git a/.agents/skills/revisor-de-codigo/agents/openai.yaml b/.agents/skills/revisor-de-codigo/agents/openai.yaml
+new file mode 100644
+index 0000000..a47b4bf
+--- /dev/null
++++ b/.agents/skills/revisor-de-codigo/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Revisor de Código"
++  short_description: "Revisa spec e riscos do diff e corrige o que for médio, alto ou crítico em um ciclo"
++  default_prompt: "Use $revisor-de-codigo para revisar e corrigir esta branch contra a base e a spec indicadas."
++policy:
++  allow_implicit_invocation: true
+diff --git a/.agents/skills/revisor-de-codigo/references/checklist-risco.md b/.agents/skills/revisor-de-codigo/references/checklist-risco.md
+new file mode 100644
+index 0000000..c12fb47
+--- /dev/null
++++ b/.agents/skills/revisor-de-codigo/references/checklist-risco.md
+@@ -0,0 +1,55 @@
++# Checklist de risco
++
++Aplique só às linhas alteradas e ao contexto imediato que elas afetam. Cada item é uma pista para
++investigar, não um achado automático: confirme o cenário antes de classificar.
++
++## Lógica e dados (qualquer stack)
++
++- `null`/`undefined` não tratado no caminho **real** do dado.
++- Comparação com tipo trocado (string vs int em ID), off-by-one, condição sempre verdadeira ou
++  sempre falsa, `return` antecipado que engole um caso válido.
++- Escrita em várias tabelas sem `DB::transaction`, ou transação que não cobre todas as escritas.
++- Leitura → decisão → escrita sem lock; duplo envio sem proteção (dois usuários aprovando a mesma
++  PN).
++- Erro engolido: `catch` vazio, ou que só loga e segue como se tivesse dado certo.
++- Regra nova que ignora dados legados já existentes na tabela.
++- Bordas: lista vazia, um item só, zero, string vazia vs `null`, ordenação por coluna não única,
++  fuso horário entre Angular e SQL Server.
++
++## Laravel
++
++- **N+1:** Eloquent dentro de loop, falta de `with()`, `count()` por item, accessor que dispara
++  query. `save()` por item onde caberia `insert`/`upsert`.
++- **SQL injection:** `DB::raw`, `whereRaw`, `selectRaw`, `orderByRaw` ou `DB::statement` com
++  interpolação ou concatenação de entrada externa.
++- **Mass assignment:** `$request->all()` em `create`/`update`/`fill`; campo sensível (`status`,
++  `role`, valores) em `$fillable` sem controle.
++- **Autorização/IDOR:** rota sem middleware de auth; `Model::find($request->id)` sem escopo do
++  usuário; ação sobre recurso de terceiro sem Policy/Gate.
++- **Exposição:** Model devolvido sem Resource, vazando coluna sensível; segredo, senha, token ou
++  dado pessoal em log ou resposta.
++- **Upload:** sem validação de MIME/extensão, gravado em caminho público, nome de arquivo vindo do
++  usuário.
++- **Outros:** `exec`/`shell_exec`/`Process` com entrada externa; `unserialize` de dado externo;
++  `Http::get($url)` com URL do usuário; `redirect($request->input(...))`.
++- **Banco:** migration sem `connection('sqlsrv_NEW_CRM')` explícita, ou que toque
++  `sqlsrv_CRM`/`sqlsrv_CorporeRM` → **crítico**.
++- **Contrato:** resposta fora do formato `{ message, errors }`; endpoint novo ou alterado sem
++  contrato atualizado em `.claude/context/api-contracts/`.
++
++## Angular
++
++- **N requisições por item:** `forkJoin(itens.map(...))`, `subscribe` dentro de loop → **alto no
++  mínimo**. Já derrubou produção; precisa de endpoint batch.
++- Subscription longa sem `takeUntilDestroyed()`/`async` (confirme se ela não completa sozinha).
++- Função pesada chamada no template, sobretudo dentro de `@for`; `@for` sem `track`.
++- **XSS:** `bypassSecurityTrust*`, `[innerHTML]` com dado externo, `innerHTML` via `ElementRef`.
++- Segredo no bundle (`environment.ts`, service): tudo o que vai para o front é público.
++- Autorização só no front (botão ou rota escondidos) sem checagem equivalente no backend.
++- Tipo TypeScript que não bate com o Resource do backend.
++
++## Testes
++
++- Caminho crítico novo sem teste: diga qual caminho, não peça "mais cobertura".
++- Teste que nunca falharia: assert que recalcula o esperado do mesmo jeito que o código, ou mock
++  do próprio objeto testado.
 diff --git a/.agents/skills/revisor-de-codigo/references/correcao-performance.md b/.agents/skills/revisor-de-codigo/references/correcao-performance.md
 deleted file mode 100644
 index 6eacdd0..0000000
@@ -325815,6 +324433,18 @@ index b0405b4..794a92c 100644
 +- **Chamada direta:** entregue tickets, prioridades, dependências, bloqueios e o próximo passo
 +  recomendado. Grave em arquivo só se o usuário pedir.
 +- Preparar Markdown não é publicar. Nada vai para o ClickUp sem pedido explícito.
+diff --git a/.agents/skills/tech-lead/agents/openai.yaml b/.agents/skills/tech-lead/agents/openai.yaml
+new file mode 100644
+index 0000000..877f0a9
+--- /dev/null
++++ b/.agents/skills/tech-lead/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Tech Lead"
++  short_description: "Especificação canônica, tickets, critérios e perfil de risco"
++  default_prompt: "Use $tech-lead para transformar estes requisitos em especificação e tickets com critérios de aceite."
++policy:
++  allow_implicit_invocation: true
 diff --git a/.agents/skills/token-observatory/SKILL.md b/.agents/skills/token-observatory/SKILL.md
 deleted file mode 100644
 index 464ab84..0000000
@@ -325994,6 +324624,18 @@ index d637ad0..6ff60d5 100644
 +- **Chamado pelo planejador:** devolva os caminhos dos prompts e do 99, a ordem e os bloqueios.
 +- **Chamado direto:** entregue o mesmo no chat, a partir da especificação indicada, e termine no
 +  plano. Não inicie a execução.
+diff --git a/.agents/skills/worktree-planner/agents/openai.yaml b/.agents/skills/worktree-planner/agents/openai.yaml
+new file mode 100644
+index 0000000..a312547
+--- /dev/null
++++ b/.agents/skills/worktree-planner/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Planejador de Worktrees"
++  short_description: "Base, branches, prompts por worktree e plano de integração"
++  default_prompt: "Use $worktree-planner para planejar as worktrees, os prompts por frente e a integração destes tickets."
++policy:
++  allow_implicit_invocation: true
 diff --git a/.agents/skills/worktree-planner/references/intranet.md b/.agents/skills/worktree-planner/references/intranet.md
 deleted file mode 100644
 index 0cde4d6..0000000
@@ -330285,874 +328927,6 @@ index 3f2a42f..0000000
 -Encerre executores e use `flow cleanup-check` antes de `flow cleanup` no lote. Fora dele, `archive --project RAIZ_REAL` apenas preserva o histórico e informa `archived:true`/`cleanup_safe`; não remove a worktree nem prova ausência de executores.
 -
 -Ownership, topologia, branch preservada, estado Git limpo, ausência de operação pendente e de ignorados únicos continuam obrigatórios. Links/junctions, node_modules, arquivos operacionais desconhecidos ou atividade concorrente bloqueiam remoção. Nunca exclusão recursiva/force, nunca limpeza de worktree externa ao lote. Arquivo histórico não reativa gates em outra raiz.
-diff --git a/.claude/skills/arquiteto-de-software/SKILL.md b/.claude/skills/arquiteto-de-software/SKILL.md
-deleted file mode 100644
-index 398d584..0000000
---- a/.claude/skills/arquiteto-de-software/SKILL.md
-+++ /dev/null
-@@ -1,28 +0,0 @@
-----
--name: arquiteto-de-software
--description: Investiga e define ou revisa arquitetura, domínios, dados, contratos e decisões estruturais com base nos requisitos e no sistema existente. Use para decisões arquiteturais e handoff técnico; não para planejar sprints, implementar ou revisar rotineiramente um diff.
-----
--
--# Arquiteto de software
--
--Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Entregue a decisão ou análise da etapa; não inicie outros papéis do workflow.
--
--## Registro de execução e contexto compacto
--
--Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
--
--Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
--
--Construa a menor arquitetura que atende os requisitos conhecidos e permite evolução. Identifique se o pedido é greenfield, evolução, legado ou revisão focal; não presuma projeto novo.
--
--Leia AGENTS.md, requisitos, ADRs, documentação e código relacionado antes de propor mudanças. Diferencie estado observado, requisito aprovado, hipótese e decisão proposta. Pergunte somente o que muda materialmente uma decisão; avance nas partes independentes.
--
--Para análise ampla, consulte o [roteiro arquitetural](references/roteiro-arquitetural.md). Ele é um catálogo de dimensões e formatos: selecione somente os aplicáveis. Não execute todas as etapas nem gere toda a árvore documental para responder a uma questão pontual.
--
--Avalie limites de domínio, ownership de dados, contratos, consistência, segurança, integrações, migrações, operação e custo conforme o risco. Compare alternativas reais e registre trade-offs. Não escolha microserviços, DDD, filas ou infraestrutura por padrão.
--
--Respeite ADRs aceitos. Mudanças estruturais devem explicar o conflito, alternativas e proposta de novo ADR; não silenciosamente redefinir o sistema. Decisão proposta não é decisão aceita.
--
--Siga a organização documental existente. Registre ADR para decisão estrutural relevante, não detalhes triviais. No planejamento de uma arquitetura completa, produza `TECH-LEAD-HANDOFF.md` com objetivo, estado atual/alvo, domínios, componentes, stack, contratos, requisitos, riscos, hipóteses, migrações, dependências e restrições de sequência. Em revisão focal, atualize apenas os artefatos afetados.
--
--Entregue decisão/recomendação, evidências, artefatos alterados e questões em aberto. O Tech Lead planeja tickets e sprints; o arquiteto não implementa nem aprova a própria entrega.
-diff --git a/.claude/skills/arquiteto-de-software/references/roteiro-arquitetural.md b/.claude/skills/arquiteto-de-software/references/roteiro-arquitetural.md
-deleted file mode 100644
-index caae97c..0000000
---- a/.claude/skills/arquiteto-de-software/references/roteiro-arquitetural.md
-+++ /dev/null
-@@ -1,828 +0,0 @@
--# Arquiteto de Software
--
--## Papel
--
--Atue como Principal Software Architect.
--
--Sua responsabilidade é transformar necessidades de negócio em uma arquitetura
--coerente, documentada, sustentável e implementável.
--
--Você deve pensar como:
--
--- Arquiteto de Software;
--- Arquiteto de Soluções;
--- Arquiteto Backend;
--- Arquiteto Frontend;
--- Arquiteto de Dados;
--- Arquiteto de Integrações;
--- Arquiteto de Segurança;
--- Arquiteto de Cloud;
--- Engenheiro de Plataforma.
--
--Sua principal responsabilidade NÃO é criar sprints nem implementar features.
--
--Seu trabalho deve preparar o projeto para o Tech Lead.
--
-----
--
--# Objetivo
--
--Responder com clareza:
--
--O QUE o sistema precisa fazer?
--
--COMO o sistema deve ser estruturado?
--
--QUAIS são os seus domínios?
--
--QUAIS componentes existirão?
--
--COMO os componentes se comunicam?
--
--QUEM possui cada dado?
--
--QUAIS tecnologias são adequadas?
--
--QUAIS riscos existem?
--
--QUAIS decisões arquiteturais devem ser preservadas?
--
-----
--
--# MODOS DE OPERAÇÃO
--
--Identifique automaticamente o cenário.
--
--## GREENFIELD
--
--Projeto ainda não implementado.
--
--## DESENVOLVIMENTO INICIAL
--
--Alguma estrutura já existe, mas a arquitetura ainda está sendo formada.
--
--## PROJETO EM DESENVOLVIMENTO
--
--Existem funcionalidades, código, banco, testes e documentação.
--
--## SISTEMA LEGADO
--
--Existe sistema operacional cuja arquitetura precisa ser compreendida antes de
--qualquer mudança.
--
--## REVISÃO ARQUITETURAL
--
--Arquitetura existente precisa ser revisada.
--
--Nunca presuma que um projeto é greenfield.
--
-----
--
--# ETAPA 0 — Inspeção
--
--Antes de propor arquitetura, analise o que estiver disponível:
--
--- AGENTS.md;
--- README;
--- documentação;
--- código fonte;
--- migrations;
--- banco;
--- APIs;
--- Docker;
--- CI/CD;
--- infraestrutura;
--- testes;
--- ADRs;
--- backlog;
--- sprints;
--- arquivos de configuração;
--- dependências;
--- histórico relevante.
--
--Em projeto existente:
--
--CÓDIGO É EVIDÊNCIA.
--
--Não redesenhe antes de compreender o que já existe.
--
-----
--
--# ETAPA 1 — Investigação do produto
--
--Descubra:
--
--## Produto
--
--- Qual problema é resolvido?
--- Quem é o usuário?
--- Quem paga?
--- Quem administra?
--- Quais atores existem?
--- Quais fluxos principais existem?
--- O que constitui sucesso?
--
--## Escala
--
--- quantidade esperada de usuários;
--- usuários simultâneos;
--- volume de dados;
--- volume de requests;
--- volume de arquivos;
--- crescimento esperado.
--
--## Operação
--
--- disponibilidade;
--- tolerância a falhas;
--- necessidade de processamento assíncrono;
--- notificações;
--- integrações;
--- relatórios;
--- auditoria.
--
--## Segurança
--
--- dados sensíveis;
--- autenticação;
--- autorização;
--- multi-tenancy;
--- compliance;
--- LGPD quando aplicável.
--
--## Restrições
--
--- orçamento;
--- prazo;
--- stack;
--- equipe;
--- cloud;
--- fornecedores;
--- legado.
--
-----
--
--# ETAPA 2 — Perguntas ao usuário
--
--Faça perguntas somente quando a resposta puder alterar materialmente a arquitetura.
--
--Não transforme o processo em entrevista infinita.
--
--Quando for possível continuar:
--
--registre:
--
--ASSUNCAO-001
--
--Descrição:
--
--Impacto:
--
--Necessita validação:
--
--SIM / NÃO
--
-----
--
--# ETAPA 3 — Estado atual
--
--Em projetos existentes documente:
--
--## Aplicações
--
--## Serviços
--
--## Banco
--
--## Infraestrutura
--
--## Autenticação
--
--## Autorização
--
--## Integrações
--
--## Filas
--
--## Jobs
--
--## Cache
--
--## Arquivos
--
--## Observabilidade
--
--## Deploy
--
--## Testes
--
-----
--
--# ETAPA 4 — Gap arquitetural
--
--Compare:
--
--ESTADO ATUAL
--
--vs.
--
--REQUISITOS
--
--vs.
--
--ESTADO NECESSÁRIO
--
--Identifique:
--
--- documentação ausente;
--- decisões não documentadas;
--- inconsistências;
--- acoplamento;
--- duplicação;
--- débito técnico;
--- risco de segurança;
--- risco de escala;
--- risco operacional;
--- arquitetura divergente da documentação.
--
--Quando houver gap relevante, registrar no padrão do projeto; sugestão:
--
--documentacoes/arquitetura/analise-gap-arquitetural.md
--
--Classificar:
--
--CRÍTICO
--ALTO
--MÉDIO
--BAIXO
--
-----
--
--# ETAPA 5 — Modelo de domínio
--
--Identifique:
--
--- domínios;
--- subdomínios;
--- bounded contexts quando fizer sentido;
--- entidades;
--- agregados;
--- value objects;
--- serviços de domínio;
--- comandos;
--- consultas;
--- eventos;
--- invariantes.
--
--Para cada domínio:
--
--## Responsabilidade
--
--## Entidades
--
--## Regras
--
--## Entradas
--
--## Saídas
--
--## Eventos produzidos
--
--## Eventos consumidos
--
--## Dados pertencentes ao domínio
--
--## Dependências
--
--Evite DDD cerimonial.
--
--Use somente quando agregar clareza.
--
-----
--
--# ETAPA 6 — Arquitetura alvo
--
--Avalie opções como:
--
--- monólito modular;
--- arquitetura em camadas;
--- Clean Architecture;
--- Hexagonal;
--- Vertical Slice;
--- event-driven;
--- serviços;
--- microserviços;
--- serverless;
--- híbrida.
--
--Não escolha microserviços automaticamente.
--
--Documente:
--
--## Arquitetura escolhida
--
--## Contexto
--
--## Motivo
--
--## Alternativas avaliadas
--
--## Benefícios
--
--## Trade-offs
--
--## Consequências
--
--## Quando reconsiderar
--
-----
--
--# ETAPA 7 — Componentes
--
--Identifique componentes necessários.
--
--Exemplos:
--
--- aplicação web;
--- aplicação mobile;
--- portal administrativo;
--- API;
--- serviço de autenticação;
--- workers;
--- scheduler;
--- broker;
--- cache;
--- banco;
--- busca;
--- object storage;
--- CDN;
--- IA;
--- notificações;
--- analytics.
--
--Para cada componente:
--
--## Responsabilidade
--
--## Tecnologia
--
--## Interfaces
--
--## Dependências
--
--## Dados pertencentes
--
--## Forma de escala
--
--## Comportamento de falha
--
--## Fronteira de segurança
--
-----
--
--# ETAPA 8 — Escolha de tecnologias
--
--Avaliar:
--
--- adequação ao problema;
--- produtividade;
--- suporte a desenvolvimento assistido por IA;
--- performance;
--- concorrência;
--- escalabilidade;
--- segurança;
--- maturidade;
--- testes;
--- observabilidade;
--- comunidade;
--- custo;
--- complexidade operacional;
--- lock-in;
--- conhecimento da equipe.
--
--Não escolher tecnologia por moda.
--
-----
--
--# ETAPA 9 — ADRs
--
--Decisões estruturais devem gerar ADR.
--
--Local:
--
--documentacoes/arquitetura/adr/
--
--Formato:
--
--# ADR-XXX — Título
--
--## Status
--
--Proposta / Aceita / Substituída / Descontinuada
--
--## Contexto
--
--## Problema
--
--## Decisão
--
--## Alternativas avaliadas
--
--## Benefícios
--
--## Trade-offs
--
--## Consequências
--
--## Quando revisar
--
--Não criar ADR para detalhes triviais.
--
-----
--
--# ETAPA 10 — Arquitetura de dados
--
--Definir:
--
--- banco;
--- schemas;
--- entidades;
--- tabelas;
--- relacionamentos;
--- PKs;
--- FKs;
--- uniques;
--- constraints;
--- índices;
--- queries críticas;
--- soft delete;
--- auditoria;
--- multi-tenancy;
--- retenção;
--- criptografia;
--- dados sensíveis;
--- backups;
--- migrations.
--
--Identifique:
--
--- tabelas de alto crescimento;
--- risco de N+1;
--- queries críticas;
--- cardinalidade;
--- índices importantes.
--
--Criar Mermaid ER quando útil.
--
-----
--
--# ETAPA 11 — Arquitetura de APIs
--
--Definir:
--
--- REST / GraphQL / RPC;
--- versionamento;
--- autenticação;
--- autorização;
--- paginação;
--- filtros;
--- ordenação;
--- pesquisa;
--- validação;
--- erros;
--- idempotência;
--- rate limit;
--- correlation ID;
--- webhooks.
--
--Endpoints críticos devem especificar:
--
--METHOD /rota
--
--Objetivo
--
--Ator
--
--Autorização
--
--Request
--
--Response
--
--Validação
--
--Regras
--
--Erros
--
--Eventos
--
--Idempotência
--
--Observabilidade
--
-----
--
--# ETAPA 12 — Eventos e processamento assíncrono
--
--Determinar necessidade de:
--
--- filas;
--- workers;
--- jobs;
--- scheduler;
--- domain events;
--- integration events;
--- retries;
--- DLQ.
--
--Para cada fluxo:
--
--Produtor
--
--Consumidor
--
--Payload
--
--Retry
--
--Idempotência
--
--Falha
--
--DLQ
--
--Observabilidade
--
-----
--
--# ETAPA 13 — Segurança
--
--Avaliar:
--
--- autenticação;
--- autorização;
--- roles;
--- permissions;
--- isolamento entre tenants;
--- sessão;
--- tokens;
--- secrets;
--- criptografia;
--- rate limit;
--- brute force;
--- auditoria;
--- logs sensíveis;
--- XSS;
--- CSRF;
--- SQL injection;
--- SSRF;
--- uploads;
--- dependências;
--- acesso administrativo;
--- webhooks.
--
--Transformar descobertas importantes em requisitos explícitos.
--
-----
--
--# ETAPA 14 — Infraestrutura
--
--Definir arquiteturalmente:
--
--LOCAL
--
--DESENVOLVIMENTO
--
--TESTE
--
--STAGING
--
--PRODUÇÃO
--
--Considerar:
--
--- compute;
--- containers;
--- banco;
--- cache;
--- fila;
--- storage;
--- CDN;
--- DNS;
--- TLS;
--- networking;
--- firewall;
--- secrets;
--- backups;
--- observabilidade.
--
--Evitar overengineering.
--
-----
--
--# ETAPA 15 — Observabilidade
--
--Definir:
--
--## Logs
--
--Logs estruturados.
--
--## Métricas
--
--- latência;
--- erros;
--- tráfego;
--- banco;
--- filas;
--- recursos;
--- métricas de negócio.
--
--## Tracing
--
--Quando necessário.
--
--## Alertas
--
--Alertas devem ser acionáveis.
--
-----
--
--# ETAPA 16 — Diagramas
--
--Criar Mermaid quando útil para:
--
--1. contexto;
--2. containers;
--3. componentes;
--4. deploy;
--5. sequências críticas;
--6. domínios;
--7. dados.
--
--Diagramas devem aumentar entendimento.
--
-----
--
--# ETAPA 17 — Riscos
--
--Criar registro:
--
--RISK-XXX
--
--Descrição:
--
--Probabilidade:
--BAIXA / MÉDIA / ALTA
--
--Impacto:
--BAIXO / MÉDIO / ALTO / CRÍTICO
--
--Área:
--
--Mitigação:
--
--Contingência:
--
--Trigger de revisão:
--
-----
--
--# ETAPA 18 — Documentação
--
--Preferir:
--
--documentacoes/
--├── arquitetura/
--│   ├── visao-geral.md
--│   ├── estado-atual.md
--│   ├── estado-alvo.md
--│   ├── decisoes-tecnologicas.md
--│   ├── integracoes.md
--│   ├── seguranca.md
--│   ├── infraestrutura.md
--│   ├── riscos.md
--│   ├── TECH-LEAD-HANDOFF.md
--│   └── adr/
--│
--├── dominio/
--│   └── modelo-dominio.md
--│
--├── banco/
--│   └── modelo-dados.md
--│
--├── api/
--│   └── especificacao-api.md
--│
--└── requisitos/
--    └── requisitos-tecnicos.md
--
--Se o projeto já tiver padrão documental, respeitá-lo.
--
-----
--
--# ETAPA 19 — Handoff ao Tech Lead
--
--Em definição arquitetural completa com handoff de execução, criar:
--
--documentacoes/arquitetura/TECH-LEAD-HANDOFF.md
--
--Contendo:
--
--# Objetivo do sistema
--
--# Estado atual
--
--# Arquitetura alvo
--
--# Domínios
--
--# Componentes
--
--# Stack
--
--# ADRs importantes
--
--# Requisitos funcionais
--
--# Requisitos não funcionais
--
--# Segurança
--
--# Infraestrutura
--
--# Integrações
--
--# Dados
--
--# APIs
--
--# Filas e assíncrono
--
--# Estratégia de testes esperada
--
--# Dependências técnicas
--
--# Riscos
--
--# Assunções
--
--# Débito técnico
--
--# Migrações necessárias
--
--# Restrições de sequenciamento
--
--# Decisões que não devem ser alteradas sem novo ADR
--
-----
--
--# RELATÓRIO FINAL
--
--Ao finalizar, apresentar:
--
--## Estado do projeto
--
--## Arquitetura definida
--
--## Documentação analisada
--
--## Documentação criada
--
--## ADRs criados
--
--## Domínios identificados
--
--## Componentes
--
--## Riscos críticos
--
--## Assunções
--
--## Problemas encontrados
--
--## Questões que ainda precisam de decisão humana
--
--## Pronto para o Tech Lead?
--
--SIM / NÃO
--
--Se NÃO:
--
--explique exatamente o bloqueio.
--
-----
--
--# REGRA DE OURO
--
--Construa a MENOR arquitetura capaz de atender corretamente aos requisitos
--conhecidos e evoluir com segurança.
--
--Evite:
--
--SUBENGENHARIA
--
--e
--
--OVERENGINEERING PREMATURO.
 diff --git a/.claude/skills/auditor-de-review/SKILL.md b/.claude/skills/auditor-de-review/SKILL.md
 deleted file mode 100644
 index e336962..0000000
@@ -332141,6 +329915,101 @@ index 4aedac2..0000000
 -Devolva planos, sequência, prompts e bloqueios ao planejador avulso. Não inicie
 -orquestrador ou compilador. O plano deve poder ser entregue diretamente a outra sessão.
 \ No newline at end of file
+diff --git a/.claude/skills/planejador-de-lote-v1/SKILL.md b/.claude/skills/planejador-de-lote-v1/SKILL.md
+new file mode 100644
+index 0000000..3f4c622
+--- /dev/null
++++ b/.claude/skills/planejador-de-lote-v1/SKILL.md
+@@ -0,0 +1,77 @@
++---
++name: planejador-de-lote-v1
++description: Planeja uma feature ou um lote de features da Intranet encadeando grill-me → tech-lead → worktree-planner e entrega especificação, tickets, prompts por worktree e plano de integração em Markdown. Use para planejar antes de implementar; não cria worktrees, não implementa, não commita.
++---
++
++# Planejador de lote (v1)
++
++Coordena o planejamento de uma ou mais demandas até planos prontos para outra sessão executar.
++**Planejar não implementa.** Esta skill não cria worktrees, não altera código, não commita, não faz
++merge e não roda testes. Pode ler o repositório e rodar `git fetch` para registrar a base.
++
++## Antes de começar
++
++- Leia o `CLAUDE.md` e o `.claude/rules/` dos repositórios que a demanda toca:
++  backend `docker-intranet/app`, frontend `intranetNova`. Confirme cada raiz com
++  `git rev-parse --show-toplevel`.
++- Carregar uma etapa significa ler o `SKILL.md` dela e seguir suas instruções **nesta mesma
++  sessão**. As etapas são as skills irmãs `../grill-me/SKILL.md`, `../tech-lead/SKILL.md` e
++  `../worktree-planner/SKILL.md`. Não abra outros agentes para repetir o planejamento.
++
++## Pasta do lote
++
++Tudo é gravado em `docker-intranet/.claude/worktrees/AAAA-MM-DD/` (fuso `America/Sao_Paulo`). Do
++backend o caminho é `../.claude/worktrees/`; do frontend, `../docker-intranet/.claude/worktrees/`.
++Nos arquivos gerados, escreva sempre o **caminho absoluto**, porque as worktrees do ORCA ficam em
++outro lugar.
++
++- Liste a pasta antes de escrever. **Nunca sobrescreva outro lote.** Reutilize arquivos só quando
++  for a retomada do mesmo lote; em colisão de nome, acrescente um sufixo e corrija os links.
++- Arquivos do lote:
++  - `lote-AAAA-MM-DD-{slug}.md`: manifesto (este planejador).
++  - `00-plano-{chave}-{assunto}.md`: especificação canônica de cada demanda (tech-lead).
++  - `01-{chave}-backend-{assunto}.md` / `02-{chave}-frontend-{assunto}.md`: prompt por worktree
++    (worktree-planner).
++  - `99-merge-e-limpeza-{slug}.md`: integração e limpeza do lote (worktree-planner).
++
++## Encadeamento
++
++1. **Demandas.** Identifique as demandas que o usuário escolheu. Com ID do ClickUp e conector
++   disponível, leia a tarefa **somente para leitura**. Sem ID, gere uma chave local estável em
++   kebab-case e registre "não possui ID vinculado". Leia o código e a documentação pertinentes antes
++   de perguntar.
++2. **grill-me.** Esclareça objetivo, comportamento atual, regras de negócio, bordas e fora do
++   escopo. Reaproveite respostas entre demandas do mesmo lote. Falta de requisito não é permissão
++   para inventá-lo.
++3. **tech-lead.** Assim que a entrevista permitir critérios observáveis, carregue-o com todas as
++   respostas. Ele grava o `00-plano`, com tickets, critérios, contratos e perfil de risco. Questão
++   essencial sem resposta deixa a demanda `BLOQUEADA_NO_PLANEJAMENTO`; continue as demais.
++4. **worktree-planner.** Com os tickets prontos, carregue-o. Ele registra as bases e grava os
++   prompts 01/02 e o 99, sem repetir a entrevista.
++5. **Manifesto.** Consolide o `lote-AAAA-MM-DD-{slug}.md`.
++
++Não peça ao usuário para invocar as etapas: encadeie sozinho. Pergunte só o que só ele pode decidir.
++
++## Manifesto
++
++- Identificador do lote, data/fuso, branch de integração `revisao/AAAA-MM-DD-{slug}`.
++- Demandas incluídas e excluídas, com motivo.
++- Base de cada repositório: `origin/main` + SHA completo.
++- Por demanda: chave, ID externo (ou "não possui"), camadas, perfil de risco e justificativa, link
++  para o `00-plano`, IDs dos critérios, worktrees/prompts, dependências e status.
++- Ordem de execução e de integração. Dependências formam um grafo sem ciclos.
++- Riscos e pendências.
++
++Referencie em vez de copiar: critérios e contratos já estão no `00-plano`.
++
++## Conclusão
++
++- Marque `PRONTA_PARA_IMPLEMENTAR` só quando critérios essenciais, contratos, prompts e validação
++  viável estiverem definidos. Hipótese não é aprovação: registre a origem de cada decisão
++  (usuário, evidência no código/documento, hipótese).
++- Entregue no chat: caminho do manifesto, resumo do lote, pendências e próximos passos:
++  1. criar no ORCA as worktrees listadas no manifesto (repositório, branch e base);
++  2. entregar a cada sessão executora o prompt `01`/`02` correspondente;
++  3. depois do commit de cada frente, abrir uma sessão nova na mesma worktree com o "Prompt de
++     revisão";
++  4. pedir a integração do `99` quando as frentes estiverem revisadas.
+diff --git a/.claude/skills/planejador-de-lote-v1/agents/openai.yaml b/.claude/skills/planejador-de-lote-v1/agents/openai.yaml
+new file mode 100644
+index 0000000..b373fff
+--- /dev/null
++++ b/.claude/skills/planejador-de-lote-v1/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Planejador de Lote v1"
++  short_description: "Encadeia grill-me → tech-lead → worktree-planner e entrega o lote em Markdown"
++  default_prompt: "Use $planejador-de-lote-v1 para entrevistar, especificar e gerar os prompts de worktree e o manifesto deste lote, sem implementar."
++policy:
++  allow_implicit_invocation: true
 diff --git a/.claude/skills/planejador-de-lote/SKILL.md b/.claude/skills/planejador-de-lote/SKILL.md
 deleted file mode 100644
 index e04184f..0000000
@@ -333174,6 +331043,79 @@ index 1a61a9f..d1f8c72 100644
 +- No chat: resumo por severidade, o que foi corrigido, o que ficou pendente e o SHA do commit.
 +
 +Revisão não é QA de tela: o teste manual continua com o usuário.
+diff --git a/.claude/skills/revisor-de-codigo/agents/openai.yaml b/.claude/skills/revisor-de-codigo/agents/openai.yaml
+new file mode 100644
+index 0000000..a47b4bf
+--- /dev/null
++++ b/.claude/skills/revisor-de-codigo/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Revisor de Código"
++  short_description: "Revisa spec e riscos do diff e corrige o que for médio, alto ou crítico em um ciclo"
++  default_prompt: "Use $revisor-de-codigo para revisar e corrigir esta branch contra a base e a spec indicadas."
++policy:
++  allow_implicit_invocation: true
+diff --git a/.claude/skills/revisor-de-codigo/references/checklist-risco.md b/.claude/skills/revisor-de-codigo/references/checklist-risco.md
+new file mode 100644
+index 0000000..c12fb47
+--- /dev/null
++++ b/.claude/skills/revisor-de-codigo/references/checklist-risco.md
+@@ -0,0 +1,55 @@
++# Checklist de risco
++
++Aplique só às linhas alteradas e ao contexto imediato que elas afetam. Cada item é uma pista para
++investigar, não um achado automático: confirme o cenário antes de classificar.
++
++## Lógica e dados (qualquer stack)
++
++- `null`/`undefined` não tratado no caminho **real** do dado.
++- Comparação com tipo trocado (string vs int em ID), off-by-one, condição sempre verdadeira ou
++  sempre falsa, `return` antecipado que engole um caso válido.
++- Escrita em várias tabelas sem `DB::transaction`, ou transação que não cobre todas as escritas.
++- Leitura → decisão → escrita sem lock; duplo envio sem proteção (dois usuários aprovando a mesma
++  PN).
++- Erro engolido: `catch` vazio, ou que só loga e segue como se tivesse dado certo.
++- Regra nova que ignora dados legados já existentes na tabela.
++- Bordas: lista vazia, um item só, zero, string vazia vs `null`, ordenação por coluna não única,
++  fuso horário entre Angular e SQL Server.
++
++## Laravel
++
++- **N+1:** Eloquent dentro de loop, falta de `with()`, `count()` por item, accessor que dispara
++  query. `save()` por item onde caberia `insert`/`upsert`.
++- **SQL injection:** `DB::raw`, `whereRaw`, `selectRaw`, `orderByRaw` ou `DB::statement` com
++  interpolação ou concatenação de entrada externa.
++- **Mass assignment:** `$request->all()` em `create`/`update`/`fill`; campo sensível (`status`,
++  `role`, valores) em `$fillable` sem controle.
++- **Autorização/IDOR:** rota sem middleware de auth; `Model::find($request->id)` sem escopo do
++  usuário; ação sobre recurso de terceiro sem Policy/Gate.
++- **Exposição:** Model devolvido sem Resource, vazando coluna sensível; segredo, senha, token ou
++  dado pessoal em log ou resposta.
++- **Upload:** sem validação de MIME/extensão, gravado em caminho público, nome de arquivo vindo do
++  usuário.
++- **Outros:** `exec`/`shell_exec`/`Process` com entrada externa; `unserialize` de dado externo;
++  `Http::get($url)` com URL do usuário; `redirect($request->input(...))`.
++- **Banco:** migration sem `connection('sqlsrv_NEW_CRM')` explícita, ou que toque
++  `sqlsrv_CRM`/`sqlsrv_CorporeRM` → **crítico**.
++- **Contrato:** resposta fora do formato `{ message, errors }`; endpoint novo ou alterado sem
++  contrato atualizado em `.claude/context/api-contracts/`.
++
++## Angular
++
++- **N requisições por item:** `forkJoin(itens.map(...))`, `subscribe` dentro de loop → **alto no
++  mínimo**. Já derrubou produção; precisa de endpoint batch.
++- Subscription longa sem `takeUntilDestroyed()`/`async` (confirme se ela não completa sozinha).
++- Função pesada chamada no template, sobretudo dentro de `@for`; `@for` sem `track`.
++- **XSS:** `bypassSecurityTrust*`, `[innerHTML]` com dado externo, `innerHTML` via `ElementRef`.
++- Segredo no bundle (`environment.ts`, service): tudo o que vai para o front é público.
++- Autorização só no front (botão ou rota escondidos) sem checagem equivalente no backend.
++- Tipo TypeScript que não bate com o Resource do backend.
++
++## Testes
++
++- Caminho crítico novo sem teste: diga qual caminho, não peça "mais cobertura".
++- Teste que nunca falharia: assert que recalcula o esperado do mesmo jeito que o código, ou mock
++  do próprio objeto testado.
 diff --git a/.claude/skills/revisor-de-codigo/references/correcao-performance.md b/.claude/skills/revisor-de-codigo/references/correcao-performance.md
 deleted file mode 100644
 index 6eacdd0..0000000
@@ -334474,6 +332416,18 @@ index b0405b4..794a92c 100644
 +- **Chamada direta:** entregue tickets, prioridades, dependências, bloqueios e o próximo passo
 +  recomendado. Grave em arquivo só se o usuário pedir.
 +- Preparar Markdown não é publicar. Nada vai para o ClickUp sem pedido explícito.
+diff --git a/.claude/skills/tech-lead/agents/openai.yaml b/.claude/skills/tech-lead/agents/openai.yaml
+new file mode 100644
+index 0000000..877f0a9
+--- /dev/null
++++ b/.claude/skills/tech-lead/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Tech Lead"
++  short_description: "Especificação canônica, tickets, critérios e perfil de risco"
++  default_prompt: "Use $tech-lead para transformar estes requisitos em especificação e tickets com critérios de aceite."
++policy:
++  allow_implicit_invocation: true
 diff --git a/.claude/skills/token-observatory/SKILL.md b/.claude/skills/token-observatory/SKILL.md
 deleted file mode 100644
 index 464ab84..0000000
@@ -334653,6 +332607,18 @@ index d637ad0..6ff60d5 100644
 +- **Chamado pelo planejador:** devolva os caminhos dos prompts e do 99, a ordem e os bloqueios.
 +- **Chamado direto:** entregue o mesmo no chat, a partir da especificação indicada, e termine no
 +  plano. Não inicie a execução.
+diff --git a/.claude/skills/worktree-planner/agents/openai.yaml b/.claude/skills/worktree-planner/agents/openai.yaml
+new file mode 100644
+index 0000000..a312547
+--- /dev/null
++++ b/.claude/skills/worktree-planner/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Planejador de Worktrees"
++  short_description: "Base, branches, prompts por worktree e plano de integração"
++  default_prompt: "Use $worktree-planner para planejar as worktrees, os prompts por frente e a integração destes tickets."
++policy:
++  allow_implicit_invocation: true
 diff --git a/.claude/skills/worktree-planner/references/intranet.md b/.claude/skills/worktree-planner/references/intranet.md
 deleted file mode 100644
 index 0cde4d6..0000000
@@ -334757,94 +332723,6 @@ index 93f3e9c..3035d34 100644
 +.claude/skills/** -text
 +.agents/skills/** -text
 +.agent/skills/** -text
-diff --git a/AGENTS.md b/AGENTS.md
-index d6fb0a9..22b88bd 100755
---- a/AGENTS.md
-+++ b/AGENTS.md
-@@ -5,14 +5,11 @@ fonte única. Regras aninhadas complementam, sem dispensar documentação/lesson
- 
- ## Fluxos e autonomia
- 
--- Planejador-de-lote mantém grill-me na mesma sessão e termina no pacote. O usuário
--  inicia context run: uma worktree por lote, unidades coerentes sequenciais, checks,
--  uma revisão corretiva de impactos médios/altos/críticos, checks integrados e entrega
--  determinística em revisao/. Um ciclo de correções/testes; bloqueio real é registrado.
-+- Planejador-de-lote-v1 encadeia grill-me, tech-lead e worktree-planner na mesma
-+  sessão e termina em especificação, tickets, prompts e manifesto Markdown.
-+  Planejar não inicia implementação, não cria worktrees e não autoriza commits.
- - Testes de tela/aceite visual são manuais no final. DONE técnico não significa QA visual.
-   Não abrir auditor, review-loop ou QA de tela por IA no perfil enxuto.
--- Planejador-de-lote-avulso é independente: entrevista, especificação e plano Markdown,
--  sem compilador/Node e sem iniciar implementação.
- - Em CONTEXTO_EXECUTION=step, o Go controla sequência, limites, logs, hashes e estado.
-   Faça somente o brief. Não invoque outros CLIs de IA, orquestrador/flow, preparação,
-   indexação/process/handoff Node ou subagentes sem autorização. A revisão corretiva
-@@ -72,6 +69,8 @@ Banco/serviço real exige ambiente isolado declarado e comprovado.
-   `.claude/skills/` (Claude Code), `.agents/skills/` (Codex e Antigravity) e
-   `.agent/skills/` (Antigravity legado). Edite somente a fonte e depois rode
-   `node scripts/instalar-skills.mjs --apply` e `node scripts/instalar-skills.mjs --check`.
-+- **Conjunto instalado:** `grill-me`, `planejador-de-lote-v1`, `revisor-de-codigo`,
-+  `tech-lead` e `worktree-planner`. Não invoque as skills antigas removidas.
- - **Perfil:** preset `generic`. Este projeto NAO e Intranet: ignore `references/intranet.md`,
-   ORCA, SQL Server, ClickUp e `{FONTE_CLAUDE}`; use a instalacao das skills deste repositorio.
- - **Repositorios:** um unico repositorio Git, `nucleos` (raiz `.`, camada `monorepo`), com
-@@ -104,3 +103,29 @@ Banco/serviço real exige ambiente isolado declarado e comprovado.
-   PostgreSQL Docker existente em `127.0.0.1:15432`, conectando ao banco administrativo
-   `postgres`, sem acessar `nucleos_dev`, sem nova instancia e com remocao comprovada
-   ao final. Essa autorizacao nao cobre migrations de desenvolvimento nem APIs externas.
-+
-+## Aplicação das skills importadas neste projeto
-+
-+Os arquivos recebidos da Intranet são preservados sem alteração. Para usá-los no
-+Nucleos, estas regras locais prevalecem sobre os exemplos e caminhos daquele projeto:
-+
-+- Leia `AGENTS.md` como regra canônica; `CLAUDE.md` e a regra do Antigravity já
-+  apontam para ela. `.claude/rules/` só é consultada se existir neste repositório.
-+- Backend e frontend pertencem ao mesmo Git: `apps/api/` (NestJS), `apps/web/`
-+  (Next.js), com serviços Python em `services/`. Não procure os repositórios
-+  `docker-intranet/app` ou `intranetNova`, nem exija ORCA, Laravel ou Angular.
-+- A pasta do lote é `documentacoes/planejamento-ia/AAAA-MM-DD/`, com caminhos
-+  absolutos nos prompts. `docs/` e `docs/historico/entregas/` correspondem à
-+  documentação pertinente em `documentacoes/`, seguindo os procedimentos deste
-+  projeto. Contratos e formato de erros são os reais da API e de `packages/contracts/`.
-+- Planeje worktrees em `../nucleos-worktrees/<branch>` por feature independente
-+  deste monorepo; tickets de API e web que compartilham arquivos ficam na mesma
-+  frente. Criar worktrees, implementar e integrar continuam sendo ações futuras,
-+  dependentes do pedido de execução do usuário.
-+- Use os comandos pertinentes de `documentacoes/engenharia/comandos-validacao-ia.md`
-+  para a stack afetada, em lugar de PHP/PHPUnit ou Angular CLI. No checklist de
-+  review, aplique os riscos pertinentes à stack real; exemplos de SQL Server,
-+  conexões `sqlsrv_*`, PN e contratos da Intranet não são requisitos do Nucleos.
-+- A instrução de commitar em uma skill ou prompt não concede autorização: sem
-+  pedido explícito, registre a entrega e os diffs sem criar commits. Mantenha
-+  todas as restrições de dados, integração, publicação e aceite visual acima.
-diff --git a/README.md b/README.md
-index f6cef6b..897b5d5 100644
---- a/README.md
-+++ b/README.md
-@@ -26,13 +26,15 @@ node scripts/instalar-skills.mjs --apply
- node scripts/instalar-skills.mjs --check
- ```
- 
--O `--check` deve terminar com `0 divergências`. A skill `archify`, instalada por outra
--fonte em `.agents/skills/`, é preservada. As regras de uso e os fatos do projeto estão na
--seção "Configuracao do fluxo de skills neste projeto" do `CLAUDE.md`, do `AGENTS.md` e da
--regra do Antigravity.
--
--No Claude Code, `/simplify` também é o nome de uma skill embutida. Para usar a do projeto,
--peça pelo nome e descrição ("use a skill simplify do projeto").
-+O `--check` deve terminar com `0 divergências` e `0 extras`. O conjunto instalado é:
-+`grill-me`, `planejador-de-lote-v1`, `revisor-de-codigo`, `tech-lead` e `worktree-planner`.
-+Os arquivos importados são idênticos à origem; a aplicação dos caminhos e da stack
-+do Nucleos está em [AGENTS.md](AGENTS.md#aplicação-das-skills-importadas-neste-projeto).
-+As antigas skills, inclusive `archify`, foram retiradas das pastas de descoberta.
-+
-+Para planejar, peça "use a skill planejador-de-lote-v1". O resultado é um plano em
-+Markdown; implementação exige um pedido separado. A descoberta nos três clientes
-+está preparada; recarregue o projeto ou abra uma nova sessão para renovar o catálogo.
- 
- ## Ferramentas de IA e contexto
- 
 diff --git a/scripts/instalar-skills.mjs b/scripts/instalar-skills.mjs
 index 317cdf9..2d7dd7b 100644
 --- a/scripts/instalar-skills.mjs
@@ -358477,10 +356355,10 @@ index 0cde4d6..0000000
 -
 -Confira que todos os planos têm caminhos reais, branch e base, regras de negócio/aceite verificáveis, contratos entre camadas, validação viável, registro/commit/evento e fora do escopo. Nenhum prompt pede confirmação humana durante execução, depende exclusivamente de Claude CLI, manda push/PR, remove branch ou atualiza a base silenciosamente. O plano referencia o manifesto correto e o estado começa na fase correta. Devolva ao planejador-de-lote, que consolida o lote; se chamado diretamente, termine nos planos sem iniciar execução implicitamente.
 diff --git a/skills/README.md b/skills/README.md
-index 7eb86d5..f1f259d 100644
+index 7eb86d5..e63f792 100644
 --- a/skills/README.md
 +++ b/skills/README.md
-@@ -1,62 +1,46 @@
+@@ -1,62 +1,55 @@
 -# Skills para Codex, Claude e Antigravity
 +# Skills do Nucleos
  
@@ -358500,6 +356378,7 @@ index 7eb86d5..f1f259d 100644
 -| Claude Code | `.claude/skills/` |
 -| Antigravity (App, CLI e IDE) | `.agents/skills/` |
 -| Antigravity (compatibilidade legada) | `.agent/skills/` |
++| `arquiteto-de-software` | Investigar e revisar decisões de arquitetura |
 +| `grill-me` | Entrevistar requisitos e critérios de aceite |
 +| `planejador-de-lote-v1` | Encadear entrevista, especificação e plano Markdown |
 +| `tech-lead` | Especificar tickets, contratos, dependências e riscos |
@@ -358579,6 +356458,118 @@ index 7eb86d5..f1f259d 100644
 +Recarregue o projeto ou abra uma nova sessão nos clientes após a substituição.
 +As pastas e os metadados foram preparados para descoberta; a execução nos aplicativos
 +depende da sessão e das ferramentas disponíveis em cada cliente.
++
++Em 2026-11-06, a limpeza do monorepo também incorporou à fonte a skill
++`arquiteto-de-software`, já presente nas três pastas de descoberta (total: seis skills).
++Os antigos modelos de regras em `skills/modelos/` foram retirados por descreverem
++o fluxo anterior. As referências `_shared/` citadas pelo arquiteto não vieram na distribuição
++disponível; não há runtime ou helpers desses links instalados. O roteiro arquitetural
++foi preservado com a skill.
++As regras de projeto e o corpo da skill continuam disponíveis.
+diff --git a/skills/modelos/AGENTS.md b/skills/modelos/AGENTS.md
+deleted file mode 100644
+index d20ec01..0000000
+--- a/skills/modelos/AGENTS.md
++++ /dev/null
+@@ -1,30 +0,0 @@
+-# Instruções essenciais para o fluxo de IA
+-
+-Preserve regras específicas do projeto, arquitetura, dados, documentação e autorização.
+-Confirme raiz Git, base/branch e escopo; use a instalação real das skills, sem caminhos
+-de outra máquina ou convenções de outro projeto.
+-
+-O padrão é planejador-de-lote + grill-me na mesma sessão. O planejador consolida
+-especificação, unidades e pacote executável e termina no plano. O usuário inicia
+-context run; não inicie implementação durante o planejamento.
+-
+-O runtime Go controla unidades sequenciais, checks, uma revisão corretiva de impactos
+-médios/altos/críticos, validação final e entrega local em revisao/. Uma worktree por lote.
+-Não chame orquestrador, auditor, review-loop ou QA de tela por IA. Testes de tela e
+-aceite visual são manuais ao final; DONE técnico não significa aprovação visual.
+-
+-No despacho CONTEXTO_EXECUTION=step, execute somente o brief e referências pertinentes.
+-Não faça preparação/indexação/process do Node legado. Não leia catálogos/lockfiles/logs
+-inteiros. O Go calcula hashes e registra limites, logs, métricas e checkpoints.
+-Na retomada, preserve trabalho existente e não repita o que já passou.
+-
+-O run autoriza somente ações locais previstas explicitamente no manifesto, incluindo
+-commits e branch de revisão. Sem push, PR, publicação ou merge automático em main/master.
+-Não exponha segredos nem acesse dados reais sem isolamento comprovado.
+-
+-Um ciclo de correções/testes; lacuna essencial ou risco sem solução autorizada bloqueia
+-com diagnóstico preciso. Skills não ampliam permissões do host. Configuração externa,
+-fontes, caminhos de documentos/checks e restrições pertencem às regras deste projeto.
+-
+-Modo custom/legado só por pedido explícito; não migre snapshots/runs antigos silenciosamente.
+-Ao editar skills, altere a fonte e sincronize as cópias pelo instalador da distribuição.
+\ No newline at end of file
+diff --git a/skills/modelos/CLAUDE.md b/skills/modelos/CLAUDE.md
+deleted file mode 100644
+index d20ec01..0000000
+--- a/skills/modelos/CLAUDE.md
++++ /dev/null
+@@ -1,30 +0,0 @@
+-# Instruções essenciais para o fluxo de IA
+-
+-Preserve regras específicas do projeto, arquitetura, dados, documentação e autorização.
+-Confirme raiz Git, base/branch e escopo; use a instalação real das skills, sem caminhos
+-de outra máquina ou convenções de outro projeto.
+-
+-O padrão é planejador-de-lote + grill-me na mesma sessão. O planejador consolida
+-especificação, unidades e pacote executável e termina no plano. O usuário inicia
+-context run; não inicie implementação durante o planejamento.
+-
+-O runtime Go controla unidades sequenciais, checks, uma revisão corretiva de impactos
+-médios/altos/críticos, validação final e entrega local em revisao/. Uma worktree por lote.
+-Não chame orquestrador, auditor, review-loop ou QA de tela por IA. Testes de tela e
+-aceite visual são manuais ao final; DONE técnico não significa aprovação visual.
+-
+-No despacho CONTEXTO_EXECUTION=step, execute somente o brief e referências pertinentes.
+-Não faça preparação/indexação/process do Node legado. Não leia catálogos/lockfiles/logs
+-inteiros. O Go calcula hashes e registra limites, logs, métricas e checkpoints.
+-Na retomada, preserve trabalho existente e não repita o que já passou.
+-
+-O run autoriza somente ações locais previstas explicitamente no manifesto, incluindo
+-commits e branch de revisão. Sem push, PR, publicação ou merge automático em main/master.
+-Não exponha segredos nem acesse dados reais sem isolamento comprovado.
+-
+-Um ciclo de correções/testes; lacuna essencial ou risco sem solução autorizada bloqueia
+-com diagnóstico preciso. Skills não ampliam permissões do host. Configuração externa,
+-fontes, caminhos de documentos/checks e restrições pertencem às regras deste projeto.
+-
+-Modo custom/legado só por pedido explícito; não migre snapshots/runs antigos silenciosamente.
+-Ao editar skills, altere a fonte e sincronize as cópias pelo instalador da distribuição.
+\ No newline at end of file
+diff --git a/skills/modelos/README.md b/skills/modelos/README.md
+deleted file mode 100644
+index 05e6e57..0000000
+--- a/skills/modelos/README.md
++++ /dev/null
+@@ -1,24 +0,0 @@
+-# Modelos mínimos de instruções
+-
+-`CLAUDE.md` e `AGENTS.md` contêm o mesmo bloco essencial para o fluxo destas skills. São modelos para incorporar às regras de outro projeto, não configurações completas de aplicação.
+-
+-## Como usar
+-
+-1. Instale as skills conforme o README da distribuição, preservando `_shared/`, referências e scripts.
+-2. Para Claude, use o conteúdo de `CLAUDE.md`. Para um agente que lê `AGENTS.md`, use o conteúdo desse arquivo. Se o projeto usa ambos, mantenha o bloco consistente nos dois ou estabeleça uma fonte comum explicitamente referenciada.
+-3. Se o arquivo de destino já existe, acrescente o bloco e resolva conflitos com suas regras. **Não substitua o arquivo inteiro nem apague instruções existentes.** Os modelos ficam em `modelos/` para não se tornarem regras ativas na raiz desta distribuição.
+-4. Acrescente os fatos específicos do seu projeto descritos abaixo. A configuração muda no projeto; o código das skills permanece reutilizável.
+-
+-## O que configurar em cada projeto
+-
+-| Informação | O que declarar nas regras locais ou na configuração existente |
+-| --- | --- |
+-| Repositórios | Raízes e camadas; não presuma que backend e frontend estão na mesma raiz Git |
+-| Validação | Comandos reais de lint, build e testes; critérios e isolamento exigido para banco/serviços |
+-| Documentos e worktrees | Diretórios de planos, relatórios, entregas e worktrees; fuso operacional |
+-| Políticas locais | Regras de dependências, Git, dados e limites adicionais; permissões continuam sendo as do cliente |
+-| Contexto integrado | Node.js >=22.13/Git e configuração da raiz; a CLI já acompanha `_shared` |
+-
+-O Contexto acompanha as skills em `_shared/contexto`; o agente executa a preparação automaticamente e o helper informa o caminho do project.json/SQLite dentro das skills locais. Configuração legada em `.contexto/project.json` é preservada. Workflow descreve caminhos, fuso e repositórios; não concede autorização nem substitui segurança. Não é necessário instalar/cadastrar MCP, configurar CONTEXTO_CLI nem executar init manualmente. Node/Git e executores independentes são recursos do host; gates que dependem de recursos ausentes ficam bloqueados.
+-
+-Os modelos não incluem caminhos de máquina, nomes de empresa, framework obrigatório, banco específico, credenciais ou vínculo obrigatório com gerenciador de tarefas. Também não repetem os contratos completos de cada skill: eles continuam nos respectivos `SKILL.md` e referências.
 diff --git a/skills/scripts/sincronizar-skills.mjs b/skills/scripts/sincronizar-skills.mjs
 index 3acbc2c..8ebe0b4 100755
 --- a/skills/scripts/sincronizar-skills.mjs
@@ -362874,874 +360865,6 @@ index 3f2a42f..0000000
 -Encerre executores e use `flow cleanup-check` antes de `flow cleanup` no lote. Fora dele, `archive --project RAIZ_REAL` apenas preserva o histórico e informa `archived:true`/`cleanup_safe`; não remove a worktree nem prova ausência de executores.
 -
 -Ownership, topologia, branch preservada, estado Git limpo, ausência de operação pendente e de ignorados únicos continuam obrigatórios. Links/junctions, node_modules, arquivos operacionais desconhecidos ou atividade concorrente bloqueiam remoção. Nunca exclusão recursiva/force, nunca limpeza de worktree externa ao lote. Arquivo histórico não reativa gates em outra raiz.
-diff --git a/skills/skills/arquiteto-de-software/SKILL.md b/skills/skills/arquiteto-de-software/SKILL.md
-deleted file mode 100644
-index 398d584..0000000
---- a/skills/skills/arquiteto-de-software/SKILL.md
-+++ /dev/null
-@@ -1,28 +0,0 @@
-----
--name: arquiteto-de-software
--description: Investiga e define ou revisa arquitetura, domínios, dados, contratos e decisões estruturais com base nos requisitos e no sistema existente. Use para decisões arquiteturais e handoff técnico; não para planejar sprints, implementar ou revisar rotineiramente um diff.
-----
--
--# Arquiteto de software
--
--Quando despachado com `CONTEXTO_EXECUTION=step`, siga primeiro o [contrato do Context Compiler](../_shared/context-compiler.md). Entregue a decisão ou análise da etapa; não inicie outros papéis do workflow.
--
--## Registro de execução e contexto compacto
--
--Registre início/fim desta skill com identidade de sessão, agente e etapa conforme [observabilidade](../_shared/observabilidade.md). Antes de passar trabalho a outra sessão, use handoff por papel e checkpoint; envie IDs e referências em vez da conversa completa. Tokens indisponíveis ficam desconhecidos. Preserve a política de QA por risco em [perfis de risco](../_shared/perfis-de-risco.md).
--
--Resolva uma vez por projeto a [configuração local](../_shared/perfil-projeto.md). Preserve este papel e use convenções do projeto; perfil Intranet só quando identificado pelas regras locais.
--
--Construa a menor arquitetura que atende os requisitos conhecidos e permite evolução. Identifique se o pedido é greenfield, evolução, legado ou revisão focal; não presuma projeto novo.
--
--Leia AGENTS.md, requisitos, ADRs, documentação e código relacionado antes de propor mudanças. Diferencie estado observado, requisito aprovado, hipótese e decisão proposta. Pergunte somente o que muda materialmente uma decisão; avance nas partes independentes.
--
--Para análise ampla, consulte o [roteiro arquitetural](references/roteiro-arquitetural.md). Ele é um catálogo de dimensões e formatos: selecione somente os aplicáveis. Não execute todas as etapas nem gere toda a árvore documental para responder a uma questão pontual.
--
--Avalie limites de domínio, ownership de dados, contratos, consistência, segurança, integrações, migrações, operação e custo conforme o risco. Compare alternativas reais e registre trade-offs. Não escolha microserviços, DDD, filas ou infraestrutura por padrão.
--
--Respeite ADRs aceitos. Mudanças estruturais devem explicar o conflito, alternativas e proposta de novo ADR; não silenciosamente redefinir o sistema. Decisão proposta não é decisão aceita.
--
--Siga a organização documental existente. Registre ADR para decisão estrutural relevante, não detalhes triviais. No planejamento de uma arquitetura completa, produza `TECH-LEAD-HANDOFF.md` com objetivo, estado atual/alvo, domínios, componentes, stack, contratos, requisitos, riscos, hipóteses, migrações, dependências e restrições de sequência. Em revisão focal, atualize apenas os artefatos afetados.
--
--Entregue decisão/recomendação, evidências, artefatos alterados e questões em aberto. O Tech Lead planeja tickets e sprints; o arquiteto não implementa nem aprova a própria entrega.
-diff --git a/skills/skills/arquiteto-de-software/references/roteiro-arquitetural.md b/skills/skills/arquiteto-de-software/references/roteiro-arquitetural.md
-deleted file mode 100644
-index caae97c..0000000
---- a/skills/skills/arquiteto-de-software/references/roteiro-arquitetural.md
-+++ /dev/null
-@@ -1,828 +0,0 @@
--# Arquiteto de Software
--
--## Papel
--
--Atue como Principal Software Architect.
--
--Sua responsabilidade é transformar necessidades de negócio em uma arquitetura
--coerente, documentada, sustentável e implementável.
--
--Você deve pensar como:
--
--- Arquiteto de Software;
--- Arquiteto de Soluções;
--- Arquiteto Backend;
--- Arquiteto Frontend;
--- Arquiteto de Dados;
--- Arquiteto de Integrações;
--- Arquiteto de Segurança;
--- Arquiteto de Cloud;
--- Engenheiro de Plataforma.
--
--Sua principal responsabilidade NÃO é criar sprints nem implementar features.
--
--Seu trabalho deve preparar o projeto para o Tech Lead.
--
-----
--
--# Objetivo
--
--Responder com clareza:
--
--O QUE o sistema precisa fazer?
--
--COMO o sistema deve ser estruturado?
--
--QUAIS são os seus domínios?
--
--QUAIS componentes existirão?
--
--COMO os componentes se comunicam?
--
--QUEM possui cada dado?
--
--QUAIS tecnologias são adequadas?
--
--QUAIS riscos existem?
--
--QUAIS decisões arquiteturais devem ser preservadas?
--
-----
--
--# MODOS DE OPERAÇÃO
--
--Identifique automaticamente o cenário.
--
--## GREENFIELD
--
--Projeto ainda não implementado.
--
--## DESENVOLVIMENTO INICIAL
--
--Alguma estrutura já existe, mas a arquitetura ainda está sendo formada.
--
--## PROJETO EM DESENVOLVIMENTO
--
--Existem funcionalidades, código, banco, testes e documentação.
--
--## SISTEMA LEGADO
--
--Existe sistema operacional cuja arquitetura precisa ser compreendida antes de
--qualquer mudança.
--
--## REVISÃO ARQUITETURAL
--
--Arquitetura existente precisa ser revisada.
--
--Nunca presuma que um projeto é greenfield.
--
-----
--
--# ETAPA 0 — Inspeção
--
--Antes de propor arquitetura, analise o que estiver disponível:
--
--- AGENTS.md;
--- README;
--- documentação;
--- código fonte;
--- migrations;
--- banco;
--- APIs;
--- Docker;
--- CI/CD;
--- infraestrutura;
--- testes;
--- ADRs;
--- backlog;
--- sprints;
--- arquivos de configuração;
--- dependências;
--- histórico relevante.
--
--Em projeto existente:
--
--CÓDIGO É EVIDÊNCIA.
--
--Não redesenhe antes de compreender o que já existe.
--
-----
--
--# ETAPA 1 — Investigação do produto
--
--Descubra:
--
--## Produto
--
--- Qual problema é resolvido?
--- Quem é o usuário?
--- Quem paga?
--- Quem administra?
--- Quais atores existem?
--- Quais fluxos principais existem?
--- O que constitui sucesso?
--
--## Escala
--
--- quantidade esperada de usuários;
--- usuários simultâneos;
--- volume de dados;
--- volume de requests;
--- volume de arquivos;
--- crescimento esperado.
--
--## Operação
--
--- disponibilidade;
--- tolerância a falhas;
--- necessidade de processamento assíncrono;
--- notificações;
--- integrações;
--- relatórios;
--- auditoria.
--
--## Segurança
--
--- dados sensíveis;
--- autenticação;
--- autorização;
--- multi-tenancy;
--- compliance;
--- LGPD quando aplicável.
--
--## Restrições
--
--- orçamento;
--- prazo;
--- stack;
--- equipe;
--- cloud;
--- fornecedores;
--- legado.
--
-----
--
--# ETAPA 2 — Perguntas ao usuário
--
--Faça perguntas somente quando a resposta puder alterar materialmente a arquitetura.
--
--Não transforme o processo em entrevista infinita.
--
--Quando for possível continuar:
--
--registre:
--
--ASSUNCAO-001
--
--Descrição:
--
--Impacto:
--
--Necessita validação:
--
--SIM / NÃO
--
-----
--
--# ETAPA 3 — Estado atual
--
--Em projetos existentes documente:
--
--## Aplicações
--
--## Serviços
--
--## Banco
--
--## Infraestrutura
--
--## Autenticação
--
--## Autorização
--
--## Integrações
--
--## Filas
--
--## Jobs
--
--## Cache
--
--## Arquivos
--
--## Observabilidade
--
--## Deploy
--
--## Testes
--
-----
--
--# ETAPA 4 — Gap arquitetural
--
--Compare:
--
--ESTADO ATUAL
--
--vs.
--
--REQUISITOS
--
--vs.
--
--ESTADO NECESSÁRIO
--
--Identifique:
--
--- documentação ausente;
--- decisões não documentadas;
--- inconsistências;
--- acoplamento;
--- duplicação;
--- débito técnico;
--- risco de segurança;
--- risco de escala;
--- risco operacional;
--- arquitetura divergente da documentação.
--
--Quando houver gap relevante, registrar no padrão do projeto; sugestão:
--
--documentacoes/arquitetura/analise-gap-arquitetural.md
--
--Classificar:
--
--CRÍTICO
--ALTO
--MÉDIO
--BAIXO
--
-----
--
--# ETAPA 5 — Modelo de domínio
--
--Identifique:
--
--- domínios;
--- subdomínios;
--- bounded contexts quando fizer sentido;
--- entidades;
--- agregados;
--- value objects;
--- serviços de domínio;
--- comandos;
--- consultas;
--- eventos;
--- invariantes.
--
--Para cada domínio:
--
--## Responsabilidade
--
--## Entidades
--
--## Regras
--
--## Entradas
--
--## Saídas
--
--## Eventos produzidos
--
--## Eventos consumidos
--
--## Dados pertencentes ao domínio
--
--## Dependências
--
--Evite DDD cerimonial.
--
--Use somente quando agregar clareza.
--
-----
--
--# ETAPA 6 — Arquitetura alvo
--
--Avalie opções como:
--
--- monólito modular;
--- arquitetura em camadas;
--- Clean Architecture;
--- Hexagonal;
--- Vertical Slice;
--- event-driven;
--- serviços;
--- microserviços;
--- serverless;
--- híbrida.
--
--Não escolha microserviços automaticamente.
--
--Documente:
--
--## Arquitetura escolhida
--
--## Contexto
--
--## Motivo
--
--## Alternativas avaliadas
--
--## Benefícios
--
--## Trade-offs
--
--## Consequências
--
--## Quando reconsiderar
--
-----
--
--# ETAPA 7 — Componentes
--
--Identifique componentes necessários.
--
--Exemplos:
--
--- aplicação web;
--- aplicação mobile;
--- portal administrativo;
--- API;
--- serviço de autenticação;
--- workers;
--- scheduler;
--- broker;
--- cache;
--- banco;
--- busca;
--- object storage;
--- CDN;
--- IA;
--- notificações;
--- analytics.
--
--Para cada componente:
--
--## Responsabilidade
--
--## Tecnologia
--
--## Interfaces
--
--## Dependências
--
--## Dados pertencentes
--
--## Forma de escala
--
--## Comportamento de falha
--
--## Fronteira de segurança
--
-----
--
--# ETAPA 8 — Escolha de tecnologias
--
--Avaliar:
--
--- adequação ao problema;
--- produtividade;
--- suporte a desenvolvimento assistido por IA;
--- performance;
--- concorrência;
--- escalabilidade;
--- segurança;
--- maturidade;
--- testes;
--- observabilidade;
--- comunidade;
--- custo;
--- complexidade operacional;
--- lock-in;
--- conhecimento da equipe.
--
--Não escolher tecnologia por moda.
--
-----
--
--# ETAPA 9 — ADRs
--
--Decisões estruturais devem gerar ADR.
--
--Local:
--
--documentacoes/arquitetura/adr/
--
--Formato:
--
--# ADR-XXX — Título
--
--## Status
--
--Proposta / Aceita / Substituída / Descontinuada
--
--## Contexto
--
--## Problema
--
--## Decisão
--
--## Alternativas avaliadas
--
--## Benefícios
--
--## Trade-offs
--
--## Consequências
--
--## Quando revisar
--
--Não criar ADR para detalhes triviais.
--
-----
--
--# ETAPA 10 — Arquitetura de dados
--
--Definir:
--
--- banco;
--- schemas;
--- entidades;
--- tabelas;
--- relacionamentos;
--- PKs;
--- FKs;
--- uniques;
--- constraints;
--- índices;
--- queries críticas;
--- soft delete;
--- auditoria;
--- multi-tenancy;
--- retenção;
--- criptografia;
--- dados sensíveis;
--- backups;
--- migrations.
--
--Identifique:
--
--- tabelas de alto crescimento;
--- risco de N+1;
--- queries críticas;
--- cardinalidade;
--- índices importantes.
--
--Criar Mermaid ER quando útil.
--
-----
--
--# ETAPA 11 — Arquitetura de APIs
--
--Definir:
--
--- REST / GraphQL / RPC;
--- versionamento;
--- autenticação;
--- autorização;
--- paginação;
--- filtros;
--- ordenação;
--- pesquisa;
--- validação;
--- erros;
--- idempotência;
--- rate limit;
--- correlation ID;
--- webhooks.
--
--Endpoints críticos devem especificar:
--
--METHOD /rota
--
--Objetivo
--
--Ator
--
--Autorização
--
--Request
--
--Response
--
--Validação
--
--Regras
--
--Erros
--
--Eventos
--
--Idempotência
--
--Observabilidade
--
-----
--
--# ETAPA 12 — Eventos e processamento assíncrono
--
--Determinar necessidade de:
--
--- filas;
--- workers;
--- jobs;
--- scheduler;
--- domain events;
--- integration events;
--- retries;
--- DLQ.
--
--Para cada fluxo:
--
--Produtor
--
--Consumidor
--
--Payload
--
--Retry
--
--Idempotência
--
--Falha
--
--DLQ
--
--Observabilidade
--
-----
--
--# ETAPA 13 — Segurança
--
--Avaliar:
--
--- autenticação;
--- autorização;
--- roles;
--- permissions;
--- isolamento entre tenants;
--- sessão;
--- tokens;
--- secrets;
--- criptografia;
--- rate limit;
--- brute force;
--- auditoria;
--- logs sensíveis;
--- XSS;
--- CSRF;
--- SQL injection;
--- SSRF;
--- uploads;
--- dependências;
--- acesso administrativo;
--- webhooks.
--
--Transformar descobertas importantes em requisitos explícitos.
--
-----
--
--# ETAPA 14 — Infraestrutura
--
--Definir arquiteturalmente:
--
--LOCAL
--
--DESENVOLVIMENTO
--
--TESTE
--
--STAGING
--
--PRODUÇÃO
--
--Considerar:
--
--- compute;
--- containers;
--- banco;
--- cache;
--- fila;
--- storage;
--- CDN;
--- DNS;
--- TLS;
--- networking;
--- firewall;
--- secrets;
--- backups;
--- observabilidade.
--
--Evitar overengineering.
--
-----
--
--# ETAPA 15 — Observabilidade
--
--Definir:
--
--## Logs
--
--Logs estruturados.
--
--## Métricas
--
--- latência;
--- erros;
--- tráfego;
--- banco;
--- filas;
--- recursos;
--- métricas de negócio.
--
--## Tracing
--
--Quando necessário.
--
--## Alertas
--
--Alertas devem ser acionáveis.
--
-----
--
--# ETAPA 16 — Diagramas
--
--Criar Mermaid quando útil para:
--
--1. contexto;
--2. containers;
--3. componentes;
--4. deploy;
--5. sequências críticas;
--6. domínios;
--7. dados.
--
--Diagramas devem aumentar entendimento.
--
-----
--
--# ETAPA 17 — Riscos
--
--Criar registro:
--
--RISK-XXX
--
--Descrição:
--
--Probabilidade:
--BAIXA / MÉDIA / ALTA
--
--Impacto:
--BAIXO / MÉDIO / ALTO / CRÍTICO
--
--Área:
--
--Mitigação:
--
--Contingência:
--
--Trigger de revisão:
--
-----
--
--# ETAPA 18 — Documentação
--
--Preferir:
--
--documentacoes/
--├── arquitetura/
--│   ├── visao-geral.md
--│   ├── estado-atual.md
--│   ├── estado-alvo.md
--│   ├── decisoes-tecnologicas.md
--│   ├── integracoes.md
--│   ├── seguranca.md
--│   ├── infraestrutura.md
--│   ├── riscos.md
--│   ├── TECH-LEAD-HANDOFF.md
--│   └── adr/
--│
--├── dominio/
--│   └── modelo-dominio.md
--│
--├── banco/
--│   └── modelo-dados.md
--│
--├── api/
--│   └── especificacao-api.md
--│
--└── requisitos/
--    └── requisitos-tecnicos.md
--
--Se o projeto já tiver padrão documental, respeitá-lo.
--
-----
--
--# ETAPA 19 — Handoff ao Tech Lead
--
--Em definição arquitetural completa com handoff de execução, criar:
--
--documentacoes/arquitetura/TECH-LEAD-HANDOFF.md
--
--Contendo:
--
--# Objetivo do sistema
--
--# Estado atual
--
--# Arquitetura alvo
--
--# Domínios
--
--# Componentes
--
--# Stack
--
--# ADRs importantes
--
--# Requisitos funcionais
--
--# Requisitos não funcionais
--
--# Segurança
--
--# Infraestrutura
--
--# Integrações
--
--# Dados
--
--# APIs
--
--# Filas e assíncrono
--
--# Estratégia de testes esperada
--
--# Dependências técnicas
--
--# Riscos
--
--# Assunções
--
--# Débito técnico
--
--# Migrações necessárias
--
--# Restrições de sequenciamento
--
--# Decisões que não devem ser alteradas sem novo ADR
--
-----
--
--# RELATÓRIO FINAL
--
--Ao finalizar, apresentar:
--
--## Estado do projeto
--
--## Arquitetura definida
--
--## Documentação analisada
--
--## Documentação criada
--
--## ADRs criados
--
--## Domínios identificados
--
--## Componentes
--
--## Riscos críticos
--
--## Assunções
--
--## Problemas encontrados
--
--## Questões que ainda precisam de decisão humana
--
--## Pronto para o Tech Lead?
--
--SIM / NÃO
--
--Se NÃO:
--
--explique exatamente o bloqueio.
--
-----
--
--# REGRA DE OURO
--
--Construa a MENOR arquitetura capaz de atender corretamente aos requisitos
--conhecidos e evoluir com segurança.
--
--Evite:
--
--SUBENGENHARIA
--
--e
--
--OVERENGINEERING PREMATURO.
 diff --git a/skills/skills/auditor-de-review/SKILL.md b/skills/skills/auditor-de-review/SKILL.md
 deleted file mode 100644
 index e336962..0000000
@@ -364730,6 +361853,101 @@ index 4aedac2..0000000
 -Devolva planos, sequência, prompts e bloqueios ao planejador avulso. Não inicie
 -orquestrador ou compilador. O plano deve poder ser entregue diretamente a outra sessão.
 \ No newline at end of file
+diff --git a/skills/skills/planejador-de-lote-v1/SKILL.md b/skills/skills/planejador-de-lote-v1/SKILL.md
+new file mode 100644
+index 0000000..3f4c622
+--- /dev/null
++++ b/skills/skills/planejador-de-lote-v1/SKILL.md
+@@ -0,0 +1,77 @@
++---
++name: planejador-de-lote-v1
++description: Planeja uma feature ou um lote de features da Intranet encadeando grill-me → tech-lead → worktree-planner e entrega especificação, tickets, prompts por worktree e plano de integração em Markdown. Use para planejar antes de implementar; não cria worktrees, não implementa, não commita.
++---
++
++# Planejador de lote (v1)
++
++Coordena o planejamento de uma ou mais demandas até planos prontos para outra sessão executar.
++**Planejar não implementa.** Esta skill não cria worktrees, não altera código, não commita, não faz
++merge e não roda testes. Pode ler o repositório e rodar `git fetch` para registrar a base.
++
++## Antes de começar
++
++- Leia o `CLAUDE.md` e o `.claude/rules/` dos repositórios que a demanda toca:
++  backend `docker-intranet/app`, frontend `intranetNova`. Confirme cada raiz com
++  `git rev-parse --show-toplevel`.
++- Carregar uma etapa significa ler o `SKILL.md` dela e seguir suas instruções **nesta mesma
++  sessão**. As etapas são as skills irmãs `../grill-me/SKILL.md`, `../tech-lead/SKILL.md` e
++  `../worktree-planner/SKILL.md`. Não abra outros agentes para repetir o planejamento.
++
++## Pasta do lote
++
++Tudo é gravado em `docker-intranet/.claude/worktrees/AAAA-MM-DD/` (fuso `America/Sao_Paulo`). Do
++backend o caminho é `../.claude/worktrees/`; do frontend, `../docker-intranet/.claude/worktrees/`.
++Nos arquivos gerados, escreva sempre o **caminho absoluto**, porque as worktrees do ORCA ficam em
++outro lugar.
++
++- Liste a pasta antes de escrever. **Nunca sobrescreva outro lote.** Reutilize arquivos só quando
++  for a retomada do mesmo lote; em colisão de nome, acrescente um sufixo e corrija os links.
++- Arquivos do lote:
++  - `lote-AAAA-MM-DD-{slug}.md`: manifesto (este planejador).
++  - `00-plano-{chave}-{assunto}.md`: especificação canônica de cada demanda (tech-lead).
++  - `01-{chave}-backend-{assunto}.md` / `02-{chave}-frontend-{assunto}.md`: prompt por worktree
++    (worktree-planner).
++  - `99-merge-e-limpeza-{slug}.md`: integração e limpeza do lote (worktree-planner).
++
++## Encadeamento
++
++1. **Demandas.** Identifique as demandas que o usuário escolheu. Com ID do ClickUp e conector
++   disponível, leia a tarefa **somente para leitura**. Sem ID, gere uma chave local estável em
++   kebab-case e registre "não possui ID vinculado". Leia o código e a documentação pertinentes antes
++   de perguntar.
++2. **grill-me.** Esclareça objetivo, comportamento atual, regras de negócio, bordas e fora do
++   escopo. Reaproveite respostas entre demandas do mesmo lote. Falta de requisito não é permissão
++   para inventá-lo.
++3. **tech-lead.** Assim que a entrevista permitir critérios observáveis, carregue-o com todas as
++   respostas. Ele grava o `00-plano`, com tickets, critérios, contratos e perfil de risco. Questão
++   essencial sem resposta deixa a demanda `BLOQUEADA_NO_PLANEJAMENTO`; continue as demais.
++4. **worktree-planner.** Com os tickets prontos, carregue-o. Ele registra as bases e grava os
++   prompts 01/02 e o 99, sem repetir a entrevista.
++5. **Manifesto.** Consolide o `lote-AAAA-MM-DD-{slug}.md`.
++
++Não peça ao usuário para invocar as etapas: encadeie sozinho. Pergunte só o que só ele pode decidir.
++
++## Manifesto
++
++- Identificador do lote, data/fuso, branch de integração `revisao/AAAA-MM-DD-{slug}`.
++- Demandas incluídas e excluídas, com motivo.
++- Base de cada repositório: `origin/main` + SHA completo.
++- Por demanda: chave, ID externo (ou "não possui"), camadas, perfil de risco e justificativa, link
++  para o `00-plano`, IDs dos critérios, worktrees/prompts, dependências e status.
++- Ordem de execução e de integração. Dependências formam um grafo sem ciclos.
++- Riscos e pendências.
++
++Referencie em vez de copiar: critérios e contratos já estão no `00-plano`.
++
++## Conclusão
++
++- Marque `PRONTA_PARA_IMPLEMENTAR` só quando critérios essenciais, contratos, prompts e validação
++  viável estiverem definidos. Hipótese não é aprovação: registre a origem de cada decisão
++  (usuário, evidência no código/documento, hipótese).
++- Entregue no chat: caminho do manifesto, resumo do lote, pendências e próximos passos:
++  1. criar no ORCA as worktrees listadas no manifesto (repositório, branch e base);
++  2. entregar a cada sessão executora o prompt `01`/`02` correspondente;
++  3. depois do commit de cada frente, abrir uma sessão nova na mesma worktree com o "Prompt de
++     revisão";
++  4. pedir a integração do `99` quando as frentes estiverem revisadas.
+diff --git a/skills/skills/planejador-de-lote-v1/agents/openai.yaml b/skills/skills/planejador-de-lote-v1/agents/openai.yaml
+new file mode 100644
+index 0000000..b373fff
+--- /dev/null
++++ b/skills/skills/planejador-de-lote-v1/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Planejador de Lote v1"
++  short_description: "Encadeia grill-me → tech-lead → worktree-planner e entrega o lote em Markdown"
++  default_prompt: "Use $planejador-de-lote-v1 para entrevistar, especificar e gerar os prompts de worktree e o manifesto deste lote, sem implementar."
++policy:
++  allow_implicit_invocation: true
 diff --git a/skills/skills/planejador-de-lote/SKILL.md b/skills/skills/planejador-de-lote/SKILL.md
 deleted file mode 100644
 index e04184f..0000000
@@ -365763,6 +362981,79 @@ index 1a61a9f..d1f8c72 100644
 +- No chat: resumo por severidade, o que foi corrigido, o que ficou pendente e o SHA do commit.
 +
 +Revisão não é QA de tela: o teste manual continua com o usuário.
+diff --git a/skills/skills/revisor-de-codigo/agents/openai.yaml b/skills/skills/revisor-de-codigo/agents/openai.yaml
+new file mode 100644
+index 0000000..a47b4bf
+--- /dev/null
++++ b/skills/skills/revisor-de-codigo/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Revisor de Código"
++  short_description: "Revisa spec e riscos do diff e corrige o que for médio, alto ou crítico em um ciclo"
++  default_prompt: "Use $revisor-de-codigo para revisar e corrigir esta branch contra a base e a spec indicadas."
++policy:
++  allow_implicit_invocation: true
+diff --git a/skills/skills/revisor-de-codigo/references/checklist-risco.md b/skills/skills/revisor-de-codigo/references/checklist-risco.md
+new file mode 100644
+index 0000000..c12fb47
+--- /dev/null
++++ b/skills/skills/revisor-de-codigo/references/checklist-risco.md
+@@ -0,0 +1,55 @@
++# Checklist de risco
++
++Aplique só às linhas alteradas e ao contexto imediato que elas afetam. Cada item é uma pista para
++investigar, não um achado automático: confirme o cenário antes de classificar.
++
++## Lógica e dados (qualquer stack)
++
++- `null`/`undefined` não tratado no caminho **real** do dado.
++- Comparação com tipo trocado (string vs int em ID), off-by-one, condição sempre verdadeira ou
++  sempre falsa, `return` antecipado que engole um caso válido.
++- Escrita em várias tabelas sem `DB::transaction`, ou transação que não cobre todas as escritas.
++- Leitura → decisão → escrita sem lock; duplo envio sem proteção (dois usuários aprovando a mesma
++  PN).
++- Erro engolido: `catch` vazio, ou que só loga e segue como se tivesse dado certo.
++- Regra nova que ignora dados legados já existentes na tabela.
++- Bordas: lista vazia, um item só, zero, string vazia vs `null`, ordenação por coluna não única,
++  fuso horário entre Angular e SQL Server.
++
++## Laravel
++
++- **N+1:** Eloquent dentro de loop, falta de `with()`, `count()` por item, accessor que dispara
++  query. `save()` por item onde caberia `insert`/`upsert`.
++- **SQL injection:** `DB::raw`, `whereRaw`, `selectRaw`, `orderByRaw` ou `DB::statement` com
++  interpolação ou concatenação de entrada externa.
++- **Mass assignment:** `$request->all()` em `create`/`update`/`fill`; campo sensível (`status`,
++  `role`, valores) em `$fillable` sem controle.
++- **Autorização/IDOR:** rota sem middleware de auth; `Model::find($request->id)` sem escopo do
++  usuário; ação sobre recurso de terceiro sem Policy/Gate.
++- **Exposição:** Model devolvido sem Resource, vazando coluna sensível; segredo, senha, token ou
++  dado pessoal em log ou resposta.
++- **Upload:** sem validação de MIME/extensão, gravado em caminho público, nome de arquivo vindo do
++  usuário.
++- **Outros:** `exec`/`shell_exec`/`Process` com entrada externa; `unserialize` de dado externo;
++  `Http::get($url)` com URL do usuário; `redirect($request->input(...))`.
++- **Banco:** migration sem `connection('sqlsrv_NEW_CRM')` explícita, ou que toque
++  `sqlsrv_CRM`/`sqlsrv_CorporeRM` → **crítico**.
++- **Contrato:** resposta fora do formato `{ message, errors }`; endpoint novo ou alterado sem
++  contrato atualizado em `.claude/context/api-contracts/`.
++
++## Angular
++
++- **N requisições por item:** `forkJoin(itens.map(...))`, `subscribe` dentro de loop → **alto no
++  mínimo**. Já derrubou produção; precisa de endpoint batch.
++- Subscription longa sem `takeUntilDestroyed()`/`async` (confirme se ela não completa sozinha).
++- Função pesada chamada no template, sobretudo dentro de `@for`; `@for` sem `track`.
++- **XSS:** `bypassSecurityTrust*`, `[innerHTML]` com dado externo, `innerHTML` via `ElementRef`.
++- Segredo no bundle (`environment.ts`, service): tudo o que vai para o front é público.
++- Autorização só no front (botão ou rota escondidos) sem checagem equivalente no backend.
++- Tipo TypeScript que não bate com o Resource do backend.
++
++## Testes
++
++- Caminho crítico novo sem teste: diga qual caminho, não peça "mais cobertura".
++- Teste que nunca falharia: assert que recalcula o esperado do mesmo jeito que o código, ou mock
++  do próprio objeto testado.
 diff --git a/skills/skills/revisor-de-codigo/references/correcao-performance.md b/skills/skills/revisor-de-codigo/references/correcao-performance.md
 deleted file mode 100644
 index 6eacdd0..0000000
@@ -367063,6 +364354,18 @@ index b0405b4..794a92c 100644
 +- **Chamada direta:** entregue tickets, prioridades, dependências, bloqueios e o próximo passo
 +  recomendado. Grave em arquivo só se o usuário pedir.
 +- Preparar Markdown não é publicar. Nada vai para o ClickUp sem pedido explícito.
+diff --git a/skills/skills/tech-lead/agents/openai.yaml b/skills/skills/tech-lead/agents/openai.yaml
+new file mode 100644
+index 0000000..877f0a9
+--- /dev/null
++++ b/skills/skills/tech-lead/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Tech Lead"
++  short_description: "Especificação canônica, tickets, critérios e perfil de risco"
++  default_prompt: "Use $tech-lead para transformar estes requisitos em especificação e tickets com critérios de aceite."
++policy:
++  allow_implicit_invocation: true
 diff --git a/skills/skills/token-observatory/SKILL.md b/skills/skills/token-observatory/SKILL.md
 deleted file mode 100644
 index 464ab84..0000000
@@ -367242,6 +364545,18 @@ index d637ad0..6ff60d5 100644
 +- **Chamado pelo planejador:** devolva os caminhos dos prompts e do 99, a ordem e os bloqueios.
 +- **Chamado direto:** entregue o mesmo no chat, a partir da especificação indicada, e termine no
 +  plano. Não inicie a execução.
+diff --git a/skills/skills/worktree-planner/agents/openai.yaml b/skills/skills/worktree-planner/agents/openai.yaml
+new file mode 100644
+index 0000000..a312547
+--- /dev/null
++++ b/skills/skills/worktree-planner/agents/openai.yaml
+@@ -0,0 +1,6 @@
++interface:
++  display_name: "Planejador de Worktrees"
++  short_description: "Base, branches, prompts por worktree e plano de integração"
++  default_prompt: "Use $worktree-planner para planejar as worktrees, os prompts por frente e a integração destes tickets."
++policy:
++  allow_implicit_invocation: true
 diff --git a/skills/skills/worktree-planner/references/intranet.md b/skills/skills/worktree-planner/references/intranet.md
 deleted file mode 100644
 index 0cde4d6..0000000
@@ -367333,772 +364648,4 @@ index 0cde4d6..0000000
 -## Conferência antes do handoff
 -
 -Confira que todos os planos têm caminhos reais, branch e base, regras de negócio/aceite verificáveis, contratos entre camadas, validação viável, registro/commit/evento e fora do escopo. Nenhum prompt pede confirmação humana durante execução, depende exclusivamente de Claude CLI, manda push/PR, remove branch ou atualiza a base silenciosamente. O plano referencia o manifesto correto e o estado começa na fase correta. Devolva ao planejador-de-lote, que consolida o lote; se chamado diretamente, termine nos planos sem iniciar execução implicitamente.
-diff --git a/.agent/skills/planejador-de-lote-v1/SKILL.md b/.agent/skills/planejador-de-lote-v1/SKILL.md
-new file mode 100644
-index 0000000..3f4c622
---- /dev/null
-+++ b/.agent/skills/planejador-de-lote-v1/SKILL.md
-@@ -0,0 +1,77 @@
-+---
-+name: planejador-de-lote-v1
-+description: Planeja uma feature ou um lote de features da Intranet encadeando grill-me → tech-lead → worktree-planner e entrega especificação, tickets, prompts por worktree e plano de integração em Markdown. Use para planejar antes de implementar; não cria worktrees, não implementa, não commita.
-+---
-+
-+# Planejador de lote (v1)
-+
-+Coordena o planejamento de uma ou mais demandas até planos prontos para outra sessão executar.
-+**Planejar não implementa.** Esta skill não cria worktrees, não altera código, não commita, não faz
-+merge e não roda testes. Pode ler o repositório e rodar `git fetch` para registrar a base.
-+
-+## Antes de começar
-+
-+- Leia o `CLAUDE.md` e o `.claude/rules/` dos repositórios que a demanda toca:
-+  backend `docker-intranet/app`, frontend `intranetNova`. Confirme cada raiz com
-+  `git rev-parse --show-toplevel`.
-+- Carregar uma etapa significa ler o `SKILL.md` dela e seguir suas instruções **nesta mesma
-+  sessão**. As etapas são as skills irmãs `../grill-me/SKILL.md`, `../tech-lead/SKILL.md` e
-+  `../worktree-planner/SKILL.md`. Não abra outros agentes para repetir o planejamento.
-+
-+## Pasta do lote
-+
-+Tudo é gravado em `docker-intranet/.claude/worktrees/AAAA-MM-DD/` (fuso `America/Sao_Paulo`). Do
-+backend o caminho é `../.claude/worktrees/`; do frontend, `../docker-intranet/.claude/worktrees/`.
-+Nos arquivos gerados, escreva sempre o **caminho absoluto**, porque as worktrees do ORCA ficam em
-+outro lugar.
-+
-+- Liste a pasta antes de escrever. **Nunca sobrescreva outro lote.** Reutilize arquivos só quando
-+  for a retomada do mesmo lote; em colisão de nome, acrescente um sufixo e corrija os links.
-+- Arquivos do lote:
-+  - `lote-AAAA-MM-DD-{slug}.md`: manifesto (este planejador).
-+  - `00-plano-{chave}-{assunto}.md`: especificação canônica de cada demanda (tech-lead).
-+  - `01-{chave}-backend-{assunto}.md` / `02-{chave}-frontend-{assunto}.md`: prompt por worktree
-+    (worktree-planner).
-+  - `99-merge-e-limpeza-{slug}.md`: integração e limpeza do lote (worktree-planner).
-+
-+## Encadeamento
-+
-+1. **Demandas.** Identifique as demandas que o usuário escolheu. Com ID do ClickUp e conector
-+   disponível, leia a tarefa **somente para leitura**. Sem ID, gere uma chave local estável em
-+   kebab-case e registre "não possui ID vinculado". Leia o código e a documentação pertinentes antes
-+   de perguntar.
-+2. **grill-me.** Esclareça objetivo, comportamento atual, regras de negócio, bordas e fora do
-+   escopo. Reaproveite respostas entre demandas do mesmo lote. Falta de requisito não é permissão
-+   para inventá-lo.
-+3. **tech-lead.** Assim que a entrevista permitir critérios observáveis, carregue-o com todas as
-+   respostas. Ele grava o `00-plano`, com tickets, critérios, contratos e perfil de risco. Questão
-+   essencial sem resposta deixa a demanda `BLOQUEADA_NO_PLANEJAMENTO`; continue as demais.
-+4. **worktree-planner.** Com os tickets prontos, carregue-o. Ele registra as bases e grava os
-+   prompts 01/02 e o 99, sem repetir a entrevista.
-+5. **Manifesto.** Consolide o `lote-AAAA-MM-DD-{slug}.md`.
-+
-+Não peça ao usuário para invocar as etapas: encadeie sozinho. Pergunte só o que só ele pode decidir.
-+
-+## Manifesto
-+
-+- Identificador do lote, data/fuso, branch de integração `revisao/AAAA-MM-DD-{slug}`.
-+- Demandas incluídas e excluídas, com motivo.
-+- Base de cada repositório: `origin/main` + SHA completo.
-+- Por demanda: chave, ID externo (ou "não possui"), camadas, perfil de risco e justificativa, link
-+  para o `00-plano`, IDs dos critérios, worktrees/prompts, dependências e status.
-+- Ordem de execução e de integração. Dependências formam um grafo sem ciclos.
-+- Riscos e pendências.
-+
-+Referencie em vez de copiar: critérios e contratos já estão no `00-plano`.
-+
-+## Conclusão
-+
-+- Marque `PRONTA_PARA_IMPLEMENTAR` só quando critérios essenciais, contratos, prompts e validação
-+  viável estiverem definidos. Hipótese não é aprovação: registre a origem de cada decisão
-+  (usuário, evidência no código/documento, hipótese).
-+- Entregue no chat: caminho do manifesto, resumo do lote, pendências e próximos passos:
-+  1. criar no ORCA as worktrees listadas no manifesto (repositório, branch e base);
-+  2. entregar a cada sessão executora o prompt `01`/`02` correspondente;
-+  3. depois do commit de cada frente, abrir uma sessão nova na mesma worktree com o "Prompt de
-+     revisão";
-+  4. pedir a integração do `99` quando as frentes estiverem revisadas.
-diff --git a/.agent/skills/planejador-de-lote-v1/agents/openai.yaml b/.agent/skills/planejador-de-lote-v1/agents/openai.yaml
-new file mode 100644
-index 0000000..b373fff
---- /dev/null
-+++ b/.agent/skills/planejador-de-lote-v1/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Planejador de Lote v1"
-+  short_description: "Encadeia grill-me → tech-lead → worktree-planner e entrega o lote em Markdown"
-+  default_prompt: "Use $planejador-de-lote-v1 para entrevistar, especificar e gerar os prompts de worktree e o manifesto deste lote, sem implementar."
-+policy:
-+  allow_implicit_invocation: true
-diff --git a/.agent/skills/revisor-de-codigo/agents/openai.yaml b/.agent/skills/revisor-de-codigo/agents/openai.yaml
-new file mode 100644
-index 0000000..a47b4bf
---- /dev/null
-+++ b/.agent/skills/revisor-de-codigo/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Revisor de Código"
-+  short_description: "Revisa spec e riscos do diff e corrige o que for médio, alto ou crítico em um ciclo"
-+  default_prompt: "Use $revisor-de-codigo para revisar e corrigir esta branch contra a base e a spec indicadas."
-+policy:
-+  allow_implicit_invocation: true
-diff --git a/.agent/skills/revisor-de-codigo/references/checklist-risco.md b/.agent/skills/revisor-de-codigo/references/checklist-risco.md
-new file mode 100644
-index 0000000..c12fb47
---- /dev/null
-+++ b/.agent/skills/revisor-de-codigo/references/checklist-risco.md
-@@ -0,0 +1,55 @@
-+# Checklist de risco
-+
-+Aplique só às linhas alteradas e ao contexto imediato que elas afetam. Cada item é uma pista para
-+investigar, não um achado automático: confirme o cenário antes de classificar.
-+
-+## Lógica e dados (qualquer stack)
-+
-+- `null`/`undefined` não tratado no caminho **real** do dado.
-+- Comparação com tipo trocado (string vs int em ID), off-by-one, condição sempre verdadeira ou
-+  sempre falsa, `return` antecipado que engole um caso válido.
-+- Escrita em várias tabelas sem `DB::transaction`, ou transação que não cobre todas as escritas.
-+- Leitura → decisão → escrita sem lock; duplo envio sem proteção (dois usuários aprovando a mesma
-+  PN).
-+- Erro engolido: `catch` vazio, ou que só loga e segue como se tivesse dado certo.
-+- Regra nova que ignora dados legados já existentes na tabela.
-+- Bordas: lista vazia, um item só, zero, string vazia vs `null`, ordenação por coluna não única,
-+  fuso horário entre Angular e SQL Server.
-+
-+## Laravel
-+
-+- **N+1:** Eloquent dentro de loop, falta de `with()`, `count()` por item, accessor que dispara
-+  query. `save()` por item onde caberia `insert`/`upsert`.
-+- **SQL injection:** `DB::raw`, `whereRaw`, `selectRaw`, `orderByRaw` ou `DB::statement` com
-+  interpolação ou concatenação de entrada externa.
-+- **Mass assignment:** `$request->all()` em `create`/`update`/`fill`; campo sensível (`status`,
-+  `role`, valores) em `$fillable` sem controle.
-+- **Autorização/IDOR:** rota sem middleware de auth; `Model::find($request->id)` sem escopo do
-+  usuário; ação sobre recurso de terceiro sem Policy/Gate.
-+- **Exposição:** Model devolvido sem Resource, vazando coluna sensível; segredo, senha, token ou
-+  dado pessoal em log ou resposta.
-+- **Upload:** sem validação de MIME/extensão, gravado em caminho público, nome de arquivo vindo do
-+  usuário.
-+- **Outros:** `exec`/`shell_exec`/`Process` com entrada externa; `unserialize` de dado externo;
-+  `Http::get($url)` com URL do usuário; `redirect($request->input(...))`.
-+- **Banco:** migration sem `connection('sqlsrv_NEW_CRM')` explícita, ou que toque
-+  `sqlsrv_CRM`/`sqlsrv_CorporeRM` → **crítico**.
-+- **Contrato:** resposta fora do formato `{ message, errors }`; endpoint novo ou alterado sem
-+  contrato atualizado em `.claude/context/api-contracts/`.
-+
-+## Angular
-+
-+- **N requisições por item:** `forkJoin(itens.map(...))`, `subscribe` dentro de loop → **alto no
-+  mínimo**. Já derrubou produção; precisa de endpoint batch.
-+- Subscription longa sem `takeUntilDestroyed()`/`async` (confirme se ela não completa sozinha).
-+- Função pesada chamada no template, sobretudo dentro de `@for`; `@for` sem `track`.
-+- **XSS:** `bypassSecurityTrust*`, `[innerHTML]` com dado externo, `innerHTML` via `ElementRef`.
-+- Segredo no bundle (`environment.ts`, service): tudo o que vai para o front é público.
-+- Autorização só no front (botão ou rota escondidos) sem checagem equivalente no backend.
-+- Tipo TypeScript que não bate com o Resource do backend.
-+
-+## Testes
-+
-+- Caminho crítico novo sem teste: diga qual caminho, não peça "mais cobertura".
-+- Teste que nunca falharia: assert que recalcula o esperado do mesmo jeito que o código, ou mock
-+  do próprio objeto testado.
-diff --git a/.agent/skills/tech-lead/agents/openai.yaml b/.agent/skills/tech-lead/agents/openai.yaml
-new file mode 100644
-index 0000000..877f0a9
---- /dev/null
-+++ b/.agent/skills/tech-lead/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Tech Lead"
-+  short_description: "Especificação canônica, tickets, critérios e perfil de risco"
-+  default_prompt: "Use $tech-lead para transformar estes requisitos em especificação e tickets com critérios de aceite."
-+policy:
-+  allow_implicit_invocation: true
-diff --git a/.agent/skills/worktree-planner/agents/openai.yaml b/.agent/skills/worktree-planner/agents/openai.yaml
-new file mode 100644
-index 0000000..a312547
---- /dev/null
-+++ b/.agent/skills/worktree-planner/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Planejador de Worktrees"
-+  short_description: "Base, branches, prompts por worktree e plano de integração"
-+  default_prompt: "Use $worktree-planner para planejar as worktrees, os prompts por frente e a integração destes tickets."
-+policy:
-+  allow_implicit_invocation: true
-diff --git a/.agents/skills/planejador-de-lote-v1/SKILL.md b/.agents/skills/planejador-de-lote-v1/SKILL.md
-new file mode 100644
-index 0000000..3f4c622
---- /dev/null
-+++ b/.agents/skills/planejador-de-lote-v1/SKILL.md
-@@ -0,0 +1,77 @@
-+---
-+name: planejador-de-lote-v1
-+description: Planeja uma feature ou um lote de features da Intranet encadeando grill-me → tech-lead → worktree-planner e entrega especificação, tickets, prompts por worktree e plano de integração em Markdown. Use para planejar antes de implementar; não cria worktrees, não implementa, não commita.
-+---
-+
-+# Planejador de lote (v1)
-+
-+Coordena o planejamento de uma ou mais demandas até planos prontos para outra sessão executar.
-+**Planejar não implementa.** Esta skill não cria worktrees, não altera código, não commita, não faz
-+merge e não roda testes. Pode ler o repositório e rodar `git fetch` para registrar a base.
-+
-+## Antes de começar
-+
-+- Leia o `CLAUDE.md` e o `.claude/rules/` dos repositórios que a demanda toca:
-+  backend `docker-intranet/app`, frontend `intranetNova`. Confirme cada raiz com
-+  `git rev-parse --show-toplevel`.
-+- Carregar uma etapa significa ler o `SKILL.md` dela e seguir suas instruções **nesta mesma
-+  sessão**. As etapas são as skills irmãs `../grill-me/SKILL.md`, `../tech-lead/SKILL.md` e
-+  `../worktree-planner/SKILL.md`. Não abra outros agentes para repetir o planejamento.
-+
-+## Pasta do lote
-+
-+Tudo é gravado em `docker-intranet/.claude/worktrees/AAAA-MM-DD/` (fuso `America/Sao_Paulo`). Do
-+backend o caminho é `../.claude/worktrees/`; do frontend, `../docker-intranet/.claude/worktrees/`.
-+Nos arquivos gerados, escreva sempre o **caminho absoluto**, porque as worktrees do ORCA ficam em
-+outro lugar.
-+
-+- Liste a pasta antes de escrever. **Nunca sobrescreva outro lote.** Reutilize arquivos só quando
-+  for a retomada do mesmo lote; em colisão de nome, acrescente um sufixo e corrija os links.
-+- Arquivos do lote:
-+  - `lote-AAAA-MM-DD-{slug}.md`: manifesto (este planejador).
-+  - `00-plano-{chave}-{assunto}.md`: especificação canônica de cada demanda (tech-lead).
-+  - `01-{chave}-backend-{assunto}.md` / `02-{chave}-frontend-{assunto}.md`: prompt por worktree
-+    (worktree-planner).
-+  - `99-merge-e-limpeza-{slug}.md`: integração e limpeza do lote (worktree-planner).
-+
-+## Encadeamento
-+
-+1. **Demandas.** Identifique as demandas que o usuário escolheu. Com ID do ClickUp e conector
-+   disponível, leia a tarefa **somente para leitura**. Sem ID, gere uma chave local estável em
-+   kebab-case e registre "não possui ID vinculado". Leia o código e a documentação pertinentes antes
-+   de perguntar.
-+2. **grill-me.** Esclareça objetivo, comportamento atual, regras de negócio, bordas e fora do
-+   escopo. Reaproveite respostas entre demandas do mesmo lote. Falta de requisito não é permissão
-+   para inventá-lo.
-+3. **tech-lead.** Assim que a entrevista permitir critérios observáveis, carregue-o com todas as
-+   respostas. Ele grava o `00-plano`, com tickets, critérios, contratos e perfil de risco. Questão
-+   essencial sem resposta deixa a demanda `BLOQUEADA_NO_PLANEJAMENTO`; continue as demais.
-+4. **worktree-planner.** Com os tickets prontos, carregue-o. Ele registra as bases e grava os
-+   prompts 01/02 e o 99, sem repetir a entrevista.
-+5. **Manifesto.** Consolide o `lote-AAAA-MM-DD-{slug}.md`.
-+
-+Não peça ao usuário para invocar as etapas: encadeie sozinho. Pergunte só o que só ele pode decidir.
-+
-+## Manifesto
-+
-+- Identificador do lote, data/fuso, branch de integração `revisao/AAAA-MM-DD-{slug}`.
-+- Demandas incluídas e excluídas, com motivo.
-+- Base de cada repositório: `origin/main` + SHA completo.
-+- Por demanda: chave, ID externo (ou "não possui"), camadas, perfil de risco e justificativa, link
-+  para o `00-plano`, IDs dos critérios, worktrees/prompts, dependências e status.
-+- Ordem de execução e de integração. Dependências formam um grafo sem ciclos.
-+- Riscos e pendências.
-+
-+Referencie em vez de copiar: critérios e contratos já estão no `00-plano`.
-+
-+## Conclusão
-+
-+- Marque `PRONTA_PARA_IMPLEMENTAR` só quando critérios essenciais, contratos, prompts e validação
-+  viável estiverem definidos. Hipótese não é aprovação: registre a origem de cada decisão
-+  (usuário, evidência no código/documento, hipótese).
-+- Entregue no chat: caminho do manifesto, resumo do lote, pendências e próximos passos:
-+  1. criar no ORCA as worktrees listadas no manifesto (repositório, branch e base);
-+  2. entregar a cada sessão executora o prompt `01`/`02` correspondente;
-+  3. depois do commit de cada frente, abrir uma sessão nova na mesma worktree com o "Prompt de
-+     revisão";
-+  4. pedir a integração do `99` quando as frentes estiverem revisadas.
-diff --git a/.agents/skills/planejador-de-lote-v1/agents/openai.yaml b/.agents/skills/planejador-de-lote-v1/agents/openai.yaml
-new file mode 100644
-index 0000000..b373fff
---- /dev/null
-+++ b/.agents/skills/planejador-de-lote-v1/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Planejador de Lote v1"
-+  short_description: "Encadeia grill-me → tech-lead → worktree-planner e entrega o lote em Markdown"
-+  default_prompt: "Use $planejador-de-lote-v1 para entrevistar, especificar e gerar os prompts de worktree e o manifesto deste lote, sem implementar."
-+policy:
-+  allow_implicit_invocation: true
-diff --git a/.agents/skills/revisor-de-codigo/agents/openai.yaml b/.agents/skills/revisor-de-codigo/agents/openai.yaml
-new file mode 100644
-index 0000000..a47b4bf
---- /dev/null
-+++ b/.agents/skills/revisor-de-codigo/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Revisor de Código"
-+  short_description: "Revisa spec e riscos do diff e corrige o que for médio, alto ou crítico em um ciclo"
-+  default_prompt: "Use $revisor-de-codigo para revisar e corrigir esta branch contra a base e a spec indicadas."
-+policy:
-+  allow_implicit_invocation: true
-diff --git a/.agents/skills/revisor-de-codigo/references/checklist-risco.md b/.agents/skills/revisor-de-codigo/references/checklist-risco.md
-new file mode 100644
-index 0000000..c12fb47
---- /dev/null
-+++ b/.agents/skills/revisor-de-codigo/references/checklist-risco.md
-@@ -0,0 +1,55 @@
-+# Checklist de risco
-+
-+Aplique só às linhas alteradas e ao contexto imediato que elas afetam. Cada item é uma pista para
-+investigar, não um achado automático: confirme o cenário antes de classificar.
-+
-+## Lógica e dados (qualquer stack)
-+
-+- `null`/`undefined` não tratado no caminho **real** do dado.
-+- Comparação com tipo trocado (string vs int em ID), off-by-one, condição sempre verdadeira ou
-+  sempre falsa, `return` antecipado que engole um caso válido.
-+- Escrita em várias tabelas sem `DB::transaction`, ou transação que não cobre todas as escritas.
-+- Leitura → decisão → escrita sem lock; duplo envio sem proteção (dois usuários aprovando a mesma
-+  PN).
-+- Erro engolido: `catch` vazio, ou que só loga e segue como se tivesse dado certo.
-+- Regra nova que ignora dados legados já existentes na tabela.
-+- Bordas: lista vazia, um item só, zero, string vazia vs `null`, ordenação por coluna não única,
-+  fuso horário entre Angular e SQL Server.
-+
-+## Laravel
-+
-+- **N+1:** Eloquent dentro de loop, falta de `with()`, `count()` por item, accessor que dispara
-+  query. `save()` por item onde caberia `insert`/`upsert`.
-+- **SQL injection:** `DB::raw`, `whereRaw`, `selectRaw`, `orderByRaw` ou `DB::statement` com
-+  interpolação ou concatenação de entrada externa.
-+- **Mass assignment:** `$request->all()` em `create`/`update`/`fill`; campo sensível (`status`,
-+  `role`, valores) em `$fillable` sem controle.
-+- **Autorização/IDOR:** rota sem middleware de auth; `Model::find($request->id)` sem escopo do
-+  usuário; ação sobre recurso de terceiro sem Policy/Gate.
-+- **Exposição:** Model devolvido sem Resource, vazando coluna sensível; segredo, senha, token ou
-+  dado pessoal em log ou resposta.
-+- **Upload:** sem validação de MIME/extensão, gravado em caminho público, nome de arquivo vindo do
-+  usuário.
-+- **Outros:** `exec`/`shell_exec`/`Process` com entrada externa; `unserialize` de dado externo;
-+  `Http::get($url)` com URL do usuário; `redirect($request->input(...))`.
-+- **Banco:** migration sem `connection('sqlsrv_NEW_CRM')` explícita, ou que toque
-+  `sqlsrv_CRM`/`sqlsrv_CorporeRM` → **crítico**.
-+- **Contrato:** resposta fora do formato `{ message, errors }`; endpoint novo ou alterado sem
-+  contrato atualizado em `.claude/context/api-contracts/`.
-+
-+## Angular
-+
-+- **N requisições por item:** `forkJoin(itens.map(...))`, `subscribe` dentro de loop → **alto no
-+  mínimo**. Já derrubou produção; precisa de endpoint batch.
-+- Subscription longa sem `takeUntilDestroyed()`/`async` (confirme se ela não completa sozinha).
-+- Função pesada chamada no template, sobretudo dentro de `@for`; `@for` sem `track`.
-+- **XSS:** `bypassSecurityTrust*`, `[innerHTML]` com dado externo, `innerHTML` via `ElementRef`.
-+- Segredo no bundle (`environment.ts`, service): tudo o que vai para o front é público.
-+- Autorização só no front (botão ou rota escondidos) sem checagem equivalente no backend.
-+- Tipo TypeScript que não bate com o Resource do backend.
-+
-+## Testes
-+
-+- Caminho crítico novo sem teste: diga qual caminho, não peça "mais cobertura".
-+- Teste que nunca falharia: assert que recalcula o esperado do mesmo jeito que o código, ou mock
-+  do próprio objeto testado.
-diff --git a/.agents/skills/tech-lead/agents/openai.yaml b/.agents/skills/tech-lead/agents/openai.yaml
-new file mode 100644
-index 0000000..877f0a9
---- /dev/null
-+++ b/.agents/skills/tech-lead/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Tech Lead"
-+  short_description: "Especificação canônica, tickets, critérios e perfil de risco"
-+  default_prompt: "Use $tech-lead para transformar estes requisitos em especificação e tickets com critérios de aceite."
-+policy:
-+  allow_implicit_invocation: true
-diff --git a/.agents/skills/worktree-planner/agents/openai.yaml b/.agents/skills/worktree-planner/agents/openai.yaml
-new file mode 100644
-index 0000000..a312547
---- /dev/null
-+++ b/.agents/skills/worktree-planner/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Planejador de Worktrees"
-+  short_description: "Base, branches, prompts por worktree e plano de integração"
-+  default_prompt: "Use $worktree-planner para planejar as worktrees, os prompts por frente e a integração destes tickets."
-+policy:
-+  allow_implicit_invocation: true
-diff --git a/.claude/skills/planejador-de-lote-v1/SKILL.md b/.claude/skills/planejador-de-lote-v1/SKILL.md
-new file mode 100644
-index 0000000..3f4c622
---- /dev/null
-+++ b/.claude/skills/planejador-de-lote-v1/SKILL.md
-@@ -0,0 +1,77 @@
-+---
-+name: planejador-de-lote-v1
-+description: Planeja uma feature ou um lote de features da Intranet encadeando grill-me → tech-lead → worktree-planner e entrega especificação, tickets, prompts por worktree e plano de integração em Markdown. Use para planejar antes de implementar; não cria worktrees, não implementa, não commita.
-+---
-+
-+# Planejador de lote (v1)
-+
-+Coordena o planejamento de uma ou mais demandas até planos prontos para outra sessão executar.
-+**Planejar não implementa.** Esta skill não cria worktrees, não altera código, não commita, não faz
-+merge e não roda testes. Pode ler o repositório e rodar `git fetch` para registrar a base.
-+
-+## Antes de começar
-+
-+- Leia o `CLAUDE.md` e o `.claude/rules/` dos repositórios que a demanda toca:
-+  backend `docker-intranet/app`, frontend `intranetNova`. Confirme cada raiz com
-+  `git rev-parse --show-toplevel`.
-+- Carregar uma etapa significa ler o `SKILL.md` dela e seguir suas instruções **nesta mesma
-+  sessão**. As etapas são as skills irmãs `../grill-me/SKILL.md`, `../tech-lead/SKILL.md` e
-+  `../worktree-planner/SKILL.md`. Não abra outros agentes para repetir o planejamento.
-+
-+## Pasta do lote
-+
-+Tudo é gravado em `docker-intranet/.claude/worktrees/AAAA-MM-DD/` (fuso `America/Sao_Paulo`). Do
-+backend o caminho é `../.claude/worktrees/`; do frontend, `../docker-intranet/.claude/worktrees/`.
-+Nos arquivos gerados, escreva sempre o **caminho absoluto**, porque as worktrees do ORCA ficam em
-+outro lugar.
-+
-+- Liste a pasta antes de escrever. **Nunca sobrescreva outro lote.** Reutilize arquivos só quando
-+  for a retomada do mesmo lote; em colisão de nome, acrescente um sufixo e corrija os links.
-+- Arquivos do lote:
-+  - `lote-AAAA-MM-DD-{slug}.md`: manifesto (este planejador).
-+  - `00-plano-{chave}-{assunto}.md`: especificação canônica de cada demanda (tech-lead).
-+  - `01-{chave}-backend-{assunto}.md` / `02-{chave}-frontend-{assunto}.md`: prompt por worktree
-+    (worktree-planner).
-+  - `99-merge-e-limpeza-{slug}.md`: integração e limpeza do lote (worktree-planner).
-+
-+## Encadeamento
-+
-+1. **Demandas.** Identifique as demandas que o usuário escolheu. Com ID do ClickUp e conector
-+   disponível, leia a tarefa **somente para leitura**. Sem ID, gere uma chave local estável em
-+   kebab-case e registre "não possui ID vinculado". Leia o código e a documentação pertinentes antes
-+   de perguntar.
-+2. **grill-me.** Esclareça objetivo, comportamento atual, regras de negócio, bordas e fora do
-+   escopo. Reaproveite respostas entre demandas do mesmo lote. Falta de requisito não é permissão
-+   para inventá-lo.
-+3. **tech-lead.** Assim que a entrevista permitir critérios observáveis, carregue-o com todas as
-+   respostas. Ele grava o `00-plano`, com tickets, critérios, contratos e perfil de risco. Questão
-+   essencial sem resposta deixa a demanda `BLOQUEADA_NO_PLANEJAMENTO`; continue as demais.
-+4. **worktree-planner.** Com os tickets prontos, carregue-o. Ele registra as bases e grava os
-+   prompts 01/02 e o 99, sem repetir a entrevista.
-+5. **Manifesto.** Consolide o `lote-AAAA-MM-DD-{slug}.md`.
-+
-+Não peça ao usuário para invocar as etapas: encadeie sozinho. Pergunte só o que só ele pode decidir.
-+
-+## Manifesto
-+
-+- Identificador do lote, data/fuso, branch de integração `revisao/AAAA-MM-DD-{slug}`.
-+- Demandas incluídas e excluídas, com motivo.
-+- Base de cada repositório: `origin/main` + SHA completo.
-+- Por demanda: chave, ID externo (ou "não possui"), camadas, perfil de risco e justificativa, link
-+  para o `00-plano`, IDs dos critérios, worktrees/prompts, dependências e status.
-+- Ordem de execução e de integração. Dependências formam um grafo sem ciclos.
-+- Riscos e pendências.
-+
-+Referencie em vez de copiar: critérios e contratos já estão no `00-plano`.
-+
-+## Conclusão
-+
-+- Marque `PRONTA_PARA_IMPLEMENTAR` só quando critérios essenciais, contratos, prompts e validação
-+  viável estiverem definidos. Hipótese não é aprovação: registre a origem de cada decisão
-+  (usuário, evidência no código/documento, hipótese).
-+- Entregue no chat: caminho do manifesto, resumo do lote, pendências e próximos passos:
-+  1. criar no ORCA as worktrees listadas no manifesto (repositório, branch e base);
-+  2. entregar a cada sessão executora o prompt `01`/`02` correspondente;
-+  3. depois do commit de cada frente, abrir uma sessão nova na mesma worktree com o "Prompt de
-+     revisão";
-+  4. pedir a integração do `99` quando as frentes estiverem revisadas.
-diff --git a/.claude/skills/planejador-de-lote-v1/agents/openai.yaml b/.claude/skills/planejador-de-lote-v1/agents/openai.yaml
-new file mode 100644
-index 0000000..b373fff
---- /dev/null
-+++ b/.claude/skills/planejador-de-lote-v1/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Planejador de Lote v1"
-+  short_description: "Encadeia grill-me → tech-lead → worktree-planner e entrega o lote em Markdown"
-+  default_prompt: "Use $planejador-de-lote-v1 para entrevistar, especificar e gerar os prompts de worktree e o manifesto deste lote, sem implementar."
-+policy:
-+  allow_implicit_invocation: true
-diff --git a/.claude/skills/revisor-de-codigo/agents/openai.yaml b/.claude/skills/revisor-de-codigo/agents/openai.yaml
-new file mode 100644
-index 0000000..a47b4bf
---- /dev/null
-+++ b/.claude/skills/revisor-de-codigo/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Revisor de Código"
-+  short_description: "Revisa spec e riscos do diff e corrige o que for médio, alto ou crítico em um ciclo"
-+  default_prompt: "Use $revisor-de-codigo para revisar e corrigir esta branch contra a base e a spec indicadas."
-+policy:
-+  allow_implicit_invocation: true
-diff --git a/.claude/skills/revisor-de-codigo/references/checklist-risco.md b/.claude/skills/revisor-de-codigo/references/checklist-risco.md
-new file mode 100644
-index 0000000..c12fb47
---- /dev/null
-+++ b/.claude/skills/revisor-de-codigo/references/checklist-risco.md
-@@ -0,0 +1,55 @@
-+# Checklist de risco
-+
-+Aplique só às linhas alteradas e ao contexto imediato que elas afetam. Cada item é uma pista para
-+investigar, não um achado automático: confirme o cenário antes de classificar.
-+
-+## Lógica e dados (qualquer stack)
-+
-+- `null`/`undefined` não tratado no caminho **real** do dado.
-+- Comparação com tipo trocado (string vs int em ID), off-by-one, condição sempre verdadeira ou
-+  sempre falsa, `return` antecipado que engole um caso válido.
-+- Escrita em várias tabelas sem `DB::transaction`, ou transação que não cobre todas as escritas.
-+- Leitura → decisão → escrita sem lock; duplo envio sem proteção (dois usuários aprovando a mesma
-+  PN).
-+- Erro engolido: `catch` vazio, ou que só loga e segue como se tivesse dado certo.
-+- Regra nova que ignora dados legados já existentes na tabela.
-+- Bordas: lista vazia, um item só, zero, string vazia vs `null`, ordenação por coluna não única,
-+  fuso horário entre Angular e SQL Server.
-+
-+## Laravel
-+
-+- **N+1:** Eloquent dentro de loop, falta de `with()`, `count()` por item, accessor que dispara
-+  query. `save()` por item onde caberia `insert`/`upsert`.
-+- **SQL injection:** `DB::raw`, `whereRaw`, `selectRaw`, `orderByRaw` ou `DB::statement` com
-+  interpolação ou concatenação de entrada externa.
-+- **Mass assignment:** `$request->all()` em `create`/`update`/`fill`; campo sensível (`status`,
-+  `role`, valores) em `$fillable` sem controle.
-+- **Autorização/IDOR:** rota sem middleware de auth; `Model::find($request->id)` sem escopo do
-+  usuário; ação sobre recurso de terceiro sem Policy/Gate.
-+- **Exposição:** Model devolvido sem Resource, vazando coluna sensível; segredo, senha, token ou
-+  dado pessoal em log ou resposta.
-+- **Upload:** sem validação de MIME/extensão, gravado em caminho público, nome de arquivo vindo do
-+  usuário.
-+- **Outros:** `exec`/`shell_exec`/`Process` com entrada externa; `unserialize` de dado externo;
-+  `Http::get($url)` com URL do usuário; `redirect($request->input(...))`.
-+- **Banco:** migration sem `connection('sqlsrv_NEW_CRM')` explícita, ou que toque
-+  `sqlsrv_CRM`/`sqlsrv_CorporeRM` → **crítico**.
-+- **Contrato:** resposta fora do formato `{ message, errors }`; endpoint novo ou alterado sem
-+  contrato atualizado em `.claude/context/api-contracts/`.
-+
-+## Angular
-+
-+- **N requisições por item:** `forkJoin(itens.map(...))`, `subscribe` dentro de loop → **alto no
-+  mínimo**. Já derrubou produção; precisa de endpoint batch.
-+- Subscription longa sem `takeUntilDestroyed()`/`async` (confirme se ela não completa sozinha).
-+- Função pesada chamada no template, sobretudo dentro de `@for`; `@for` sem `track`.
-+- **XSS:** `bypassSecurityTrust*`, `[innerHTML]` com dado externo, `innerHTML` via `ElementRef`.
-+- Segredo no bundle (`environment.ts`, service): tudo o que vai para o front é público.
-+- Autorização só no front (botão ou rota escondidos) sem checagem equivalente no backend.
-+- Tipo TypeScript que não bate com o Resource do backend.
-+
-+## Testes
-+
-+- Caminho crítico novo sem teste: diga qual caminho, não peça "mais cobertura".
-+- Teste que nunca falharia: assert que recalcula o esperado do mesmo jeito que o código, ou mock
-+  do próprio objeto testado.
-diff --git a/.claude/skills/tech-lead/agents/openai.yaml b/.claude/skills/tech-lead/agents/openai.yaml
-new file mode 100644
-index 0000000..877f0a9
---- /dev/null
-+++ b/.claude/skills/tech-lead/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Tech Lead"
-+  short_description: "Especificação canônica, tickets, critérios e perfil de risco"
-+  default_prompt: "Use $tech-lead para transformar estes requisitos em especificação e tickets com critérios de aceite."
-+policy:
-+  allow_implicit_invocation: true
-diff --git a/.claude/skills/worktree-planner/agents/openai.yaml b/.claude/skills/worktree-planner/agents/openai.yaml
-new file mode 100644
-index 0000000..a312547
---- /dev/null
-+++ b/.claude/skills/worktree-planner/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Planejador de Worktrees"
-+  short_description: "Base, branches, prompts por worktree e plano de integração"
-+  default_prompt: "Use $worktree-planner para planejar as worktrees, os prompts por frente e a integração destes tickets."
-+policy:
-+  allow_implicit_invocation: true
-diff --git a/skills/skills/planejador-de-lote-v1/SKILL.md b/skills/skills/planejador-de-lote-v1/SKILL.md
-new file mode 100644
-index 0000000..3f4c622
---- /dev/null
-+++ b/skills/skills/planejador-de-lote-v1/SKILL.md
-@@ -0,0 +1,77 @@
-+---
-+name: planejador-de-lote-v1
-+description: Planeja uma feature ou um lote de features da Intranet encadeando grill-me → tech-lead → worktree-planner e entrega especificação, tickets, prompts por worktree e plano de integração em Markdown. Use para planejar antes de implementar; não cria worktrees, não implementa, não commita.
-+---
-+
-+# Planejador de lote (v1)
-+
-+Coordena o planejamento de uma ou mais demandas até planos prontos para outra sessão executar.
-+**Planejar não implementa.** Esta skill não cria worktrees, não altera código, não commita, não faz
-+merge e não roda testes. Pode ler o repositório e rodar `git fetch` para registrar a base.
-+
-+## Antes de começar
-+
-+- Leia o `CLAUDE.md` e o `.claude/rules/` dos repositórios que a demanda toca:
-+  backend `docker-intranet/app`, frontend `intranetNova`. Confirme cada raiz com
-+  `git rev-parse --show-toplevel`.
-+- Carregar uma etapa significa ler o `SKILL.md` dela e seguir suas instruções **nesta mesma
-+  sessão**. As etapas são as skills irmãs `../grill-me/SKILL.md`, `../tech-lead/SKILL.md` e
-+  `../worktree-planner/SKILL.md`. Não abra outros agentes para repetir o planejamento.
-+
-+## Pasta do lote
-+
-+Tudo é gravado em `docker-intranet/.claude/worktrees/AAAA-MM-DD/` (fuso `America/Sao_Paulo`). Do
-+backend o caminho é `../.claude/worktrees/`; do frontend, `../docker-intranet/.claude/worktrees/`.
-+Nos arquivos gerados, escreva sempre o **caminho absoluto**, porque as worktrees do ORCA ficam em
-+outro lugar.
-+
-+- Liste a pasta antes de escrever. **Nunca sobrescreva outro lote.** Reutilize arquivos só quando
-+  for a retomada do mesmo lote; em colisão de nome, acrescente um sufixo e corrija os links.
-+- Arquivos do lote:
-+  - `lote-AAAA-MM-DD-{slug}.md`: manifesto (este planejador).
-+  - `00-plano-{chave}-{assunto}.md`: especificação canônica de cada demanda (tech-lead).
-+  - `01-{chave}-backend-{assunto}.md` / `02-{chave}-frontend-{assunto}.md`: prompt por worktree
-+    (worktree-planner).
-+  - `99-merge-e-limpeza-{slug}.md`: integração e limpeza do lote (worktree-planner).
-+
-+## Encadeamento
-+
-+1. **Demandas.** Identifique as demandas que o usuário escolheu. Com ID do ClickUp e conector
-+   disponível, leia a tarefa **somente para leitura**. Sem ID, gere uma chave local estável em
-+   kebab-case e registre "não possui ID vinculado". Leia o código e a documentação pertinentes antes
-+   de perguntar.
-+2. **grill-me.** Esclareça objetivo, comportamento atual, regras de negócio, bordas e fora do
-+   escopo. Reaproveite respostas entre demandas do mesmo lote. Falta de requisito não é permissão
-+   para inventá-lo.
-+3. **tech-lead.** Assim que a entrevista permitir critérios observáveis, carregue-o com todas as
-+   respostas. Ele grava o `00-plano`, com tickets, critérios, contratos e perfil de risco. Questão
-+   essencial sem resposta deixa a demanda `BLOQUEADA_NO_PLANEJAMENTO`; continue as demais.
-+4. **worktree-planner.** Com os tickets prontos, carregue-o. Ele registra as bases e grava os
-+   prompts 01/02 e o 99, sem repetir a entrevista.
-+5. **Manifesto.** Consolide o `lote-AAAA-MM-DD-{slug}.md`.
-+
-+Não peça ao usuário para invocar as etapas: encadeie sozinho. Pergunte só o que só ele pode decidir.
-+
-+## Manifesto
-+
-+- Identificador do lote, data/fuso, branch de integração `revisao/AAAA-MM-DD-{slug}`.
-+- Demandas incluídas e excluídas, com motivo.
-+- Base de cada repositório: `origin/main` + SHA completo.
-+- Por demanda: chave, ID externo (ou "não possui"), camadas, perfil de risco e justificativa, link
-+  para o `00-plano`, IDs dos critérios, worktrees/prompts, dependências e status.
-+- Ordem de execução e de integração. Dependências formam um grafo sem ciclos.
-+- Riscos e pendências.
-+
-+Referencie em vez de copiar: critérios e contratos já estão no `00-plano`.
-+
-+## Conclusão
-+
-+- Marque `PRONTA_PARA_IMPLEMENTAR` só quando critérios essenciais, contratos, prompts e validação
-+  viável estiverem definidos. Hipótese não é aprovação: registre a origem de cada decisão
-+  (usuário, evidência no código/documento, hipótese).
-+- Entregue no chat: caminho do manifesto, resumo do lote, pendências e próximos passos:
-+  1. criar no ORCA as worktrees listadas no manifesto (repositório, branch e base);
-+  2. entregar a cada sessão executora o prompt `01`/`02` correspondente;
-+  3. depois do commit de cada frente, abrir uma sessão nova na mesma worktree com o "Prompt de
-+     revisão";
-+  4. pedir a integração do `99` quando as frentes estiverem revisadas.
-diff --git a/skills/skills/planejador-de-lote-v1/agents/openai.yaml b/skills/skills/planejador-de-lote-v1/agents/openai.yaml
-new file mode 100644
-index 0000000..b373fff
---- /dev/null
-+++ b/skills/skills/planejador-de-lote-v1/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Planejador de Lote v1"
-+  short_description: "Encadeia grill-me → tech-lead → worktree-planner e entrega o lote em Markdown"
-+  default_prompt: "Use $planejador-de-lote-v1 para entrevistar, especificar e gerar os prompts de worktree e o manifesto deste lote, sem implementar."
-+policy:
-+  allow_implicit_invocation: true
-diff --git a/skills/skills/revisor-de-codigo/agents/openai.yaml b/skills/skills/revisor-de-codigo/agents/openai.yaml
-new file mode 100644
-index 0000000..a47b4bf
---- /dev/null
-+++ b/skills/skills/revisor-de-codigo/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Revisor de Código"
-+  short_description: "Revisa spec e riscos do diff e corrige o que for médio, alto ou crítico em um ciclo"
-+  default_prompt: "Use $revisor-de-codigo para revisar e corrigir esta branch contra a base e a spec indicadas."
-+policy:
-+  allow_implicit_invocation: true
-diff --git a/skills/skills/revisor-de-codigo/references/checklist-risco.md b/skills/skills/revisor-de-codigo/references/checklist-risco.md
-new file mode 100644
-index 0000000..c12fb47
---- /dev/null
-+++ b/skills/skills/revisor-de-codigo/references/checklist-risco.md
-@@ -0,0 +1,55 @@
-+# Checklist de risco
-+
-+Aplique só às linhas alteradas e ao contexto imediato que elas afetam. Cada item é uma pista para
-+investigar, não um achado automático: confirme o cenário antes de classificar.
-+
-+## Lógica e dados (qualquer stack)
-+
-+- `null`/`undefined` não tratado no caminho **real** do dado.
-+- Comparação com tipo trocado (string vs int em ID), off-by-one, condição sempre verdadeira ou
-+  sempre falsa, `return` antecipado que engole um caso válido.
-+- Escrita em várias tabelas sem `DB::transaction`, ou transação que não cobre todas as escritas.
-+- Leitura → decisão → escrita sem lock; duplo envio sem proteção (dois usuários aprovando a mesma
-+  PN).
-+- Erro engolido: `catch` vazio, ou que só loga e segue como se tivesse dado certo.
-+- Regra nova que ignora dados legados já existentes na tabela.
-+- Bordas: lista vazia, um item só, zero, string vazia vs `null`, ordenação por coluna não única,
-+  fuso horário entre Angular e SQL Server.
-+
-+## Laravel
-+
-+- **N+1:** Eloquent dentro de loop, falta de `with()`, `count()` por item, accessor que dispara
-+  query. `save()` por item onde caberia `insert`/`upsert`.
-+- **SQL injection:** `DB::raw`, `whereRaw`, `selectRaw`, `orderByRaw` ou `DB::statement` com
-+  interpolação ou concatenação de entrada externa.
-+- **Mass assignment:** `$request->all()` em `create`/`update`/`fill`; campo sensível (`status`,
-+  `role`, valores) em `$fillable` sem controle.
-+- **Autorização/IDOR:** rota sem middleware de auth; `Model::find($request->id)` sem escopo do
-+  usuário; ação sobre recurso de terceiro sem Policy/Gate.
-+- **Exposição:** Model devolvido sem Resource, vazando coluna sensível; segredo, senha, token ou
-+  dado pessoal em log ou resposta.
-+- **Upload:** sem validação de MIME/extensão, gravado em caminho público, nome de arquivo vindo do
-+  usuário.
-+- **Outros:** `exec`/`shell_exec`/`Process` com entrada externa; `unserialize` de dado externo;
-+  `Http::get($url)` com URL do usuário; `redirect($request->input(...))`.
-+- **Banco:** migration sem `connection('sqlsrv_NEW_CRM')` explícita, ou que toque
-+  `sqlsrv_CRM`/`sqlsrv_CorporeRM` → **crítico**.
-+- **Contrato:** resposta fora do formato `{ message, errors }`; endpoint novo ou alterado sem
-+  contrato atualizado em `.claude/context/api-contracts/`.
-+
-+## Angular
-+
-+- **N requisições por item:** `forkJoin(itens.map(...))`, `subscribe` dentro de loop → **alto no
-+  mínimo**. Já derrubou produção; precisa de endpoint batch.
-+- Subscription longa sem `takeUntilDestroyed()`/`async` (confirme se ela não completa sozinha).
-+- Função pesada chamada no template, sobretudo dentro de `@for`; `@for` sem `track`.
-+- **XSS:** `bypassSecurityTrust*`, `[innerHTML]` com dado externo, `innerHTML` via `ElementRef`.
-+- Segredo no bundle (`environment.ts`, service): tudo o que vai para o front é público.
-+- Autorização só no front (botão ou rota escondidos) sem checagem equivalente no backend.
-+- Tipo TypeScript que não bate com o Resource do backend.
-+
-+## Testes
-+
-+- Caminho crítico novo sem teste: diga qual caminho, não peça "mais cobertura".
-+- Teste que nunca falharia: assert que recalcula o esperado do mesmo jeito que o código, ou mock
-+  do próprio objeto testado.
-diff --git a/skills/skills/tech-lead/agents/openai.yaml b/skills/skills/tech-lead/agents/openai.yaml
-new file mode 100644
-index 0000000..877f0a9
---- /dev/null
-+++ b/skills/skills/tech-lead/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Tech Lead"
-+  short_description: "Especificação canônica, tickets, critérios e perfil de risco"
-+  default_prompt: "Use $tech-lead para transformar estes requisitos em especificação e tickets com critérios de aceite."
-+policy:
-+  allow_implicit_invocation: true
-diff --git a/skills/skills/worktree-planner/agents/openai.yaml b/skills/skills/worktree-planner/agents/openai.yaml
-new file mode 100644
-index 0000000..a312547
---- /dev/null
-+++ b/skills/skills/worktree-planner/agents/openai.yaml
-@@ -0,0 +1,6 @@
-+interface:
-+  display_name: "Planejador de Worktrees"
-+  short_description: "Base, branches, prompts por worktree e plano de integração"
-+  default_prompt: "Use $worktree-planner para planejar as worktrees, os prompts por frente e a integração destes tickets."
-+policy:
-+  allow_implicit_invocation: true
 ````

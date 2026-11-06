@@ -118,13 +118,22 @@ aceitação humana do ADR para produção são limitações/pendências declarad
 
 ## Commits, diffs e lessons
 
-Nenhum commit criado nesta tarefa. Não houve alteração staged desta tarefa.
-O [patch completo próprio](2026-11-06-limpeza-monorepo-mvp-diffs.md) compara o estado
-inicial da sessão com o final, exclui a escrita de `documentacoes/` e `lessons/`
-para evitar recursão, e registra exclusões binárias por tamanho/hash.
+O fechamento técnico original foi entregue sem commits. Após autorização explícita,
+o commit `9cff55f7cea352186f73872e38550353dd90f4bd` reuniu a limpeza do MVP. As mudanças de
+distribuição das skills foram agrupadas no commit anterior, como explicado no
+[registro de publicação](2026-11-06-publicacao-developer.md).
+O [patch completo próprio](2026-11-06-limpeza-monorepo-mvp-diffs.md) representa o commit
+do MVP e exclui a escrita de `documentacoes/` e `lessons/` para evitar recursão.
+As exclusões binárias aparecem sem conteúdo exposto. Os snapshots da sessão
+continuam locais em `.run/limpeza-mvp/antes/` para rastreabilidade.
 
 A [lesson 22](../../lessons/22%20-%20Monorepo%20e%20monolito%20modular%20no%20MVP.md)
 explica monorepo, monólito modular e critérios de separação; a
 [lesson 02](../../lessons/02%20-%20Qualidade%20estatica%20em%20TypeScript%20e%20Python.md)
 foi alinhada às fronteiras Python atuais. O índice de lessons e os índices de docs/ADRs
 foram atualizados. A lista de arquivos próprios acompanha o patch.
+
+O gitleaks inicialmente ausente foi instalado com checksum conferido para a
+publicação: histórico pendente e os dois commits staged sem achados. As limitações
+anteriores acima descrevem o fechamento técnico; veja a verificação posterior no
+[registro de publicação](2026-11-06-publicacao-developer.md).

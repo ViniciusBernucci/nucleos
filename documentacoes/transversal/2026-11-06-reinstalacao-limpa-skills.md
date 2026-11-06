@@ -106,9 +106,13 @@ Não executar reset global nem substituir trabalho posterior.
 
 ## Commits, diffs e lessons
 
-Nenhum commit criado nesta tarefa. Staged vazio. [Patch integral](2026-11-06-reinstalacao-limpa-skills-diffs.md)
-inclui as alterações próprias unstaged e arquivos novos, sem a própria documentação.
-SHA-256 do conteúdo do patch: `7bcf4a3fca4ad1ccdebc4517125fbc8d7c1289238ccab079d01704dee71fe0d5`.
+O fechamento técnico original foi entregue sem commits. Após autorização explícita,
+as mudanças de distribuição foram reunidas no commit `8029c6814cd5febb06c255708987f7b469bd36f4`;
+veja o [registro de publicação](2026-11-06-publicacao-developer.md). O
+[patch integral](2026-11-06-reinstalacao-limpa-skills-diffs.md) foi atualizado para esse
+commit, incluindo a fonte da sexta skill e retirada de modelos antigos da limpeza.
+As regras e o README da raiz foram incluídos no commit do MVP, conforme o registro.
+SHA-256 dos bytes do diff textual do commit: `c3cb880d07305fd7a519e91aec75cd42778e4127c11277f32ce70d063788f628`.
 
 Lessons: NA. A entrega instala arquivos de instrução e ajusta distribuição local;
 não introduz nem altera conceito de TypeScript, Python, Docker, PostgreSQL ou
