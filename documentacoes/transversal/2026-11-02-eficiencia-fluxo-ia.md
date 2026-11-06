@@ -53,3 +53,7 @@ Pedido de prosseguimento atendido: novo fixture isolado, fora do produto, com o 
 B primeiro, A depois: cache/ordem impedem atribuir a diferença de preço a eficiência do produto. O perfil Bash contribuiu com 6–11 segundos em sondas sem IA; a causa integral da lentidão anterior não foi demonstrada. Sem editar preferências pessoais. Compactação real não foi acionada, preservando a limitação explícita da prova. Estado da implementação: concluída; validação operacional pequena concluída, sem afirmação de economia para login completo.
 
 Somente documentação e recibo foram acrescentados nesta continuação. Nenhuma mudança adicional de código/configuração, binário, skills, lessons, banco ou estado de runs do Núcleos; os diffs de implementação anteriores continuam válidos. Lessons continuam NA pelo escopo externo. Nenhum commit criado nesta tarefa. Rollback desta continuação: remover somente este registro documental; sem reset global.
+
+## Commit local posterior em 2026-11-06
+
+O usuario autorizou consolidar as alteracoes prontas na developer, sem QA. Conteudo registrado no commit `21c3d7dc9c0f4c0e3fe26dafab5ed927529255f6`. Os resultados anteriores acima permanecem historicos; as conferencias novas, limites e diffs estao no [fechamento integrado](2026-11-06-consolidacao-pendencias-locais.md). Nenhum run antigo foi retomado.

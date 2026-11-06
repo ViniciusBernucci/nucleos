@@ -53,3 +53,7 @@ Investigação sobre leitura de documentação continua separada, sem alterar o 
 ## Registro final
 
 Skill e links validados; ambas as instalacoes com 17 skills, 87 arquivos por destino e zero divergencias nos tres espelhos. Archify extra preservada no Nucleos. Planejadores existentes conferidos por hash e preservados. A excecao avulsa tambem dispensa preparacao/indexacao Node, para impedir acoplamento indireto pelas instrucoes antigas. Nao houve commit, execucao de lote ou alteracao do compilador.
+
+## Commit local posterior em 2026-11-06
+
+O usuario autorizou consolidar as alteracoes prontas na developer, sem QA. Conteudo registrado no commit `21c3d7dc9c0f4c0e3fe26dafab5ed927529255f6`. Os resultados anteriores acima permanecem historicos; as conferencias novas, limites e diffs estao no [fechamento integrado](2026-11-06-consolidacao-pendencias-locais.md). Nenhum run antigo foi retomado.
