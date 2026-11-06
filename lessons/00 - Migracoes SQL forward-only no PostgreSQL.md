@@ -98,7 +98,7 @@ multi-database descrito acima (decisao em ADR proprio).
 - Editar migration ja aplicada (o checksum acusa; crie uma nova).
 - Interpolar nome vindo de entrada externa em `CREATE DATABASE`/`SELECT ... FROM`.
 - Usar `CREATE INDEX CONCURRENTLY` ou `VACUUM` dentro da transacao do runner (nao funciona; o runner da PoC os rejeita; exigem fluxo proprio, fora de escopo).
-- Escrever `COMMIT`/`BEGIN` no arquivo da migration (rejeitado pelo lint do runner).
+- Escrever `COMMIT`/`BEGIN` no nível SQL externo da migration (rejeitado pelo lint do runner); `BEGIN` dentro do corpo PL/pgSQL dollar-quoted é um bloco da função.
 - Tratar comentarios como removiveis por regex antes de literais: `'-- x'` e `$$--$$` contem `--` sem ser comentario (use um tokenizador de uma passada).
 - Copiar so parte das regras lexicais do servidor: no PostgreSQL o comentario `--` termina em `\n` **ou** `\r` isolado, e a tag de dollar-quote nao tem limite de tamanho. Qualquer limite arbitrario (por exemplo, olhar so 80 caracteres a frente) vira bypass: o lint aprova e o servidor executa `COMMIT`. Confirme cada regra contra o servidor real e teste os valores de fronteira (78, 79, 80, 200).
 - Confiar no lint contra SQL dinamico ou `standard_conforming_strings=off`: nao cobre; a revisao humana e o gate.
@@ -106,5 +106,7 @@ multi-database descrito acima (decisao em ADR proprio).
 - Nao se aplica quando ha um unico banco pequeno e uma ferramenta pronta ja atende.
 
 ## Verificacao e exercicios
+
+Atualização de 2026-11-06: o [runner da API](../apps/api/src/migrar.ts) aplica a distinção lexical às migrations financeiras com triggers. Os [testes sem banco](../apps/api/src/migrar.test.ts) cobrem checksum original, comentários aninhados, CR isolado, escapes, delimitadores incompletos e tags de 78/79/80/200 caracteres, mantendo a recusa de comandos externos. Veja a [entrega](../documentacoes/financeiro/2026-11-06-conclusao-financeiro-funcionarios.md). Execute `node --test apps/api/dist/migrar.test.js` depois do build.
 
 Rode `documentacoes/arquitetura/poc/dec-003/run.sh` (cria e destroi um container local); o cenario H de `poc.mjs` cobre `COMMIT` interno, erro SQL real e nome fora da allowlist. Exercicios: (1) adicione `0004` com uma coluna nula e confirme que a segunda execucao nao aplica nada; (2) altere uma letra em `0001` e observe o erro; (3) escreva a migration que remove a coluna do item 1 por roll-forward.

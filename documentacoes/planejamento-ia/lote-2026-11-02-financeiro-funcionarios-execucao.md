@@ -6,6 +6,11 @@ Especificação: [referência](lote-2026-11-02-financeiro-funcionarios-especific
 
 ## Autorizações e base
 
+Em 2026-11-03 o usuário respondeu “pode seguir” à pergunta explícita sobre criar e
+remover bancos temporários de teste no PostgreSQL local `127.0.0.1:15432`, sem acessar
+`nucleos_dev`. Essa exceção de ambiente está autorizada para as validações deste lote;
+não autoriza nova instância, migrations de desenvolvimento nem ativação externa.
+
 Pedido: aplicar os três planos avulsos. Usuário autorizou explicitamente em seguida:
 P0, commits locais das frentes e integração, cron-parser, @aws-sdk/client-s3 e anthropic
 com versões fixadas. Sem push, PR, publicação ou merge em main.
@@ -18,28 +23,17 @@ Alterações de regras/skills e outros backlogs foram preservadas fora do commit
 P0: commit a2aa0cc (`feat(financeiro): concluir base de fluxo de caixa para lote 1102`).
 Escopo e verificações: [registro P0](../financeiro/2026-11-02-fluxo-de-caixa.md#verificação-de-p0-para-o-lote-financeirofuncionários-2026-11-02).
 
-## Estado atual (fonte operacional desta execução avulsa)
+## Estado atual (atualizado em 2026-11-06)
 
-- P0: CONCLUIDA, commit a2aa0cc.
-- A (FUN-001…006): IMPLEMENTADA / REVISADA / INTEGRADA. Correção bc89f2c,
-  entrega f02cfa5, merge 67db27b; revisão independente PASS.
-- B (FIN-103→101→102→104→105→106): CORRECOES_APLICADAS / PG_NAO_VALIDADO,
-  branch feat/lote-1102-b-base-financeira, base a1a0b0e, código c5da47f,
-  candidata documental 0604d25, correção ecb94e7 e fechamento ab936c1;
-  PG/HTTP real não validado.
-- M (FIN-301): CORRECAO_APLICADA / PG_NAO_VALIDADO,
-  branch feat/lote-1102-m-meta-ads, implementação 4690f1c, candidata adaa9b7,
-  correção RM-01 bf0a20e, relatório/fechamento aa5cdae;
-  aprovação ainda depende de PG/HTTP em ambiente autorizado.
-- C e D: NÃO INICIADAS, aguardam dependências.
-- Revisão M: RM-01 médio corrigido (limpeza da fixture em falha de preparação);
-  validação PG pendente. Revisão B: cinco achados corrigidos no único ciclo;
-  aprovação final pendente de PostgreSQL essencial.
-  Revisões C/D: NÃO EXECUTADAS.
-- Integração A: build TS/Python, 28 PG/HTTP, contratos e Gitleaks PASS;
-  suíte/lint gerais sem PASS pelas limitações documentadas.
-- Testes manuais e aceite visual: PENDENTES conforme manifesto §8.
-- Nenhuma migration nova aplicada ao nucleos_dev; testes só bancos temporários.
+- Destino solicitado pelo usuario nesta retomada: `developer`.
+- P0 e A: concluidas; A ja estava revisada e integrada.
+- B e M: implementadas/corrigidas anteriormente, testes PG/HTTP concluidos nesta retomada e integradas na developer.
+- C (FIN-201/202/203/204) e D (FIN-302/303): implementadas nesta retomada e reunidas na developer.
+- Checks reais, commits, diffs e limites: [registro final de 2026-11-06](../financeiro/2026-11-06-conclusao-financeiro-funcionarios.md).
+- Revisao desta retomada: autorrevisao do executor, sem alegar parecer independente novo de C/D.
+- QA visual: nao executado, dispensado expressamente pelo usuario em 2026-11-06.
+- Ativacao real: sem migrations no `nucleos_dev` e sem chamadas a APIs externas reais. Credenciais/configuracao continuam necessarias.
+- As secoes seguintes preservam a cronologia anterior; referencias antigas a bloqueio PostgreSQL ou C/D nao iniciadas foram superadas por esta atualizacao.
 
 ## Verificações da preparação
 

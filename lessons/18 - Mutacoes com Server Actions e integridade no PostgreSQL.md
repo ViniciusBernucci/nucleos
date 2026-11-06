@@ -310,3 +310,20 @@ Uma conta paga e seu lançamento são duas representações do mesmo pagamento. 
 conciliar, use uma identidade comum: `conta_pagar:<id>` nas duas formas. Compare essa
 identidade tanto dentro da sugestão manual quanto contra conciliações já aceitas.
 Sem isso, trocar o tipo da origem permite contabilizar o mesmo pagamento duas vezes.
+
+## Competencia, caixa e centavos exatos
+
+Atualizacao: 2026-11-06; Node 24.22.2 e TypeScript 5.9.3. A [gestao financeira](../documentacoes/financeiro/2026-11-06-conclusao-financeiro-funcionarios.md) usa duas datas distintas: competencia da despesa na DRE e pagamento no caixa. A conta a pagar reconhecida nao vira outra despesa quando seu pagamento gera um lancamento. Transferencias entre contas tambem nao criam receita ou despesa.
+
+BigInt calcula centavos sem arredondamento binario; JSON recebe strings, pois nao serializa BigInt diretamente:
+
+```typescript
+const receita = 10_000_000_000_000_001n;
+const custos = 2_700n;
+const resposta = JSON.stringify({ resultadoCentavos: (receita - custos).toString() });
+console.log(resposta);
+```
+
+Nao converta esses valores para Number antes de somar. Nos indicadores mensais, despesas e midia sem alocacao conhecida nao sao rateadas por produto ou centro. O CSV escapa aspas e prefixos de formula, preserva centavos e usa BOM/UTF-8. Os testes `gestao.test.ts` e `financeiro.pg.test.ts` verificam precisao, competencia, pagamento sem duplicacao e projecao por cenario.
+
+Exercicio: registre uma despesa com competencia em fevereiro e pagamento em marco. Prove que fevereiro muda na DRE e marco muda no caixa, sem duplicar o total de despesas. Depois tente exportar uma categoria iniciada por `=`, verificando que ela nao se torna formula ao abrir o CSV.

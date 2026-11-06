@@ -121,3 +121,7 @@ Correção da revisão: `bf0a20e177c2d7668ba871d87f496a92b8e2ce64`,
 O teardown passa a encerrar os recursos adquiridos mesmo se migrations/listen ou outro
 encerramento falhar. Tipos, ESLint/Prettier focais e diff-check PASS; execução PG pendente.
 O patch dessa correção fica no relatório de revisão, separado do patch da candidata original.
+
+## Fechamento posterior em 2026-11-06
+
+PG/HTTP da Meta e a suite completa da API foram executados na retomada autorizada: 144 testes PASS, zero skips, sem bancos temporarios remanescentes. A fixture usa relogio real do PostgreSQL para a lease e relogio separado para a janela de importacao. M foi integrada na developer. Credenciais reais nao foram ativadas. QA visual dispensado pelo usuario. Veja o [registro final](2026-11-06-conclusao-financeiro-funcionarios.md).

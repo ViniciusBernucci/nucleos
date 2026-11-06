@@ -23,8 +23,14 @@ Em staging/produção o mesmo princípio vale: um banco do Nucleos; `DATABASE_UR
 
 ## Mapa de schemas e tabelas
 
+Conclusão C/D em 2026-11-06: [registro e validações](../financeiro/2026-11-06-conclusao-financeiro-funcionarios.md). Migrations novas aplicadas apenas em bancos temporários de teste, sem alteração de `nucleos_dev`.
+
 | Schema | Tabela | Para que serve | Entrega |
 | --- | --- | --- | --- |
+| `financeiro` | `indicadores_mensais` | Cache mensal global dos indicadores; recortes são calculados sem rateio | [Gestão e CFO](../financeiro/2026-11-06-conclusao-financeiro-funcionarios.md) |
+| `financeiro` | `cenarios_caixa` | Percentuais de realização, reembolso e variação de despesas | idem |
+| `financeiro` | `linhas_dre`, `dre_mensal` | Estrutura de classificação e materialização mensal da DRE | idem |
+| `financeiro` | `analises_cfo` | Reserva única por execução, resposta, estado, ferramentas e uso estimado | idem |
 | `organizacao` | `setores` | Setores ordenados para catálogo, funcionários e menu dinâmico | [Funcionários virtuais](../funcionarios/2026-11-02-modulo-funcionarios-virtuais.md) |
 | `funcionarios` | `funcionarios` | Papéis virtuais com estado explícito e setor | idem |
 | `funcionarios` | `definicoes_tarefa` | Catálogo de tarefas, schemas, permissões e vínculo a handlers do backend | idem |

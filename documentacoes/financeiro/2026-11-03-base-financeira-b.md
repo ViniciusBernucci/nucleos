@@ -153,3 +153,7 @@ As páginas Hotmart abertas nesta retomada entregaram apenas shell HTML; o conte
 estruturado e a semântica dos preços consultados na preparação constam das
 [fontes do lote](2026-11-02-fontes-integracoes-lote.md). Testes usam fixtures fictícias,
 sem inferir verificação ao vivo das contas.
+
+## Fechamento posterior em 2026-11-06
+
+A validacao PostgreSQL pendente foi executada na retomada autorizada, junto com a integracao B/M e as frentes C/D. A suite completa final da API passou com 144 testes, sem skips, e os bancos temporarios foram removidos. Codigo reunido na developer. QA visual dispensado pelo usuario. Este registro historico nao e um novo parecer independente: veja o [fechamento real](2026-11-06-conclusao-financeiro-funcionarios.md).
