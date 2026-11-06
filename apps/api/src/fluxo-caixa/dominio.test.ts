@@ -18,6 +18,22 @@ import {
   validarNovoLancamento,
   validarPagamento,
 } from "./validacao.js";
+test("recorrencia anual vence apenas no mes de aniversario e dentro da vigencia", () => {
+  const anual = {
+    id: "1",
+    descricao: "Licença",
+    categoria: "Serviços",
+    valorCentavos: 12000,
+    diaVencimento: 31,
+    inicio: "2026-11",
+    fim: null,
+    periodicidade: "anual" as const,
+  };
+  assert.equal(venceNoMes(anual, "2026-11"), true);
+  assert.equal(venceNoMes(anual, "2026-12"), false);
+  assert.equal(venceNoMes(anual, "2027-11"), true);
+  assert.equal(venceNoMes({ ...anual, fim: "2027-10" }, "2027-11"), false);
+});
 
 const lanc = (id: string, p: Partial<Lancamento> = {}): Lancamento => ({
   id,

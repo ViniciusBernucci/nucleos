@@ -76,6 +76,9 @@ async function PainelCompleto({
   return (
     <>
       <Sincronizacao estado={painel.sincronizacao} agora={agora} />
+      <a href="/setores/financeiro/vendas/receitas">
+        Receitas detalhadas, comissões e histórico de status
+      </a>
       <Filtros painel={painel} filtros={filtros} agora={agora} />
 
       {semDados ? (

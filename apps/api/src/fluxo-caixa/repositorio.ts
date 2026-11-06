@@ -16,6 +16,9 @@ export class PagamentoDuplicado extends Error {}
 /** A conta tem lancamentos vinculados e nao pode ser apagada (FK com ON DELETE RESTRICT). */
 export class ContaComLancamentos extends Error {}
 
+/** Excluir isoladamente quebraria uma transferencia ou conciliacao aceita. */
+export class LancamentoVinculado extends Error {}
+
 /** Ja existe categoria com esse nome (sem diferenciar maiusculas) para o tipo. */
 export class CategoriaDuplicada extends Error {}
 

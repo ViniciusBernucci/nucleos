@@ -145,3 +145,25 @@ e botao manual; iniciar pelo botao nao altera a janela incremental nem a idempot
 
 Exercicio: teste um Client Token ja prefixado e prove que o cabecalho contem apenas um Basic.
 Veja os testes reais em hotmart-client.test.ts e o [registro da entrega](../documentacoes/financeiro/2026-11-01-atualizacao-manual-hotmart.md).
+
+## Enriquecer sem duplicar deduções
+
+Atualização: 2026-11-03, Node 24.22.2 e TypeScript 5.9.3.
+O preço do histórico já é efetivo; desconto desconhecido não equivale a zero conhecido.
+No novo importador, `descontoCentavos=null` conserva essa diferença e o líquido é
+`precoEfetivo - taxa - comissoesDeAfiliadoECoprodutor`. A comissão do produtor
+não é outra despesa a subtrair. Cada comissão conserva sua moeda; misturar BRL/USD
+sem uma regra explícita de câmbio corromperia os totais.
+
+O upsert e o histórico de status compartilham a transação. Um lock por transação
+externa também serializa a primeira inserção, quando ainda não existe linha para
+`FOR UPDATE`. Só a mudança efetiva gera histórico/evento. Polling, reconsulta de
+webhook e reconciliação diária usam esse mesmo ponto de persistência.
+
+A reconciliação longa é um handler persistente próprio; em produção não roda também
+como segunda janela automática do importador incremental. A configuração por execução
+permite um backfill manual limitado sem alterar o agendamento do funcionário.
+
+Confira [a entrega e suas limitações](../documentacoes/financeiro/2026-11-03-base-financeira-b.md).
+Exercício: simule comissão em USD numa venda BRL e prove que nenhum total é convertido
+implicitamente. Depois reimporte uma venda sem mudança de status e conte seus eventos.

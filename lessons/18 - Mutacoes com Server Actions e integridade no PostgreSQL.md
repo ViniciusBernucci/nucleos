@@ -243,3 +243,70 @@ TEST_DATABASE_URL="postgres://nucleos_dev:<senha>@127.0.0.1:15432/postgres" node
    saída entra no saldo? Por que essa separação (competência × caixa) é útil?
 5. Escreva um teste para a action `excluirConta` que garanta que um `id` como `../contas` nunca gera
    chamada à API.
+
+## Parcelas, recorrências materializadas e conciliação
+
+Atualização: 2026-11-03, Node 24.22.2, TypeScript 5.9.3.
+Quando cada ocorrência ganha estado próprio, fornecedor, centro de custo e anexo,
+uma linha por competência simplifica o histórico. A frente B evolui o caso mensal
+derivado para materialização idempotente, preservando o aprendizado anterior.
+
+Para dividir 10.001 centavos em três parcelas, use inteiros:
+
+```ts
+export function dividir(total: bigint, parcelas: number): bigint[] {
+  if (!Number.isInteger(parcelas) || parcelas < 1 || total < BigInt(parcelas)) {
+    throw new Error("parcelamento invalido");
+  }
+  const n = BigInt(parcelas);
+  return Array.from({ length: parcelas }, (_, i) =>
+    total / n + (BigInt(i) < total % n ? 1n : 0n));
+}
+// dividir(10001n, 3) => [3334n, 3334n, 3333n]
+```
+
+Criar todas as parcelas numa transação impede que a segunda falha deixe só a
+primeira conta. Pagar exige lock na conta, estado aberto e lançamento vinculado
+único; a checagem da interface não substitui essa exclusão.
+
+Em conciliação, valor igual não elimina ambiguidade. Duas entradas idênticas num
+intervalo de três dias exigem escolha explícita. Na confirmação, revalide se
+outro processo já usou o mesmo item. Desfazer libera o vínculo e preserva a
+conciliação anterior, em vez de apagar o histórico.
+
+As Server Actions usam mensagens fixas e só o servidor lê a chave da API. Upload
+e download de anexo também passam pelo servidor: não envie chave MinIO nem URL
+pública ao componente. A compensação de upload remove o objeto se os metadados
+falham; isso exige monitorar uma eventual falha de compensação em produção.
+
+Na [entrega B](../documentacoes/financeiro/2026-11-03-base-financeira-b.md), testes
+simulados comprovam distribuição de centavos e tentativa de rollback, enquanto
+as provas PostgreSQL continuam um gate separado. Exercício: force dois pagamentos
+concorrentes e verifique uma única saída, depois force rollback da segunda parcela.
+
+### Integridade também nas rotas antigas
+
+Quando uma nova transferência grava duas linhas, uma rota antiga que apaga qualquer
+lançamento pode deixar apenas uma perna. O vínculo precisa ser validado no servidor
+em todos os caminhos de escrita. Na exclusão legada, o projeto bloqueia transferência
+e lançamento/conta paga já usados em conciliação aceita. Desfazer a conciliação libera
+o pagamento para exclusão; uma transferência não é apagada pela rota de lançamento.
+
+A checagem e a exclusão compartilham transação e o mesmo advisory lock da aceitação
+de conciliação. Sem essa coordenação, aceitar e apagar poderiam passar em checagens
+separadas. O conflito retorna HTTP 409 com mensagem fixa.
+
+Publicar `financeiro.dados.alterados` também faz parte da mutação. Se a gravação
+confirmar e a publicação falhar depois, projeções e indicadores ficam desatualizados.
+O evento deve usar a mesma conexão e ser confirmado ou desfeito com a operação.
+Os testes simulados de `repositorio.test.ts` forçam falha do evento e comprovam que
+o caminho termina em rollback; a garantia SQL real depende do teste PostgreSQL.
+
+Veja a [revisão corretiva B](../documentacoes/reviews/2026-11-03-frente-b-revisao-corretiva.md).
+Exercício: execute aceitar conciliação e excluir pagamento concorrentemente em um
+ambiente isolado autorizado. Por que somente uma ordem compatível deve confirmar?
+
+Uma conta paga e seu lançamento são duas representações do mesmo pagamento. Para
+conciliar, use uma identidade comum: `conta_pagar:<id>` nas duas formas. Compare essa
+identidade tanto dentro da sugestão manual quanto contra conciliações já aceitas.
+Sem isso, trocar o tipo da origem permite contabilizar o mesmo pagamento duas vezes.

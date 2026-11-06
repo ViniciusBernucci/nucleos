@@ -29,7 +29,7 @@ export class VendasModule {
     log = () => undefined,
     motor,
   }: OpcoesModuloVendas): DynamicModule {
-    const repo = new RepositorioVendasPg(pool);
+    const repo = new RepositorioVendasPg(pool, motor);
     const cliente =
       config.hotmart === undefined
         ? undefined
@@ -39,6 +39,8 @@ export class VendasModule {
       // O segredo do cliente e estavel enquanto a credencial nao for rotacionada.
       chavePseudonimo: config.hotmart?.clientSecret.reveal() ?? "sem-hotmart",
       log,
+      enriquecer: true,
+      reconciliacaoSeparada: true,
     });
     if (motor !== undefined && cliente !== undefined) {
       motor.registro.registrar({

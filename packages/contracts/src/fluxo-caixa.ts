@@ -30,6 +30,7 @@ export interface MovimentoFluxo extends Lancamento {
 }
 
 export interface ContaRecorrente {
+  periodicidade?: "mensal" | "anual";
   id: string;
   descricao: string;
   categoria: string;

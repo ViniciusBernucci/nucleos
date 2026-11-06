@@ -18,6 +18,12 @@ export interface Venda {
   parcelas: number;
   assinatura: boolean;
   recorrencia: number;
+  ofertaCodigo?: string | null;
+  descontoCentavos?: number | null;
+  comissoesCentavos?: number;
+  rastreioOrigem?: string | null;
+  rastreioSck?: string | null;
+  comissoes?: { tipo: string; moeda: string; valorCentavos: number }[];
 }
 
 /** Status que a API de historico da Hotmart aceita em `transaction_status`. */
@@ -41,7 +47,7 @@ export const STATUS_HOTMART = [
   "NO_FUNDS",
 ] as const;
 
-const REEMBOLSO = new Set(["REFUNDED", "CHARGEBACK"]);
+const REEMBOLSO = new Set(["REFUNDED"]);
 const CANCELADA = new Set(["CANCELLED", "EXPIRED", "PROTESTED", "BLOCKED", "NO_FUNDS"]);
 // PARTIALLY_REFUNDED continua como receita: a venda vale, e o valor devolvido nao vem neste endpoint.
 const RECEITA = new Set(["APPROVED", "COMPLETE", "PARTIALLY_REFUNDED"]);
@@ -49,6 +55,7 @@ const RECEITA = new Set(["APPROVED", "COMPLETE", "PARTIALLY_REFUNDED"]);
 /** Classifica o status da Hotmart; status desconhecido fica pendente (nunca vira receita). */
 export function grupoDoStatus(status: string): GrupoStatusVenda {
   const s = status.toUpperCase();
+  if (s === "CHARGEBACK" || s === "DISPUTE") return "contestada";
   if (RECEITA.has(s)) return "receita";
   if (REEMBOLSO.has(s)) return "reembolso";
   if (CANCELADA.has(s)) return "cancelada";

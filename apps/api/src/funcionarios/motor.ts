@@ -62,11 +62,13 @@ export class MotorFuncionarios {
     origem: string,
     quando: Date,
     agendamento?: Agendamento,
+    configManual?: ObjetoConfig,
   ): Promise<string> {
     const a = await atribuicaoMotor(c, id);
     exigirExecutavel(a);
     this.autorizador.permitir(a.permissoes_requeridas);
-    validarConfiguracao(a.config_schema, a.config, this.registro.obter(a.handler_key));
+    const config = configManual ?? a.config;
+    validarConfiguracao(a.config_schema, config, this.registro.obter(a.handler_key));
     const r = await c.query<{ id: string }>(
       `INSERT INTO funcionarios.execucoes(atribuicao_id,agendamento_id,agendamento_versao,origem,
    programada_em,chave_idempotencia,correlacao,config_snapshot) VALUES($1,$2,$3,$4,$5,$6,$7,$8)
@@ -79,7 +81,7 @@ export class MotorFuncionarios {
         quando,
         chave,
         randomUUID(),
-        a.config,
+        config,
       ],
     );
     const execucao = r.rows[0]?.id;
@@ -101,9 +103,17 @@ export class MotorFuncionarios {
       await auditar(c, "execucao", execucao, "executar", null, { atribuicao_id: id });
     return execucao;
   }
-  executarAgora(atribuicaoId: string): Promise<string> {
+  executarAgora(atribuicaoId: string, config?: ObjetoConfig): Promise<string> {
     return transacao(this.pool, async (c) =>
-      this.#enfileirar(c, atribuicaoId, `manual:${randomUUID()}`, "manual", await this.#agora(c)),
+      this.#enfileirar(
+        c,
+        atribuicaoId,
+        `manual:${randomUUID()}`,
+        "manual",
+        await this.#agora(c),
+        undefined,
+        config,
+      ),
     );
   }
   async planejar(): Promise<number> {

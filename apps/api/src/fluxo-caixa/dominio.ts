@@ -13,7 +13,11 @@ export type ContaRecorrenteBanco = Omit<ContaRecorrente, "vigente">;
 
 /** A conta vence no mes quando o mes esta entre `inicio` e `fim` (inclusive). */
 export function venceNoMes(conta: ContaRecorrenteBanco, mes: string): boolean {
-  return conta.inicio <= mes && (conta.fim === null || mes <= conta.fim);
+  return (
+    conta.inicio <= mes &&
+    (conta.fim === null || mes <= conta.fim) &&
+    (conta.periodicidade !== "anual" || conta.inicio.slice(5, 7) === mes.slice(5, 7))
+  );
 }
 
 export function contaVigente(conta: ContaRecorrenteBanco, mesCorrente: string): boolean {

@@ -39,6 +39,16 @@ Em staging/produção o mesmo princípio vale: um banco do Nucleos; `DATABASE_UR
 | `financeiro` | `contas_recorrentes` | Contas a pagar mensais (valor previsto, dia de vencimento, vigência) | [Fluxo de caixa](../financeiro/2026-11-02-fluxo-de-caixa.md) |
 | `financeiro` | `lancamentos` | Entradas e saídas do caixa; pagamento de conta recorrente é uma saída com competência (única por conta e mês) | idem |
 | `financeiro` | `categorias` | Categorias de entrada e de saída (nome único por tipo, sem diferenciar maiúsculas) usadas nos formulários do fluxo de caixa | idem |
+| `financeiro` | `alertas` | Alertas com deduplicação enquanto abertos | [Base financeira B](../financeiro/2026-11-03-base-financeira-b.md) |
+| `financeiro` | `vendas_eventos`, `vendas_comissoes` | Histórico de status e valores por papel/moeda, sem identidade dos participantes | idem |
+| `financeiro` | `webhooks_hotmart` | Identificação mínima, hash e estado do processamento do webhook, sem PII | idem |
+| `financeiro` | `fornecedores`, `centros_custo` | Cadastros financeiros; documento do fornecedor mascarado na leitura | idem |
+| `financeiro` | `contas_pagar` | Parcelas e competências materializadas das recorrências, com vínculo ao pagamento | idem |
+| `financeiro` | `anexos` | Metadados de arquivos privados no MinIO; download pelo servidor | idem |
+| `financeiro` | `contas_financeiras`, `saques_hotmart` | Contas do caixa e movimentos de saque; transferências vinculadas em lançamentos | idem |
+| `financeiro` | `saldos_informados`, `regras_liberacao`, `contas_receber` | Saldo com origem/data e previsões explicitamente estimadas em BRL | idem |
+| `financeiro` | `extratos_importados`, `extrato_itens` | Importações OFX/CSV idempotentes por conta e identificador/hash | idem |
+| `financeiro` | `conciliacoes`, `conciliacao_itens` | Sugestões, confirmação manual, ambiguidade e reversão auditável | idem |
 | `public` | `api_schema_migrations` | Controle das migrations da API (versão, checksum, quando) | idem |
 | `dev_seed` | `organizacoes` | Dado fictício de desenvolvimento (FND-004); só existe em dev | FND-004 |
 
