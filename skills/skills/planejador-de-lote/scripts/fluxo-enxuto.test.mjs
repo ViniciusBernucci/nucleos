@@ -22,7 +22,7 @@ function fixture(t){
   units:[{id:'t1',ticket_id:'T1',risk_level:3,objective:'Implement proof',scope:['proof.txt'],acceptance:['AC-1'],checks:['test/unit']}],
   review_context:{ticket_id:'R',objective:'Correct material defects',scope:['proof.txt'],acceptance:['AC-1 reviewed'],instructions:'Compare com o SHA base registrado; executar os checks do catálogo.'},
   final_checks:['test/final'],manual_screen_tests:['Abrir tela e conferir resultado esperado'],
-  bindings:{schema_version:1,skills:{'software/implementador-de-ticket@v1':path.join(root,'impl.md'),'software/revisor-de-codigo@v1':path.join(root,'review.md')},executors:{'claude/subscription':{provider:'claude'}},commands:{
+  bindings:{schema_version:1,skills:{'software/implementador-de-ticket@v1':path.join(root,'impl.md'),'software/revisor-de-codigo@v1':path.join(root,'review.md')},executors:{'claude/subscription':{provider:'claude',model:'claude-opus-5'}},commands:{
    'test/unit':[process.execPath,'-e',"if(!require('fs').readFileSync('proof.txt','utf8').startsWith('implemented'))process.exit(1)"],
    'test/final':[process.execPath,'-e',"if(require('fs').readFileSync('proof.txt','utf8')!=='implemented reviewed')process.exit(1)"],
   },values:{}}
@@ -96,4 +96,25 @@ console.log(JSON.stringify({type:'result',subtype:'success',is_error:false,sessi
  assert.equal(git(project,'show','revisao/fixture:proof.txt'),'implemented reviewed');
  const manual=git(project,'show','revisao/fixture:documentacoes/entregas-ia/testes-manuais.md');
  assert.match(manual,/PENDENTE_DE_TESTES_MANUAIS_DE_TELA/);
+});
+test('modelo, orçamento, referências e preparação são verificáveis',t=>{
+ const {draft,project}=fixture(t);
+ const b=structuredClone(draft); delete b.bindings.executors['claude/subscription'].model;
+ assert.throws(()=>buildLeanFlow(b,b.bindings),/Modelo explícito/);
+ const d=structuredClone(draft); d.units[0].limits={max_turns:250};
+ assert.throws(()=>buildLeanFlow(d,d.bindings),/budget_reason/);
+ d.units[0].budget_reason='Migração indivisível com contrato compartilhado';
+ assert.equal(buildLeanFlow(d,d.bindings).steps[0].id,'t1_implement');
+ const p=structuredClone(draft);p.preparation_checks=['test/prepare'];p.bindings.commands['test/prepare']=[process.execPath,'--version'];
+ const flow=buildLeanFlow(p,p.bindings);
+ assert.equal(flow.steps[0].id,'preparation_1');
+ assert.equal(p.bindings.executors['claude/subscription'].autocompact_tokens,100000);
+ assert.equal(p.bindings.execution.limits.max_context_tokens,160000);
+ const q=structuredClone(draft);q.units[0].checks=['test/final'];
+ assert.throws(()=>buildLeanFlow(q,q.bindings),/direcionados/);
+ fs.writeFileSync(path.join(project,'large.md'),'example\n'.repeat(2000));
+ const r=structuredClone(draft);r.units[0].required=[{path:'large.md'}];
+ assert.throws(()=>buildLeanFlow(r,r.bindings),/8 KiB/);
+ r.units[0].required[0]={path:'large.md',start_line:1,end_line:5};
+ assert.ok(buildLeanFlow(r,r.bindings));
 });

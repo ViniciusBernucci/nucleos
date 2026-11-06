@@ -9,7 +9,21 @@
     "back",
     "front"
   ],
-  "exclude": ["node_modules", "vendor", ".git", ".contexto", ".claude", ".agents", ".agent", "skills", "storage", "dist", "build", "bin", "obj"],
+  "exclude": [
+    "node_modules",
+    "vendor",
+    ".git",
+    ".contexto",
+    ".claude",
+    ".agents",
+    ".agent",
+    "skills",
+    "storage",
+    "dist",
+    "build",
+    "bin",
+    "obj"
+  ],
   "workflow": {
     "schema": 1,
     "preset": "generic",
@@ -19,8 +33,14 @@
     "deliveryDir": "documentacoes",
     "reviewBranchPrefix": "revisao/",
     "defaultProfile": "padrao",
-    "rules": ["CLAUDE.md", "AGENTS.md", ".agents/rules/project-instructions.md"],
-    "repositories": [{ "name": "nucleos", "root": ".", "layer": "monorepo" }],
+    "rules": ["AGENTS.md"],
+    "repositories": [
+      {
+        "name": "nucleos",
+        "root": ".",
+        "layer": "monorepo"
+      }
+    ],
     "worktreeDir": "../nucleos-worktrees",
     "publish": "manual"
   }

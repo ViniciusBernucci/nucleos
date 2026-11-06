@@ -1,4 +1,6 @@
 import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
+import path from 'node:path';
 function requireValue(ok, message) { if (!ok) throw new Error(message); }
 export function buildLeanFlow(draft, bindings) {
   requireValue(draft.local_git_authorized === true, 'Declare local_git_authorized:true na proposta; o usuário autoriza a execução ao chamar run');
@@ -26,6 +28,37 @@ export function buildLeanFlow(draft, bindings) {
   bindings.values['flow.profile'] = 'enxuto-v1';
   bindings.values['flow.screen_testing'] = 'manual_pending';
   bindings.step_contexts = {};
+  bindings.execution ??= {};
+  bindings.execution.effort ??= 'medium';
+  bindings.execution.profile ??= 'compiled';
+  const defaultBudget = {max_prompt_tokens:8000,max_context_tokens:160000,max_total_tokens:2000000,max_turns:40,max_tool_calls:80,timeout_seconds:1200,max_cost_usd:5,max_output_bytes:16777216};
+  requireValue(!Object.entries(bindings.execution.limits??{}).some(([k,v])=>v>(defaultBudget[k]??Infinity)) ||
+    typeof draft.budget_reason==='string'&&draft.budget_reason.trim(),
+    'Aumento de orçamento global exige budget_reason');
+  bindings.execution.limits = {max_prompt_tokens:8000,max_context_tokens:160000,
+    max_total_tokens:2000000,max_turns:40,max_tool_calls:80,timeout_seconds:1200,
+    ...bindings.execution.limits};
+  for (const ref of new Set(skip ? [impl] : [impl,reviewer])) {
+    const ex = bindings.executors[ref];
+    requireValue(typeof ex.model === 'string' && ex.model.trim() && !/^[ -]|[\r\n]/.test(ex.model),
+      'Modelo explícito obrigatório no executor: '+ref);
+    if (ex.provider === 'claude') ex.autocompact_tokens ??= 100000;
+  }
+  const preparations = draft.preparation_checks ?? [];
+  requireValue(Array.isArray(preparations), 'preparation_checks deve ser lista');
+  function validateBrief(brief) {
+    const limits = brief.limits ?? {};
+    const raised = Object.entries(limits).some(([key,v]) => v > (bindings.execution.limits[key] ?? (key==='max_cost_usd'?5:Infinity)));
+    requireValue(!raised || typeof brief.budget_reason === 'string' && brief.budget_reason.trim(),
+      'Aumento de orçamento exige budget_reason; prefira decompor por comportamento');
+    for (const ref of [...(brief.required??[]),...(brief.initial??[])]) {
+      requireValue(!/(?:^|\/)(?:pnpm-lock\.yaml|package-lock\.json|uv\.lock)$/.test(ref.path), 'Lockfiles ficam em available');
+      const file = path.resolve(draft.project_root,ref.path);
+      if (fs.existsSync(file) && fs.statSync(file).size > 8192)
+        requireValue(ref.start_line > 0 && ref.end_line >= ref.start_line || typeof brief.large_reference_reason === 'string' && brief.large_reference_reason.trim(),
+          'Referência acima de 8 KiB exige intervalo de linhas ou large_reference_reason: '+ref.path);
+    }
+  }
   const steps = [];
   const ids = new Set();
   let previous;
@@ -37,6 +70,7 @@ export function buildLeanFlow(draft, bindings) {
     steps.push({id, type:'command', ...(previous ? {depends_on:[previous]} : {}), command_ref:ref});
     previous = id;
   }
+  preparations.forEach((ref,i) => addCheck(ref,'preparation_'+(i+1)));
   for (const unit of draft.units) {
     requireValue(typeof unit.id === 'string' && /^[a-z][a-z0-9_]{0,30}$/.test(unit.id) && !ids.has(unit.id), 'ID de unidade inválido/duplicado');
     requireValue(!unit.worktree && !unit.branch, 'O perfil padrão usa uma worktree por lote; não declare worktrees extras sem workflow custom explícito');
@@ -44,9 +78,12 @@ export function buildLeanFlow(draft, bindings) {
     for (const dep of unit.depends_on ?? []) requireValue(ids.has(dep), 'Unidade depende de tarefa ausente ou posterior: ' + dep);
     ids.add(unit.id);
     requireValue(Array.isArray(unit.checks) && unit.checks.length, 'Cada unidade exige checks determinísticos');
+    validateBrief(unit);
+    requireValue(unit.checks.every(ref => !preparations.includes(ref) && !draft.final_checks.includes(ref)),
+      'Checks de unidade devem ser direcionados; preparação e globais executam uma vez');
     const id = unit.id + '_implement';
     const {ticket_id, objective, scope, acceptance, instructions = '', required = [], initial = [], available = [], limits} = unit;
-    bindings.step_contexts[id] = {ticket_id, objective, scope, acceptance, instructions:instructions+policy, required, initial, available, ...(limits ? {limits} : {})};
+    bindings.step_contexts[id] = {ticket_id, objective, scope, acceptance, instructions:instructions+policy+(unit.budget_reason?'\nOrçamento justificado: '+unit.budget_reason:''), required, initial, available, ...(limits ? {limits} : {})};
     steps.push({id, type:'skill', skill_ref:implRef, executor_ref:impl, ...(previous ? {depends_on:[previous]} : {})});
     previous = id;
     unit.checks.forEach((ref,i) => addCheck(ref, unit.id+'_check_'+(i+1)));
@@ -55,8 +92,10 @@ export function buildLeanFlow(draft, bindings) {
     const brief = draft.review_context;
     requireValue(brief && typeof brief === 'object', 'review_context obrigatório: brief consolidado da revisão');
     requireValue(typeof brief.instructions === 'string' && brief.instructions.trim(), 'review_context.instructions deve informar base/diff, contratos e checks');
+    validateBrief(brief);
     const id = 'review_fix';
-    bindings.step_contexts[id] = {...brief, instructions:'MODO=REVISAO_CORRETIVA_ENXUTA\nUma revisão independente consolidada. Procure somente problemas críticos/altos/médios fundamentados e corrija dentro do escopo. Um ciclo de correção e testes; sem auditor/review-loop/QA IA.\n'+brief.instructions+policy};
+    const {budget_reason,large_reference_reason,...briefContext}=brief;
+    bindings.step_contexts[id] = {...briefContext, instructions:'MODO=REVISAO_CORRETIVA_ENXUTA\nUma revisão independente consolidada. Procure somente problemas críticos/altos/médios fundamentados e corrija dentro do escopo. Um ciclo de correção e testes; sem auditor/review-loop/QA IA.\n'+brief.instructions+policy+(budget_reason?'\nOrçamento justificado: '+budget_reason:'')};
     steps.push({id,type:'skill',skill_ref:reviewRef,executor_ref:reviewer,depends_on:[previous]});
     previous = id;
   }

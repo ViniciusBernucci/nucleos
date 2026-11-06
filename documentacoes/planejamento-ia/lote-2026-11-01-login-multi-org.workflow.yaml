@@ -1,0 +1,80 @@
+"schema_version": 1
+"workflow":
+  "id": "software/lote-2026-11-01-login-multi-org"
+  "version": 1
+  "trigger": "manual"
+"steps":
+  -
+    "id": "u1_implement"
+    "type": "skill"
+    "skill_ref": "software/implementador-de-ticket@v1"
+    "executor_ref": "claude/subscription"
+  -
+    "id": "u1_check_1"
+    "type": "command"
+    "depends_on":
+      - "u1_implement"
+    "command_ref": "project/checks"
+  -
+    "id": "u1_check_2"
+    "type": "command"
+    "depends_on":
+      - "u1_check_1"
+    "command_ref": "project/test-integracao"
+  -
+    "id": "u2_implement"
+    "type": "skill"
+    "skill_ref": "software/implementador-de-ticket@v1"
+    "executor_ref": "claude/subscription"
+    "depends_on":
+      - "u1_check_2"
+  -
+    "id": "u2_check_1"
+    "type": "command"
+    "depends_on":
+      - "u2_implement"
+    "command_ref": "project/checks"
+  -
+    "id": "u2_check_2"
+    "type": "command"
+    "depends_on":
+      - "u2_check_1"
+    "command_ref": "project/test-integracao"
+  -
+    "id": "u3_implement"
+    "type": "skill"
+    "skill_ref": "software/implementador-de-ticket@v1"
+    "executor_ref": "claude/subscription"
+    "depends_on":
+      - "u2_check_2"
+  -
+    "id": "u3_check_1"
+    "type": "command"
+    "depends_on":
+      - "u3_implement"
+    "command_ref": "project/checks"
+  -
+    "id": "review_fix"
+    "type": "skill"
+    "skill_ref": "software/revisor-de-codigo@v1"
+    "executor_ref": "codex/subscription"
+    "depends_on":
+      - "u3_check_1"
+  -
+    "id": "integrated_check_1"
+    "type": "command"
+    "depends_on":
+      - "review_fix"
+    "command_ref": "project/checks"
+  -
+    "id": "integrated_check_2"
+    "type": "command"
+    "depends_on":
+      - "integrated_check_1"
+    "command_ref": "project/test-integracao"
+  -
+    "id": "local_delivery"
+    "type": "command"
+    "command_ref": "flow/local-delivery"
+    "depends_on":
+      - "integrated_check_2"

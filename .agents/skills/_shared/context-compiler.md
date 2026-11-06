@@ -43,3 +43,26 @@ ou repetir implementação. Isso não dispensa os checks e a revisão previstos 
 Não contorne bloqueios nem altere o snapshot. Recomendar próxima ação não autoriza executá-la.
 
 Em flow.profile=enxuto-v1, aplica-se o [fluxo enxuto](fluxo-enxuto.md). A revisão corretiva autorizada pode editar e testar dentro do próprio step, sem auditor intermediário. Não importar gates do Node legado. Não faça commits/merges pela IA: o comando determinístico de entrega faz as ações locais autorizadas no manifesto. DONE técnico não aprova testes manuais de tela.
+
+## Orçamento, modelo e verificação proporcional
+
+O planejador registra modelo explícito por executor e effort (padrão medium); não herda
+silenciosamente o modelo global. Confirme o identificador instalado, sem escolher um modelo
+mais caro por conta própria. Claude recebe autocompact_tokens:100000 e teto externo de
+160000; os demais tetos continuam finitos. A reserva não garante ausência de overshoot.
+Planos antigos não são reescritos. Override de provider precisa modelo daquele provider.
+
+Use preparation_checks para instalar/preparar uma vez, checks específicos por unidade e
+final_checks para o conjunto integrado. Não repita make setup/build/lint/test/contracts
+completos a cada unidade. A IA pode executar verificações necessárias para corrigir seu
+código, guardando a saída em arquivo temporário e consultando os erros uma vez; não repetir
+a mesma execução apenas para filtrar a saída.
+
+Cada unidade entrega um comportamento verificável e seus contratos, sem misturar
+infraestrutura, API, administração, autenticação e interface numa sessão extensa. Evite
+fragmentar por arquivo. Aumentar limites por unidade exige budget_reason explícito.
+Referências required/initial acima de 8 KiB precisam intervalo start_line/end_line ou
+large_reference_reason; lockfiles ficam em available. Requisitos essenciais e regras
+permanecem obrigatórios: não truncar para caber. Um pacote que não cabe deve ser replanejado.
+Após compactação nativa confira brief/aceites e arquivos já produzidos; não recomece a
+exploração nem recarregue acervos. Sem evidência suficiente, registre BLOCKED.

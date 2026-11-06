@@ -10,7 +10,8 @@
   },
   "scripts": {
     "start": "npm --prefix apps/web run start -- -p 3000",
-    "dev": "npm --prefix apps/web run dev",
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "npm --prefix apps/web run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",

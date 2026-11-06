@@ -67,7 +67,7 @@ export function generateBundle({ input, manifest, compiler = process.env.CONTEXT
   requireValue(draft.flow_profile === undefined || ['enxuto-v1', 'custom'].includes(draft.flow_profile), 'flow_profile inválido');
   requireValue(object(draft.bindings), 'Catálogo bindings completo ausente');
   const bindings = structuredClone(draft.bindings);
-  if ((draft.flow_profile ?? 'enxuto-v1') === 'enxuto-v1') draft.workflow = buildLeanFlow(draft, bindings);
+  if ((draft.flow_profile ?? 'enxuto-v1') === 'enxuto-v1') draft.workflow = buildLeanFlow({...draft, project_root:project}, bindings);
   requireValue(object(draft.workflow) && Array.isArray(draft.workflow.steps), 'Workflow completo ausente');
   bindings.max_concurrency ??= 1;
   if (Object.hasOwn(bindings.values ?? {}, 'task.final_risk_level')) {
