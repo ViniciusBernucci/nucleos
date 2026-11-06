@@ -5,7 +5,7 @@ Solicitação: recuperar pendências da última sessão Codex/Claude, concluir s
 Autor desta retomada: Codex. Branch inicial e destino: `developer`.
 HEAD inicial: `a2aa0cc`. Árvore inicial: 75 arquivos modificados/novos, preservados em cópia local antes da integração.
 Base das mudanças novas: `582e1e1`, depois de integrar o trabalho anterior.
-Estado: implementacao C/D e integracao concluidas e verificadas tecnicamente. Ativação real continua separada.
+Estado: implementacao C/D e integracao concluidas e verificadas tecnicamente. Banco de desenvolvimento migrado após autorização específica em 2026-11-06; integrações externas não verificadas nesta etapa.
 
 ## O que foi recuperado
 
@@ -89,7 +89,7 @@ QA de tela e aceite visual: **não executados, dispensados pelo pedido do usuár
 
 ## Ativação, riscos e rollback
 
-Nenhuma migration foi aplicada ao `nucleos_dev`. Os testes criam/removem apenas bancos temporários no servidor existente em loopback; a remoção é conferida após cada execução. A ativação no banco de desenvolvimento exige autorização própria e aplicação das migrations pendentes em ordem. Não houve novo PostgreSQL/container por funcionalidade.
+Na entrega inicial as migrations não haviam sido aplicadas ao `nucleos_dev`; a ativação administrativa autorizada, registrada ao final, aplicou as pendentes com backup prévio. Os testes continuam restritos aos bancos temporários no servidor existente em loopback, com remoção conferida após cada execução. A autorização desta operação não é autorização geral para testes com os dados de desenvolvimento nem para APIs externas. Não houve novo PostgreSQL/container por funcionalidade.
 
 Meta, webhook Hotmart, bucket privado e Anthropic continuam dependendo de configuração real pelo operador. O gateway usa `AI_GATEWAY_API_KEY`, `CFO_LEITURA_API_KEY` e `ANTHROPIC_API_KEY` ou variantes `_FILE`; as duas primeiras são diferentes entre si e da chave administrativa. `CFO_FINANCEIRO_API_URL` é interno. Não alterar o `.env` real por cópia do exemplo.
 
@@ -112,3 +112,23 @@ Autorrevisao: o executor conferiu os limites das ferramentas, reserva de chamada
 Os 14 contratos gerados foram normalizados no checkout para LF conforme .gitattributes da integracao. A comparacao binaria final confirmou bytes identicos ao HEAD em todos eles; o indice foi atualizado e nenhum commit adicional de contratos foi necessario. O check de drift passou com esses bytes.
 
 Conferencia documental: 83 links relativos, nenhum ausente. `git diff --cached --check` passou para codigo e documentos, excluindo somente o arquivo de patches literais: linhas de contexto vazias de um diff unificado contem um espaco obrigatorio e foram preservadas sem alterar a evidencia.
+
+## Ativacao administrativa do banco de desenvolvimento ? 2026-11-06
+
+Base Git desta etapa: `a642a134254d3511592b97e198f1715d6d3cdb9d`, branch developer inicialmente limpa. Depois de receber o erro `42P01` em `CfoFinanceiro.onModuleInit`, o usuario autorizou explicitamente ("sim") o backup e a aplicacao das migrations pendentes no banco local. A autorizacao anterior cobria somente bancos temporarios; esta foi uma autorizacao administrativa pontual, sem testes em dados reais ou chamadas externas.
+
+Alvo confirmado: container existente `nucleos-dev-postgres-1`, `127.0.0.1:15432`, banco `nucleos_dev`. Nenhum banco/container foi criado, recriado ou removido. Foram usados os mesmos arquivos SQL e o runner `lerMigracoes`/`migrar` ja versionados, sem editar SQL, checksums ou historico para contornar falhas.
+
+- Preflight sem acesso ao banco: 22 arquivos de migration lidos/validados; manifest de nomes e checksums preservado localmente.
+- Backup anterior a qualquer migration: `pg_dump -U nucleos_dev -d nucleos_dev -Fc -w` dentro do container existente; saida binaria direcionada ao arquivo ignorado pelo Git `.run/ativacao-dev-2026-11-06/backups/nucleos_dev-2026-11-06T17-53-56-454Z-000982.dump`.
+- Backup: 20235 bytes; SHA-256 `d1521528320bcf417208d8da2df4bdc85ffceac874001ec42da5bc21595615a1`. `pg_restore --list` aceitou o catalogo. Restauracao nao executada; o conteudo dos dados nao foi impresso nem incorporado a documentos/commits.
+- Historico inicial: 0001, 0002 e 0003; todos os checksums conferiram. Pendentes: 0004 ate 0022, 19 arquivos, aplicados em ordem com advisory lock e uma transacao por arquivo.
+- Historico final: 22 versoes. Nove estruturas conferidas, incluindo `funcionarios.definicoes_tarefa`, `funcionarios.atribuicoes`, `funcionarios.agendamentos`, `financeiro.contas_pagar`, `financeiro.indicadores_mensais`, `financeiro.cenarios_caixa`, `financeiro.dre_mensal`, `financeiro.analises_cfo` e `marketing.campanhas`.
+- Segunda chamada ao runner: nenhuma migration a aplicar; idempotencia confirmada.
+- Inicio/fim UTC: `2026-11-06T17:53:56.458Z` / `2026-11-06T17:54:01.899Z`. Recibo saneado em `.run/ativacao-dev-2026-11-06/migration-receipt.json`, resultado PASS.
+
+A tabela que causava a falha de inicializacao agora existe. O processo da API, anteriormente encerrado pelo erro, nao foi reiniciado por esta operacao; o usuario deve reiniciar o comando `npm run dev` no seu terminal para retomar o servico. Nao se declara health/startup ou integracoes externas validados depois da migration. QA visual permanece dispensado.
+
+Nao houve alteracao nova de codigo, configuracao de execucao ou SQL: somente aplicacao do SQL existente e atualizacao deste registro, do mapa do banco e do estado operacional do lote. O diff desta etapa e exclusivamente documental, fora do patch de implementacao para evitar recursao. Lessons: NA; o procedimento de migration/backup/forward-only ja esta coberto na lesson 00 e nao recebeu conceito novo. Indice preservado.
+
+Rollback nao executado. A recuperacao do backup exige operacao propria autorizada; migrations permanecem forward-only e eventuais ajustes futuros devem usar nova migration. Credenciais nao foram colocadas em argumentos de processo, arquivos temporarios ou logs. Nenhum push, publicacao ou retomada de run antigo foi realizado.

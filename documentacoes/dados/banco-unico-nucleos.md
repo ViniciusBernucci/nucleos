@@ -23,7 +23,7 @@ Em staging/produção o mesmo princípio vale: um banco do Nucleos; `DATABASE_UR
 
 ## Mapa de schemas e tabelas
 
-Conclusão C/D em 2026-11-06: [registro e validações](../financeiro/2026-11-06-conclusao-financeiro-funcionarios.md). Migrations novas aplicadas apenas em bancos temporários de teste, sem alteração de `nucleos_dev`.
+Conclusão C/D em 2026-11-06: [registro e validações](../financeiro/2026-11-06-conclusao-financeiro-funcionarios.md). Após validação em bancos temporários, o usuário autorizou backup e aplicação administrativa no `nucleos_dev`: histórico final com `0001`–`0022`, sem recriar o banco. Essa autorização pontual não amplia os ambientes permitidos para testes.
 
 | Schema | Tabela | Para que serve | Entrega |
 | --- | --- | --- | --- |

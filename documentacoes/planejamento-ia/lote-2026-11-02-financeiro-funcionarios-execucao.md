@@ -32,7 +32,7 @@ Escopo e verificações: [registro P0](../financeiro/2026-11-02-fluxo-de-caixa.m
 - Checks reais, commits, diffs e limites: [registro final de 2026-11-06](../financeiro/2026-11-06-conclusao-financeiro-funcionarios.md).
 - Revisao desta retomada: autorrevisao do executor, sem alegar parecer independente novo de C/D.
 - QA visual: nao executado, dispensado expressamente pelo usuario em 2026-11-06.
-- Ativacao real: sem migrations no `nucleos_dev` e sem chamadas a APIs externas reais. Credenciais/configuracao continuam necessarias.
+- Banco de desenvolvimento: apos autorizacao especifica em 2026-11-06, backup validado e 19 migrations pendentes aplicadas; historico final 0001–0022, reaplicacao sem pendencias. Integracoes externas nao acionadas nesta etapa.
 - As secoes seguintes preservam a cronologia anterior; referencias antigas a bloqueio PostgreSQL ou C/D nao iniciadas foram superadas por esta atualizacao.
 
 ## Verificações da preparação
