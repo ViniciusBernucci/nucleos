@@ -50,6 +50,9 @@ Em staging/produção o mesmo princípio vale: um banco do Nucleos; `DATABASE_UR
 | `financeiro` | `extratos_importados`, `extrato_itens` | Importações OFX/CSV idempotentes por conta e identificador/hash | idem |
 | `financeiro` | `conciliacoes`, `conciliacao_itens` | Sugestões, confirmação manual, ambiguidade e reversão auditável | idem |
 | `public` | `api_schema_migrations` | Controle das migrations da API (versão, checksum, quando) | idem |
+| `marketing` | `contas_anuncio` | Conta externa de anúncios e moeda; sem credencial persistida | [Importação Meta Ads](../financeiro/2026-11-03-importacao-meta-ads.md) |
+| `marketing` | `campanhas` | Catálogo externo por conta, status e objetivo; sem escrita na Meta | idem |
+| `marketing` | `gastos_diarios` | Métricas reportadas por campanha e dia, valores em centavos e moeda explícita | idem |
 | `dev_seed` | `organizacoes` | Dado fictício de desenvolvimento (FND-004); só existe em dev | FND-004 |
 
 > Ao criar tabelas novas, **acrescente a linha aqui**. Um assunto novo ganha um schema novo

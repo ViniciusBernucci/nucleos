@@ -17,3 +17,4 @@ export {
 export { absolutePathSchema, durationMs, portSchema, serviceUrl, sizeBytes } from "./primitives.js";
 export { MAX_SECRET_BYTES, Secret, SecretFileError, readSecretFile } from "./secret.js";
 export { loadFinanceiroConfig, type FinanceiroConfig } from "./financeiro.js";
+export { loadMarketingConfig, type MarketingConfig } from "./marketing.js";

@@ -3,8 +3,10 @@ import {
   ConfigError,
   loadApiConfig,
   loadFinanceiroConfig,
+  loadMarketingConfig,
   loadVendasConfig,
 } from "@nucleos/config";
+import { MarketingModule } from "./marketing/marketing.module.js";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { Pool } from "pg";
@@ -25,10 +27,12 @@ import { verificarCorpoHotmart } from "./financeiro/corpo-webhook.js";
 let config;
 let vendasConfig;
 let financeiroConfig;
+let marketingConfig;
 try {
   config = loadApiConfig();
   vendasConfig = loadVendasConfig();
   financeiroConfig = loadFinanceiroConfig();
+  marketingConfig = loadMarketingConfig();
 } catch (e) {
   if (e instanceof ConfigError) {
     console.error(`api: ${e.message}`);
@@ -62,6 +66,12 @@ const app = await NestFactory.create<NestExpressApplication>(
       ? []
       : [
           FinanceiroModule.registrar(motor, vendasConfig.apiKey, financeiroConfig, vendasConfig),
+          MarketingModule.registrar({
+            config: marketingConfig,
+            motor,
+            apiKey: vendasConfig.apiKey,
+            log,
+          }),
           VendasModule.registrar({
             config: vendasConfig,
             pool,
