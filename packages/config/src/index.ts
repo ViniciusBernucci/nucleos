@@ -18,3 +18,4 @@ export { absolutePathSchema, durationMs, portSchema, serviceUrl, sizeBytes } fro
 export { MAX_SECRET_BYTES, Secret, SecretFileError, readSecretFile } from "./secret.js";
 export { loadFinanceiroConfig, type FinanceiroConfig } from "./financeiro.js";
 export { loadMarketingConfig, type MarketingConfig } from "./marketing.js";
+export { loadCfoConfig, type CfoConfig } from "./cfo.js";

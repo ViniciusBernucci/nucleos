@@ -53,9 +53,8 @@ describe(
     const config = { meta: { token: new Secret("sentinela-meta"), contaId: "123" } };
     let motor: MotorFuncionarios;
     async function subir(credencial: boolean, key: Secret | null = new Secret("chave-local")) {
-      motor = new MotorFuncionarios(pool, new RegistroHandlers(), undefined, {
-        agora: async () => agora(),
-      });
+      // Leases usam o relogio real do PostgreSQL; a janela Meta tem seu proprio relogio.
+      motor = new MotorFuncionarios(pool, new RegistroHandlers());
       app = await NestFactory.create(
         AppModule.comModulos([
           MarketingModule.registrar({
@@ -82,6 +81,7 @@ describe(
       recursos.bancoCriado = true;
       url.pathname = `/${nome}`;
       pool = new Pool({ connectionString: url.toString(), max: 5 });
+      pool.on("error", () => undefined); // DROP FORCE pode notificar uma conexao ociosa em fechamento.
       recursos.pool = pool;
       await migrar(pool, await lerMigracoes(new URL("../../migrations/", import.meta.url)));
       assert.deepEqual(
@@ -222,7 +222,7 @@ describe(
       assert.ok(atribuicao);
       const id = await motor.executarAgora(atribuicao.id);
       assert.equal(await motor.consumirUma(), true);
-      const execucao = await motor.aguardar(id);
+      const execucao = await motor.aguardar(id, 5000);
       assert.equal(execucao.status, "SUCESSO");
       assert.doesNotMatch(JSON.stringify(execucao), /sentinela-meta/);
       assert.equal(

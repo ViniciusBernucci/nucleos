@@ -39,8 +39,20 @@ export async function executarFinanceiro(_: EstadoAcao, f: FormData): Promise<Es
       centro: "/cadastros/centros",
       conta: "/cadastros/contas",
       regra: "/cadastros/regras",
+      "mapear-dre": "/gestao/mapeamento",
+      cfo: "/cfo/perguntar",
+      "avaliar-marketing": "/rentabilidade/avaliar",
     };
     let caminho = simples[op];
+    if (op === "cfo") delete p["id"];
+    if (op === "mapear-dre") p["excluir"] = f.get("excluir") === "on";
+    if (op === "cenario") {
+      const codigo = campoString(f.get("codigo"));
+      if (!["conservador", "base", "otimista"].includes(codigo)) throw new Error();
+      caminho = "/gestao/cenarios/" + codigo;
+      for (const k of ["realizacao_pct", "reembolso_pct", "variacao_despesas_pct"])
+        p[k] = Number(f.get(k));
+    }
     if (op === "pagar" || op === "cancelar") caminho = "/contas-pagar/" + cid + "/" + op;
     if (["aceitar", "recusar", "desfazer"].includes(op))
       caminho = "/conciliacoes/" + cid + "/" + op;

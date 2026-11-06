@@ -11,6 +11,10 @@ import { RepositorioFinanceiroPg } from "./repositorio-pg.js";
 import { ConciliacaoFinanceira } from "./conciliacao.js";
 import { encerrarFixturePg } from "./teste-pg-apoio.js";
 import { RepositorioFluxoCaixaPg } from "../fluxo-caixa/repositorio-pg.js";
+import { GestaoFinanceira, filtroGestao } from "./gestao.js";
+import { RentabilidadeMarketing } from "./rentabilidade.js";
+import { CfoFinanceiro } from "./cfo.js";
+import { Secret } from "@nucleos/config";
 const url = process.env["TEST_DATABASE_URL"];
 describe("Base financeira PostgreSQL", { skip: url === undefined }, () => {
   let pool: Pool, admin: Pool, alertas: AlertasFinanceiros;
@@ -38,6 +42,59 @@ describe("Base financeira PostgreSQL", { skip: url === undefined }, () => {
   after(async () => {
     await encerrarFixturePg(fecharPool, removerBanco, fecharAdmin);
   });
+  test("gestao: competencia sem duplicar pagamento, midia e filtros sem rateio", async () => {
+    const repo = new RepositorioFinanceiroPg(pool, alertas.motor, alertas);
+    const gestao = new GestaoFinanceira(repo);
+    await pool.query(
+      "INSERT INTO financeiro.vendas(transacao,produto_id,produto_nome,comprador_id,status,grupo,pedido_em,valor_centavos,taxa_centavos,moeda,pagamento,liquido_centavos) VALUES('gestao','P','Produto','anonimo','APPROVED','receita','2020-02-15T12:00:00Z',10000,1000,'BRL','PIX',9000)",
+    );
+    await pool.query(
+      "INSERT INTO financeiro.contas_pagar(descricao,categoria,valor_centavos,vencimento,competencia,status,origem) VALUES('Competencia','Serviços',2000,'2020-03-10','2020-02-01','aberta','manual')",
+    );
+    const f = filtroGestao({ de: "2020-02-01", ate: "2020-02-29" });
+    let m = (await gestao.meses(f))[0];
+    assert.equal(m?.bruta, "10000");
+    assert.equal(m.resultado, "7000");
+    const conta = (
+      await pool.query<{ id: string }>(
+        "SELECT id FROM financeiro.contas_pagar WHERE descricao='Competencia'",
+      )
+    ).rows[0];
+    assert.ok(conta);
+    await repo.pagar(conta.id, { data: "2020-03-10", contaFinanceiraId: "1" });
+    m = (await gestao.meses(f))[0];
+    assert.equal(m?.resultado, "7000");
+    const produto = (await gestao.meses({ ...f, produto: "P" }))[0];
+    assert.equal(produto?.resultado, "9000");
+    assert.equal(produto.nao_classificado, "0");
+    const centro = (await gestao.meses({ ...f, centro: "1" }))[0];
+    assert.equal(centro?.bruta, "0");
+    const antes = await gestao.fluxo({ de: "2020-03-10", ate: "2020-03-11" });
+    assert.equal(antes.periodos[0]?.saidas, "2000");
+    assert.equal(antes.periodos[0].previsto_pagar, "0");
+    await assert.rejects(gestao.fluxo({ de: "2020-01-01", ate: "2020-12-31" }));
+    await assert.rejects(
+      gestao.salvarCenario("base", {
+        realizacao_pct: 101,
+        reembolso_pct: 0,
+        variacao_despesas_pct: 0,
+      }),
+    );
+    await gestao.salvarCenario("conservador", {
+      realizacao_pct: 50,
+      reembolso_pct: 10,
+      variacao_despesas_pct: 20,
+    });
+    await pool.query(
+      "INSERT INTO financeiro.contas_receber(origem,descricao,valor_centavos,previsto_em,conta_financeira_id) VALUES('manual','Estimativa',10000,'2020-04-01',1)",
+    );
+    const fluxo = await gestao.fluxo({
+      de: "2020-04-01",
+      ate: "2020-04-01",
+      cenario: "conservador",
+    });
+    assert.equal(fluxo.periodos[0]?.previsto_receber, "4500");
+  });
   test("alerta concorrente deduplica e publica um evento; encerrado permite nova ocorrencia", async () => {
     const dados = {
       tipo: "conta_vencida" as const,
@@ -58,6 +115,121 @@ describe("Base financeira PostgreSQL", { skip: url === undefined }, () => {
     await alertas.encerrar(ids.find((id): id is string => id !== null) as string, "resolvido");
     assert.ok(await alertas.criar(dados));
     assert.equal((await alertas.listar()).length, 1);
+  });
+  test("marketing/CFO: CAC unico entre produtos, nao atribuida, agregados sem PII e execucao simulada", async () => {
+    const motor = new MotorFuncionarios(pool, new RegistroHandlers());
+    const repo = new RepositorioFinanceiroPg(pool, motor, new AlertasFinanceiros(pool, motor));
+    const gestao = new GestaoFinanceira(repo),
+      marketing = new RentabilidadeMarketing(gestao);
+    const conta = (
+      await pool.query<{ id: string }>(
+        "INSERT INTO marketing.contas_anuncio(id_externo,moeda) VALUES('999','BRL') RETURNING id",
+      )
+    ).rows[0];
+    assert.ok(conta);
+    const camp = (
+      await pool.query<{ id: string }>(
+        "INSERT INTO marketing.campanhas(conta_anuncio_id,id_externo,nome) VALUES($1,'777','Campanha teste') RETURNING id",
+        [conta.id],
+      )
+    ).rows[0];
+    assert.ok(camp);
+    await pool.query(
+      "INSERT INTO marketing.gastos_diarios(campanha_id,dia,gasto_centavos,moeda,impressoes,cliques,compras_meta,valor_compras_meta_centavos) VALUES($1,'2021-02-01',3000,'BRL',10,2,0,0)",
+      [camp.id],
+    );
+    await pool.query(
+      "INSERT INTO financeiro.vendas(transacao,produto_id,produto_nome,comprador_id,status,grupo,pedido_em,valor_centavos,taxa_centavos,moeda,pagamento,liquido_centavos,rastreio_sck) SELECT 'mkt'||n,n::text,'Produto','pseudonimo-interno','APPROVED','receita','2021-02-01T12:00:00Z',10000,1000,'BRL','PIX',9000,CASE WHEN n<3 THEN '777' ELSE NULL END FROM generate_series(1,3) n",
+    );
+    const f = filtroGestao({ de: "2021-02-01", ate: "2021-02-28" }),
+      dados = await marketing.consultar(f);
+    assert.equal(dados.campanhas[0]?.cac, "3000");
+    assert.equal(dados.campanhas[0].novos, "1");
+    assert.equal(dados.campanhas[0].margem_pos_aquisicao, "15000");
+    assert.equal(dados.nao_atribuida, "10000");
+    assert.equal((await marketing.consultar({ ...f, produto: "1" })).campanhas[0]?.gasto, null);
+    assert.doesNotMatch(JSON.stringify(dados), /pseudonimo-interno/);
+    const chamadas: { url: string; corpo: unknown }[] = [];
+    const requisitar: typeof fetch = async (input, op) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      chamadas.push({
+        url,
+        corpo: typeof op?.body === "string" ? (JSON.parse(op.body) as unknown) : null,
+      });
+      return new Response(
+        JSON.stringify(
+          url.endsWith("disponibilidade")
+            ? { disponivel: true }
+            : {
+                status: "SUCESSO",
+                resposta: "Resumo agregado",
+                ferramentas: ["dre"],
+                uso: { entrada: 100, saida: 20, custo_usd: "0.001", modelo: "claude-sonnet-5-5" },
+              },
+        ),
+      );
+    };
+    const cfo = new CfoFinanceiro(
+      gestao,
+      {
+        leitura: new Secret("leitura"),
+        gateway: { url: "http://127.0.0.1:8002", chave: new Secret("gateway") },
+      },
+      requisitar,
+    );
+    await cfo.onModuleInit();
+    assert.equal(cfo.disponivel, true);
+    for (const nome of [
+      "indicadores_mensais",
+      "dre",
+      "fluxo_projetado",
+      "despesas_por_categoria",
+      "rentabilidade_campanhas",
+      "alertas_abertos",
+    ])
+      assert.doesNotMatch(
+        JSON.stringify(await cfo.ferramenta(nome, { de: f.de, ate: f.ate })),
+        /pseudonimo-interno|comprador|Campanha teste/,
+      );
+    await assert.rejects(cfo.ferramenta("pagar", { de: f.de, ate: f.ate }));
+    const { execucaoId } = await cfo.perguntar({
+      competencia: "diagnostico",
+      de: f.de,
+      ate: f.ate,
+    });
+    // Outras ocorrencias de indicadores podem preceder a pergunta na fila compartilhada.
+    for (let i = 0; i < 30; i++) {
+      const estado = (
+        await pool.query<{ status: string }>(
+          "SELECT status FROM funcionarios.execucoes WHERE id=$1",
+          [execucaoId],
+        )
+      ).rows[0]?.status;
+      if (estado === "SUCESSO") break;
+      await motor.consumirUma();
+    }
+    assert.equal((await motor.aguardar(execucaoId, 1000)).status, "SUCESSO");
+    const analise = (await cfo.historico()).find((a) => a["execucao_id"] === execucaoId);
+    assert.equal(analise?.["resposta"], "Resumo agregado");
+    assert.equal(chamadas.filter((c) => c.url.endsWith("/executar")).length, 1);
+    await cfo.executar({
+      execucaoId,
+      chaveIdempotencia: "teste",
+      tentativa: 2,
+      config: { competencia: "diagnostico", de: f.de, ate: f.ate },
+      signal: new AbortController().signal,
+      verificarLease: async () => true,
+    });
+    assert.equal(
+      chamadas.filter((c) => c.url.endsWith("/executar")).length,
+      1,
+      "retentativa nao repete chamada paga",
+    );
+    assert.deepEqual(chamadas.find((c) => c.url.endsWith("/executar"))?.corpo, {
+      competencia: "diagnostico",
+      de: f.de,
+      ate: f.ate,
+    });
   });
   test("rollback do chamador remove alerta e evento", async () => {
     const c = await pool.connect();
@@ -296,6 +468,36 @@ describe("Base financeira PostgreSQL", { skip: url === undefined }, () => {
         )
       ).rows[0]?.status,
       "aberta",
+    );
+  });
+  test("gestao: materializacao e anomalia incluem despesas manuais, com alerta idempotente", async () => {
+    const motor = new MotorFuncionarios(pool, new RegistroHandlers());
+    const repo = new RepositorioFinanceiroPg(pool, motor, new AlertasFinanceiros(pool, motor));
+    const gestao = new GestaoFinanceira(repo);
+    await pool.query(
+      "INSERT INTO financeiro.lancamentos(tipo,descricao,categoria,valor_centavos,data) SELECT 'saida','Teste regra','Categoria anomalia',CASE WHEN n=0 THEN 20000 ELSE 10000 END,(date_trunc('month',current_date)-n*interval '1 month')::date FROM generate_series(0,3) n",
+    );
+    const ctx = {
+      execucaoId: "1",
+      chaveIdempotencia: "teste",
+      tentativa: 1,
+      config: {},
+      signal: new AbortController().signal,
+      verificarLease: async () => true,
+    };
+    await gestao.executar("atualizar_indicadores", ctx);
+    await gestao.executar("calcular_dre", ctx);
+    assert.ok((await pool.query("SELECT 1 FROM financeiro.indicadores_mensais")).rowCount);
+    assert.ok((await pool.query("SELECT 1 FROM financeiro.dre_mensal")).rowCount);
+    await gestao.executar("detectar_anomalias", ctx);
+    await gestao.executar("detectar_anomalias", ctx);
+    assert.equal(
+      (
+        await pool.query(
+          "SELECT id FROM financeiro.alertas WHERE chave LIKE 'anomalia:%:despesa:Categoria anomalia'",
+        )
+      ).rowCount,
+      1,
     );
   });
 });

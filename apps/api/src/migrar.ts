@@ -11,6 +11,62 @@ const PROIBIDO_RE =
   /\b(BEGIN|COMMIT|ROLLBACK|SAVEPOINT|START\s+TRANSACTION|CONCURRENTLY|VACUUM)\b/i;
 const LOCK_MIGRACOES = "nucleos:api:schema_migrations";
 
+/** Remove literais e comentarios antes de procurar comandos no nivel SQL externo.
+ * BEGIN dentro de um corpo PL/pgSQL dollar-quoted nao abre outra transacao.
+ */
+function sqlExterno(sql: string): string {
+  let externo = "";
+  for (let i = 0; i < sql.length;) {
+    if (sql.startsWith("--", i)) {
+      const fim = sql.slice(i + 2).search(/[\r\n]/);
+      i = fim < 0 ? sql.length : i + 2 + fim + 1;
+    } else if (sql.startsWith("/*", i)) {
+      let nivel = 1;
+      i += 2;
+      while (i < sql.length && nivel > 0) {
+        if (sql.startsWith("/*", i)) {
+          nivel++;
+          i += 2;
+        } else if (sql.startsWith("*/", i)) {
+          nivel--;
+          i += 2;
+        } else i++;
+      }
+      if (nivel > 0) throw new Error("comentario SQL nao terminado");
+    } else if (sql[i] === "'" || sql[i] === '"') {
+      const aspas = sql[i++];
+      const escapes =
+        aspas === "'" && /[eE]/.test(sql[i - 2] ?? "") && !/[a-zA-Z0-9_$]/.test(sql[i - 3] ?? "");
+      let terminou = false;
+      while (i < sql.length) {
+        if (escapes && sql[i] === "\\") i += 2;
+        else if (sql[i] === aspas) {
+          i++;
+          if (sql[i] === aspas) i++;
+          else {
+            terminou = true;
+            break;
+          }
+        } else i++;
+      }
+      if (!terminou) throw new Error("literal SQL nao terminado");
+    } else {
+      const tag = sql.slice(i).match(/^\$(?:[a-zA-Z_][a-zA-Z0-9_]*)?\$/)?.[0];
+      if (tag !== undefined) {
+        const fim = sql.indexOf(tag, i + tag.length);
+        if (fim < 0) throw new Error("corpo SQL nao terminado");
+        i = fim + tag.length;
+      } else {
+        externo += sql[i] ?? "";
+        i++;
+        continue;
+      }
+    }
+    externo += " ";
+  }
+  return externo;
+}
+
 export interface Migracao {
   versao: string;
   nome: string;
@@ -23,7 +79,7 @@ export async function lerMigracoes(dir: URL): Promise<Migracao[]> {
   const saida: Migracao[] = [];
   for (const nome of nomes) {
     const sql = await readFile(new URL(nome, dir), "utf8");
-    if (PROIBIDO_RE.test(sql.replace(/--.*$/gm, ""))) {
+    if (PROIBIDO_RE.test(sqlExterno(sql))) {
       throw new Error(`migration ${nome} controla transacao ou usa comando proibido`);
     }
     saida.push({

@@ -144,8 +144,10 @@ describe(
       assert.ok(analista);
       assert.equal(typeof analista.id, "string");
       const detalhe = await servico.detalhe(analista.id);
-      assert.equal(detalhe.atribuicoes[0]?.agendamentos[0]?.intervalo_min, 30);
-      const a = detalhe.atribuicoes[0];
+      const a = detalhe.atribuicoes.find(
+        (x) => x.definicao.codigo === "financeiro.atualizar_dados",
+      );
+      assert.equal(a?.agendamentos[0]?.intervalo_min, 30);
       assert.ok(a);
       assert.equal(typeof a.id, "string");
       await assert.rejects(
@@ -608,7 +610,11 @@ describe(
         (x) => x.slug === "analista-atualizacoes-financeiras",
       );
       assert.ok(seed);
-      const agenda = (await servico.detalhe(seed.id)).atribuicoes[0]?.agendamentos[0];
+      const agendaAtualizacao = async () =>
+        (await servico.detalhe(seed.id)).atribuicoes.find(
+          (x) => x.definicao.codigo === "financeiro.atualizar_dados",
+        )?.agendamentos[0];
+      const agenda = await agendaAtualizacao();
       assert.ok(agenda);
       const primeira = await NestFactory.create(
         AppModule.comModulos([FuncionariosModule.registrar(motor, new Secret(CHAVE), true, 60)]),
@@ -620,10 +626,7 @@ describe(
       } finally {
         await primeira.close();
       }
-      assert.equal(
-        (await servico.detalhe(seed.id)).atribuicoes[0]?.agendamentos[0]?.intervalo_min,
-        60,
-      );
+      assert.equal((await agendaAtualizacao())?.intervalo_min, 60);
       await servico.salvarAgenda(
         agenda.atribuicao_id,
         { gatilho: "INTERVALO", intervalo_min: 90, habilitado: false },
@@ -639,10 +642,7 @@ describe(
       } finally {
         await segunda.close();
       }
-      assert.equal(
-        (await servico.detalhe(seed.id)).atribuicoes[0]?.agendamentos[0]?.intervalo_min,
-        90,
-      );
+      assert.equal((await agendaAtualizacao())?.intervalo_min, 90);
     });
     test("IDs bigint acima do limite seguro de JS continuam exatos no contrato JSON", async () => {
       const registro = (

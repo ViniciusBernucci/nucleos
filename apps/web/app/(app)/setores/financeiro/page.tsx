@@ -19,6 +19,23 @@ export default function FinanceiroPage() {
           Painéis do setor
         </h2>
         <ul className="card-grid">
+          {[
+            ["visao-geral", "Visão Geral"],
+            ["vendas/receitas", "Receitas e vendas detalhadas"],
+            ["contas", "Contas a Pagar e Receber"],
+            ["movimentacoes", "Movimentações"],
+            ["conciliacao", "Conciliação"],
+            ["dre", "DRE e Relatórios"],
+            ["marketing", "Investimentos em Marketing"],
+            ["cfo", "Funcionários e CFO"],
+            ["alertas", "Alertas financeiros"],
+          ].map(([rota, titulo]) => (
+            <li key={rota}>
+              <Link href={`/setores/financeiro/${rota}`} className="link-card">
+                <span className="link-card__title">{titulo}</span>
+              </Link>
+            </li>
+          ))}
           <li>
             <Link href="/setores/financeiro/vendas" className="link-card">
               <span className="link-card__code" aria-hidden="true">

@@ -7,6 +7,7 @@ import { Movimentacoes } from "./_components/Movimentacoes.tsx";
 import { NovoLancamento } from "./_components/NovoLancamento.tsx";
 import { Resumo } from "./_components/Resumo.tsx";
 import styles from "./fluxo-de-caixa.module.css";
+import { ProjecaoCaixa } from "../_components/Gestao.tsx";
 
 export const metadata = {
   title: "Fluxo de caixa — NÚCLEOS",
@@ -44,6 +45,7 @@ export default async function FluxoDeCaixaPage({ searchParams }: { searchParams:
           </nav>
         ) : null}
       </header>
+      <ProjecaoCaixa searchParams={searchParams} />
 
       {fluxo.tipo === "nao-configurado" ? (
         <div className="state-box" role="status">

@@ -2,7 +2,7 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { NestFactory } from "@nestjs/core";
-import { Secret, loadVendasConfig } from "@nucleos/config";
+import { Secret, loadVendasConfig, loadCfoConfig } from "@nucleos/config";
 import type { Pool } from "pg";
 import { AppModule } from "../app.module.js";
 import { MotorFuncionarios } from "../funcionarios/motor.js";
@@ -20,7 +20,7 @@ test("limite bruto Hotmart cobre barra terminal e maiusculas aceitas pelo rotead
     },
     release: () => {},
   };
-  const pool = { connect: async () => c } as unknown as Pool;
+  const pool = { connect: async () => c, query: c.query } as unknown as Pool;
   const app = await NestFactory.create<NestExpressApplication>(
     AppModule.comModulos([
       FinanceiroModule.registrar(
@@ -28,6 +28,7 @@ test("limite bruto Hotmart cobre barra terminal e maiusculas aceitas pelo rotead
         new Secret("chave-ficticia"),
         { webhookHottok: new Secret("hottok-ficticio"), anexos: undefined },
         loadVendasConfig({}),
+        loadCfoConfig({}),
       ),
     ]),
     { logger: false, bodyParser: false },
@@ -60,7 +61,9 @@ test("limite bruto Hotmart cobre barra terminal e maiusculas aceitas pelo rotead
 test("rotas financeiras exigem chave e validam corpo sem consultar PostgreSQL", async () => {
   let consultas = 0;
   const pool = {
-    query: () => {
+    query: (sql: string) => {
+      if (sql.includes("diretoria.analisar_financas") || sql.includes("slug='cfo-virtual'"))
+        return Promise.resolve({ rows: [], rowCount: 0 });
       consultas++;
       throw new Error("consulta inesperada");
     },
@@ -73,6 +76,7 @@ test("rotas financeiras exigem chave e validam corpo sem consultar PostgreSQL", 
         new Secret("chave-ficticia"),
         { webhookHottok: undefined, anexos: undefined },
         loadVendasConfig({}),
+        loadCfoConfig({}),
       ),
     ]),
     { logger: false },
@@ -81,6 +85,22 @@ test("rotas financeiras exigem chave e validam corpo sem consultar PostgreSQL", 
     await app.listen(0, "127.0.0.1");
     const base = await app.getUrl();
     assert.equal((await fetch(base + "/v1/financeiro/contas-pagar")).status, 401);
+    for (const rota of [
+      "/gestao/indicadores",
+      "/gestao/dre",
+      "/gestao/fluxo",
+      "/rentabilidade",
+      "/cfo",
+    ])
+      assert.equal((await fetch(base + "/v1/financeiro" + rota)).status, 401);
+    assert.equal(
+      (
+        await fetch(base + "/v1/financeiro/cfo/ferramentas/dre", {
+          headers: { authorization: "Bearer chave-ficticia" },
+        })
+      ).status,
+      503,
+    );
     const r = await fetch(base + "/v1/financeiro/contas-pagar", {
       method: "POST",
       headers: { authorization: "Bearer chave-ficticia", "content-type": "application/json" },

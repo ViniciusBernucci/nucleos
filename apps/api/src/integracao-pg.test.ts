@@ -92,7 +92,8 @@ describe(
 
     test("agregados: periodo no fuso de Sao Paulo, moeda, reembolso, produto e pagamento", async () => {
       const repo = new RepositorioVendasPg(pool);
-      await pool.query("TRUNCATE financeiro.vendas");
+      // As migrations financeiras adicionaram historico/comissoes/recebiveis com FK.
+      await pool.query("TRUNCATE financeiro.vendas CASCADE");
       await repo.gravarVendas([
         venda("A", { pedidoEm: new Date("2026-10-10T15:00:00Z"), compradorId: "c1" }),
         venda("B", {
@@ -269,8 +270,19 @@ describe(
       assert.equal((await repo.obterConta(conta.id))?.fim, "2026-12");
       await assert.rejects(repo.excluirConta(conta.id), ContaComLancamentos);
       assert.ok(await repo.excluirLancamento(pago.id));
-      assert.ok(await repo.excluirConta(conta.id));
-      assert.equal(await repo.obterConta(conta.id), null);
+      // Excluir o pagamento reabre a conta a pagar; a origem preserva esse historico.
+      await assert.rejects(repo.excluirConta(conta.id), ContaComLancamentos);
+      assert.ok(await repo.obterConta(conta.id));
+      const semHistorico = await repo.inserirConta({
+        descricao: "Conta sem historico",
+        categoria: "Serviços",
+        valorCentavos: 100,
+        diaVencimento: 10,
+        inicio: "2026-11",
+        fim: null,
+      });
+      assert.ok(await repo.excluirConta(semHistorico.id));
+      assert.equal(await repo.obterConta(semHistorico.id), null);
     });
 
     test("categorias: carga inicial, unicidade sem diferenciar maiusculas e exclusao", async () => {
