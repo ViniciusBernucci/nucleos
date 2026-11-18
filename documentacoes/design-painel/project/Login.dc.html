@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Entrada</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070B1A}
+a{color:#9F94FF;text-decoration:none}a:hover{color:#C4BDFF}
+.card{position:relative;background:linear-gradient(180deg,#0F1636,#0B1129);border:1px solid #1C2549;border-radius:24px}
+.fld{width:100%;box-sizing:border-box;min-height:48px;padding:0 16px;background:#0C1330;border:1px solid #1C2549;border-radius:14px;color:#EAF0FF;font-family:inherit;font-size:15px}
+.fld:focus{outline:none;border-color:#7A5CF2;box-shadow:0 0 0 3px rgba(122,92,242,0.25)}
+.btn{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;border-radius:999px;background:linear-gradient(135deg,#5A52E6,#7A5CF2);color:#FFFFFF;font-size:15px;font-weight:600;text-decoration:none;box-shadow:0 6px 20px rgba(98,84,240,0.35)}
+</style>
+</helmet>
+<div style="position:relative;overflow:hidden;display:flex;flex-wrap:wrap;min-height:800px;background:#070B1A;color:#EAF0FF;font-family:'Inter',system-ui,sans-serif">
+
+<div aria-hidden="true" style="position:absolute;top:-330px;left:-170px;width:620px;height:620px;border-radius:50%;background:radial-gradient(circle at 50% 100%,rgba(122,92,242,0.25),transparent 60%),#070B1A;border-top:2px solid rgba(160,150,255,0.7);box-shadow:0 -10px 60px rgba(110,92,240,0.55),inset 0 20px 50px rgba(110,92,240,0.25);pointer-events:none"></div>
+
+<section style="position:relative;flex:1 1 480px;box-sizing:border-box;padding:48px 64px;display:flex;flex-direction:column;justify-content:space-between;gap:48px;background:radial-gradient(700px 500px at 20% 110%,#1A1F5E 0%,transparent 60%)">
+<div style="display:flex;align-items:center;gap:12px">
+<svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8F82FF"/><stop offset="1" stop-color="#5A52E6"/></linearGradient></defs><rect x="1" y="1" width="28" height="28" rx="9" fill="url(#lg)"/><path d="M9 21V9l12 12V9" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<span style="font-size:19px;font-weight:700;letter-spacing:-0.01em">Nucleos</span>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px;max-width:520px">
+<h1 style="margin:0;font-size:40px;line-height:1.15;font-weight:600;letter-spacing:-0.02em">A empresa inteira, <span style="color:#A89CFF">em um só lugar</span>.</h1>
+<p style="margin:0;font-size:16px;line-height:1.6;color:#A3AED0">Gestão por setores, com agentes de IA, trilha de auditoria e acesso por permissão.</p>
+</div>
+<span style="font-size:13px;color:#6F7BA3">Conexão protegida · Acesso monitorado</span>
+</section>
+
+<section style="position:relative;flex:1 1 440px;box-sizing:border-box;padding:48px 32px;display:flex;align-items:center;justify-content:center">
+<div class="card" style="width:100%;max-width:420px;box-sizing:border-box;padding:36px;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:6px">
+<h2 style="margin:0;font-size:24px;font-weight:600;letter-spacing:-0.01em">Entrar</h2>
+<span style="font-size:14px;color:#8E9ABD">Use sua conta corporativa.</span>
+</div>
+<form style="display:flex;flex-direction:column;gap:18px">
+<div style="display:flex;flex-direction:column;gap:8px"><label for="em" style="font-size:13px;color:#A3AED0">E-mail</label><input id="em" class="fld" type="email" placeholder="[nome@empresa.com]" autocomplete="username"></div>
+<div style="display:flex;flex-direction:column;gap:8px"><label for="pw" style="font-size:13px;color:#A3AED0">Senha</label><input id="pw" class="fld" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+<div style="display:flex;justify-content:flex-end"><a href="#" style="font-size:13px">Esqueci minha senha</a></div>
+<a class="btn" href="Organizacoes.dc.html">Continuar</a>
+</form>
+<span style="font-size:12px;line-height:1.5;color:#6F7BA3;text-align:center">Ao entrar, você concorda com os termos de uso e a política de privacidade.</span>
+</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":800}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

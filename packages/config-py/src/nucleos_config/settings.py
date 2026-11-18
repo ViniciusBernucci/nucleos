@@ -7,14 +7,22 @@ from collections.abc import Mapping
 from typing import Annotated, Literal
 from urllib.parse import parse_qsl
 
-from pydantic import AfterValidator, AnyUrl, BaseModel, Field, ValidationError, field_validator
+from pydantic import (
+    AfterValidator,
+    AnyUrl,
+    BaseModel,
+    Field,
+    SecretStr,
+    ValidationError,
+    field_validator,
+)
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
     SettingsConfigDict,
 )
 
-from .secret import Secret, SecretFileError, read_secret_file
+from .secret import MAX_SECRET_BYTES, Secret, SecretFileError, read_secret_file
 
 _SECRET_TOKENS = frozenset(
     {"PASS", "PASSWORD", "PASSWD", "PWD", "SECRET", "TOKEN", "KEY", "APIKEY", "CREDENTIAL"}
@@ -111,6 +119,7 @@ class ServiceSettings(BaseSettings):
     PORT: int = Field(8000, ge=1, le=65535)
     REQUEST_TIMEOUT: int = 30_000  # ms; do ambiente: "500ms", "30s", "5m", "1h"
     DATABASE_URL: ServiceUrl | None = None
+    DATABASE_PASSWORD: SecretStr | None = None
     DATABASE_PASSWORD_FILE: AbsolutePath | None = None
 
     @classmethod
@@ -152,13 +161,7 @@ def load_settings(
 ) -> tuple[ServiceSettings, Secret | None]:
     """Valida `env` e le o segredo do banco. Levanta `ConfigError` (sem valores) se invalido."""
     clean = {k: v for k, v in env.items() if v != ""}
-    issues = [
-        ConfigIssue(
-            key=k,
-            message="segredo por variavel de ambiente e proibido (use <NOME>_FILE)",
-        )
-        for k in forbidden_secret_env(clean)
-    ]
+    issues: list[ConfigIssue] = []
     settings: ServiceSettings | None = None
     try:
         settings = model.model_validate(clean)
@@ -172,10 +175,19 @@ def load_settings(
     if settings is not None and settings.APP_ENV in _STRICT:
         issues.extend(
             ConfigIssue(key=k, message=f"obrigatoria em {settings.APP_ENV}")
-            for k in ("DATABASE_URL", "DATABASE_PASSWORD_FILE")
+            for k in ("DATABASE_URL", "DATABASE_PASSWORD")
             if getattr(settings, k) is None
+            and not (k == "DATABASE_PASSWORD" and settings.DATABASE_PASSWORD_FILE is not None)
         )
     secret: Secret | None = None
+    if settings is not None and settings.DATABASE_PASSWORD is not None:
+        value = settings.DATABASE_PASSWORD.get_secret_value()
+        if settings.DATABASE_PASSWORD_FILE is not None:
+            issues.append(ConfigIssue(key="DATABASE_PASSWORD", message="informe valor ou arquivo"))
+        elif len(value.encode("utf-8")) > MAX_SECRET_BYTES:
+            issues.append(ConfigIssue(key="DATABASE_PASSWORD", message="segredo grande demais"))
+        else:
+            secret = Secret(value)
     if settings is not None and settings.DATABASE_PASSWORD_FILE is not None and not issues:
         try:
             secret = read_secret_file(settings.DATABASE_PASSWORD_FILE)

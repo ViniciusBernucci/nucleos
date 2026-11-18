@@ -1,0 +1,28 @@
+"schema_version": 1
+"max_concurrency": 1
+"skills":
+  "software/implementador-de-ticket@v1": "C:\\Users\\vinicius.silva\\Documents\\Documentos\\Projetos Dev\\nucleos\\.claude\\skills\\implementador-de-ticket\\SKILL.md"
+  "software/revisor-de-codigo@v1": "C:\\Users\\vinicius.silva\\Documents\\Documentos\\Projetos Dev\\nucleos\\.claude\\skills\\revisor-de-codigo\\SKILL.md"
+  "software/auditor-de-review@v1": "C:\\Users\\vinicius.silva\\Documents\\Documentos\\Projetos Dev\\nucleos\\.claude\\skills\\auditor-de-review\\SKILL.md"
+  "software/revisor-de-qa@v1": "C:\\Users\\vinicius.silva\\Documents\\Documentos\\Projetos Dev\\nucleos\\.claude\\skills\\revisor-de-qa\\SKILL.md"
+  "software/fechar-entrega@v1": "C:\\Users\\vinicius.silva\\Documents\\Documentos\\Projetos Dev\\nucleos\\.claude\\skills\\fechar-entrega\\SKILL.md"
+"executors":
+  "claude/subscription":
+    "provider": "claude"
+  "codex/subscription":
+    "provider": "codex"
+"commands":
+  "project/setup":
+    - "make"
+    - "setup"
+  "project/db-up":
+    - "make"
+    - "compose-up"
+  "project/checks":
+    - "make"
+    - "lint"
+    - "test"
+    - "build"
+    - "contracts-check"
+"values":
+  "task.final_risk_level": 4

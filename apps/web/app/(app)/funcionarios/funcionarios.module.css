@@ -1,0 +1,109 @@
+.pagina {
+  padding: clamp(1rem, 3vw, 2.5rem);
+  max-width: 1400px;
+  margin: auto;
+  display: grid;
+  gap: 1.5rem;
+}
+.pagina header,
+.painel {
+  padding: 1.25rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  border-radius: 12px;
+}
+.pagina h1,
+.pagina h2,
+.pagina h3 {
+  margin-top: 0;
+}
+.pagina a {
+  color: var(--accent-primary);
+}
+.pagina nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1rem;
+}
+.tabela {
+  overflow: auto;
+  max-width: 100%;
+}
+.tabela table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tabela th,
+.tabela td {
+  text-align: left;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: top;
+}
+.formulario {
+  display: grid;
+  gap: 1rem;
+}
+.formulario label {
+  display: grid;
+  gap: 0.35rem;
+}
+.formulario input,
+.formulario textarea,
+.formulario select,
+.filtros input,
+.filtros select {
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  padding: 0.6rem;
+  border-radius: 6px;
+  min-width: 0;
+  width: 100%;
+}
+.formulario textarea {
+  min-height: 6rem;
+}
+.filtros,
+.acoes {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.filtros label {
+  display: grid;
+  gap: 0.3rem;
+}
+.pagina pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.pagina summary {
+  cursor: pointer;
+}
+.aba {
+  display: grid;
+  gap: 1rem;
+}
+.pagina :focus-visible {
+  outline: 2px solid var(--accent-focus);
+  outline-offset: 3px;
+}
+@media (max-width: 500px) {
+  .filtros label {
+    width: 100%;
+  }
+  .pagina {
+    padding: 0.75rem;
+  }
+  .pagina header,
+  .painel {
+    padding: 1rem;
+  }
+}

@@ -59,7 +59,7 @@ def test_typed_values_and_secret_from_file(tmp_path: Path) -> None:
 def test_strict_envs_require_database(app_env: str) -> None:
     with pytest.raises(ConfigError) as ei:
         load_settings({"APP_ENV": app_env})
-    assert keys(ei.value) == ["DATABASE_PASSWORD_FILE", "DATABASE_URL"]
+    assert keys(ei.value) == ["DATABASE_PASSWORD", "DATABASE_URL"]
 
 
 def test_invalid_values_never_echo_input() -> None:
@@ -77,13 +77,16 @@ def test_invalid_values_never_echo_input() -> None:
     assert SENTINEL not in repr(ei.value.issues)
 
 
-def test_secret_in_environment_is_forbidden() -> None:
+def test_secret_in_environment_is_supported() -> None:
     assert forbidden_secret_env({"DATABASE_PASSWORD": "x", "DATABASE_PASSWORD_FILE": "/a"}) == [
         "DATABASE_PASSWORD"
     ]
+    settings, secret = load_settings({"DATABASE_PASSWORD": SENTINEL})
+    assert secret is not None
+    assert secret.reveal() == SENTINEL
+    assert SENTINEL not in repr(settings) + repr(secret)
     with pytest.raises(ConfigError) as ei:
-        load_settings({"DATABASE_PASSWORD": SENTINEL})
-    assert keys(ei.value) == ["DATABASE_PASSWORD"]
+        load_settings({"DATABASE_PASSWORD": SENTINEL, "DATABASE_PASSWORD_FILE": "/unused"})
     assert SENTINEL not in str(ei.value)
     assert load_settings({"DATABASE_PASSWORD": "", "PORT": ""})[0].PORT == 8000
 

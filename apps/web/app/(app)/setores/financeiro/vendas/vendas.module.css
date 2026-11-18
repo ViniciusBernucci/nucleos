@@ -1,0 +1,175 @@
+/* Estilos de uso unico do painel de vendas; so tokens do design system. */
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.sync {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.syncAviso {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.tendencia {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.tendenciaAlta {
+  color: var(--status-ok-text);
+}
+
+.tendenciaBaixa {
+  color: var(--status-danger-text);
+}
+
+.tendenciaRuim {
+  color: var(--status-danger-text);
+}
+
+.grafico {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.eixoLinha {
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+}
+
+.eixoTexto {
+  fill: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.area {
+  fill: var(--brand);
+  opacity: 0.18;
+}
+
+.linha {
+  fill: none;
+  stroke: var(--accent-primary);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.ponto {
+  fill: var(--accent-primary);
+}
+
+.colunas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.ranking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.rankingTopo {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+}
+
+.rankingNome {
+  overflow-wrap: anywhere;
+}
+
+.rankingValor {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.barra {
+  height: 6px;
+  margin-top: 0.25rem;
+  border-radius: 999px;
+  background: var(--bg-interactive);
+  overflow: hidden;
+}
+
+.barraPreenchida {
+  height: 100%;
+  background: var(--brand);
+}
+
+.rolagem {
+  overflow-x: auto;
+}
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.tabela caption {
+  text-align: left;
+  color: var(--text-secondary);
+  padding-bottom: 0.4rem;
+}
+
+.tabela th,
+.tabela td {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border-top: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.tabela th {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.numero {
+  text-align: right !important;
+  font-family: var(--font-mono);
+}
+
+.detalhes {
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.detalhes summary {
+  cursor: pointer;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}

@@ -1,0 +1,58 @@
+{
+  "include": [
+    "README.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "Nucleos-Especificacao-Mestra.md",
+    "documentacoes",
+    "lessons",
+    "apps",
+    "services",
+    "packages",
+    "infrastructure",
+    "scripts",
+    "tools"
+  ],
+  "exclude": [
+    "node_modules",
+    "vendor",
+    ".git",
+    ".contexto",
+    ".claude",
+    ".agents",
+    ".agent",
+    "skills",
+    "storage",
+    "dist",
+    "build",
+    "bin",
+    "obj",
+    ".venv",
+    ".run",
+    ".turbo",
+    ".next",
+    "__pycache__"
+  ],
+  "workflow": {
+    "schema": 1,
+    "preset": "generic",
+    "timezone": "America/Sao_Paulo",
+    "plansDir": "documentacoes/planejamento-ia",
+    "reportsDir": "documentacoes/reviews",
+    "deliveryDir": "documentacoes",
+    "reviewBranchPrefix": "revisao/",
+    "defaultProfile": "padrao",
+    "rules": [
+      "AGENTS.md"
+    ],
+    "repositories": [
+      {
+        "name": "nucleos",
+        "root": ".",
+        "layer": "monorepo"
+      }
+    ],
+    "worktreeDir": "../nucleos-worktrees",
+    "publish": "manual"
+  }
+}

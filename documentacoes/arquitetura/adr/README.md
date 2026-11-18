@@ -4,6 +4,11 @@ Os ADR-001..015 foram importados do [documento consolidado de 2026-10-25](../../
 
 **Stack vigente:** TypeScript (NestJS/Next.js) e Python, conforme ADR-004..006. A divergência com a Especificação Mestra e o backlog de 2026-09-22 (.NET 10) está resolvida a favor do ADR; a questão Q-01 do [README do backlog](../../backlog/README.md) foi decidida pelo usuário (stack TypeScript + Python); a atualização de `CLAUDE.md`, `AGENTS.md` e `lessons/` é da tarefa LOC-001, fora desta entrega.
 
+**Implementação local atual:** consulte o [mapa do MVP](../README.md). O ADR-027
+registra a redução do scaffolding autorizada em 2026-11-06 e propõe a revisão da
+topologia futura. Os documentos anteriores permanecem como histórico das decisões;
+a limpeza não declara isolamento multi-tenant implementado nem aprovação para produção.
+
 | ID | Decisão |
 | --- | --- |
 | ADR-001 | [SaaS com Control Plane central e Data Plane por tenant](0001-saas-com-control-plane-central-e-data.md) |
@@ -30,3 +35,4 @@ Os ADR-001..015 foram importados do [documento consolidado de 2026-10-25](../../
 | ADR-024 | [Stack de telemetria e política de redação/retenção](0024-stack-de-telemetria-e-politica-de-reducao-retencao.md) (**Aceito** em 2026-10-26) |
 | ADR-025 | [Acesso da UI aos dados do tenant e posição do Tool Gateway](0025-acesso-da-ui-aos-dados-do-tenant-e-posicao-do-tool-gateway.md) (**Aceito** em 2026-10-26) |
 | ADR-026 | [Provedor de assinatura e contrato SubscriptionEvent](0026-provedor-de-assinatura-e-contrato-subscriptionevent.md) (**Aceito** em 2026-10-26) |
+| ADR-027 | [Monorepo enxuto para o MVP local](0027-monorepo-enxuto-para-o-mvp-local.md) (**Proposto**; remoção do scaffolding local autorizada em 2026-11-06) |

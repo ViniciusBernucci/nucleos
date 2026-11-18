@@ -1,0 +1,262 @@
+"schema_version": 1
+"execution":
+  "profile": "compiled"
+  "effort": "medium"
+"skills":
+  "software/implementador-de-ticket@v1": "C:\\Users\\vinicius.silva\\Documents\\Documentos\\Projetos Dev\\nucleos\\.claude\\skills\\implementador-de-ticket\\SKILL.md"
+  "software/revisor-de-codigo@v1": "C:\\Users\\vinicius.silva\\Documents\\Documentos\\Projetos Dev\\nucleos\\.claude\\skills\\revisor-de-codigo\\SKILL.md"
+"executors":
+  "claude/subscription":
+    "provider": "claude"
+  "codex/subscription":
+    "provider": "codex"
+"commands":
+  "project/checks":
+    - "make"
+    - "setup"
+    - "build"
+    - "lint"
+    - "test"
+    - "contracts-check"
+  "project/test-integracao":
+    - "make"
+    - "test-integracao"
+  "flow/local-delivery":
+    - "C:\\Program Files\\nodejs\\node.exe"
+    - "C:\\Users\\vinicius.silva\\Documents\\Documentos\\Projetos Dev\\nucleos\\.claude\\skills\\_shared\\scripts\\entregar-lote-go.mjs"
+    - "--branch"
+    - "revisao/2026-11-01-login-multi-org"
+    - "--manual-tests-json"
+    - "{\"scenarios\":[\"Pré-condição: Postgres do compose de dev em pé, migrations aplicadas (bash infrastructure/docker/scripts/migrar-banco.sh), seed dev executado com SEED_SENHA_DEV definido localmente, API e web rodando (make build e scripts de dev). Ação: abrir http://127.0.0.1:3000/ sem estar logado. Esperado: redireciona para /login.\",\"Ação: em /login, entrar com usuario-a@nucleos.local e senha errada; depois com e-mail inexistente. Esperado: a mesma mensagem genérica nas duas tentativas, sem indicar qual campo está errado.\",\"Ação: entrar com usuario-a@nucleos.local e a senha do seed. Esperado: vai para /orgs (ou direto para /orgs/nucleos); só a organização 'nucleos' aparece; DevTools > Application mostra o cookie nucleos_sessao como HttpOnly e nada de token em Local/Session Storage.\",\"Ação: com usuario-a, abrir /orgs/nucleos/setores/financeiro/vendas. Esperado: painel de vendas carrega com dados (ou estado vazio/erro coerente se a Hotmart não estiver configurada), e o layout mostra 'nucleos' como organização ativa.\",\"Ação: sair, entrar com usuario-b@nucleos.local e abrir /orgs/nucleos e /orgs/nucleos/setores/financeiro/vendas pela URL. Esperado: página 404, sem nenhum dado da organização nucleos.\",\"Ação: entrar com usuario-ab@nucleos.local. Esperado: /orgs lista 'nucleos' e 'org-b'; trocar de organização pelo layout atualiza o indicador e a URL; em /orgs/org-b/setores/financeiro/vendas aparece 404.\",\"Ação: errar a senha de usuario-a 5 vezes seguidas e então usar a senha correta. Esperado: login recusado com a mensagem genérica até passarem 15 minutos.\",\"Ação: logado, clicar em Sair e depois usar o botão Voltar do navegador. Esperado: volta para /login e nenhuma tela protegida mostra dados.\",\"Ação: logado em duas abas, revogar a sessão (logout na outra aba ou UPDATE iam.sessions SET revoked_at=now() no banco de dev) e recarregar a primeira. Esperado: redireciona para /login.\",\"Ação: com a API parada, recarregar /orgs. Esperado: estado de erro/offline padronizado em pt-BR, sem stack trace.\"],\"na\":\"\"}"
+"values":
+  "task.final_risk_level": 4
+  "flow.profile": "enxuto-v1"
+  "flow.screen_testing": "manual_pending"
+  "flow.review_policy": "one_corrective_review"
+"max_concurrency": 1
+"step_contexts":
+  "u1_implement":
+    "ticket_id": "LGN-U1"
+    "objective": "Fundação de identidade na API: pipeline HTTP seguro, schemas iam/tenancy no banco único, seed de desenvolvimento, CLI administrativo de usuários/organizações e alvo de testes de integração com Postgres efêmero. Sem autenticação ainda."
+    "scope":
+      - "apps/api/src/common/ (filtro Problem Details, correlation_id, cabeçalhos de segurança) e apps/api/src/main.ts"
+      - "apps/api/migrations/0002_iam_tenancy.up.sql (novo) usando o runner existente apps/api/src/migrar.ts"
+      - "apps/api/src/iam/ e apps/api/src/tenancy/ (repositórios pg e serviço de senha argon2id)"
+      - "apps/api/src/admin.ts (CLI) + script 'admin' em apps/api/package.json; seed dev idempotente"
+      - "packages/config/src/ (parâmetros de sessão/login/senha/seed) e .env.example (somente nomes e padrões)"
+      - "Makefile + scripts/test-integracao.sh (alvo make test-integracao)"
+      - "documentacoes/identidade/2026-11-01-login-multi-org.md (+ -diffs.md), documentacoes/dados/banco-unico-nucleos.md, lessons/"
+    "acceptance":
+      - "LGN-AC-01: Todo erro da API sai como Problem Details (RFC 9457, application/problem+json) com correlation_id, sem stack, sem mensagem interna e sem eco de entrada; erro inesperado → 500 genérico com detalhes só em log; corpo JSON com campo não previsto em rota nova → 400. Rotas existentes (/healthz, /v1/vendas) continuam funcionando; testes unitários cobrem."
+      - "LGN-AC-02: A migration 0002 cria schema iam (users: id uuid, email citext/único normalizado em minúsculas, nome, password_hash PHC, status active|disabled, failed_logins, locked_until, created_at/updated_at timestamptz; sessions: id, user_id, token_hash único, created_at, last_seen_at, idle_expires_at, absolute_expires_at, revoked_at, user_agent; índice (user_id) parcial para não revogadas) e schema tenancy (organizations: id uuid imutável por trigger, slug único validado ^[a-z0-9-]{2,40}$, name, status; memberships: organization_id, user_id, status, UNIQUE(organization_id,user_id), índice (user_id)); aplica do zero, a reaplicação informa nada a aplicar, e UPDATE do id de organização falha — provado em teste de integração com Postgres real."
+      - "LGN-AC-03: Seed dev idempotente cria organizações 'nucleos' e 'org-b' e usuários fictícios usuario-a@nucleos.local (membro de nucleos), usuario-b@nucleos.local (membro de org-b) e usuario-ab@nucleos.local (membro de ambas); a senha vem de SEED_SENHA_DEV ou SEED_SENHA_DEV_FILE, nunca do repositório; o seed recusa rodar com APP_ENV staging/production; reexecução não duplica; teste de integração cobre."
+      - "LGN-AC-04: CLI admin (pnpm --filter @nucleos/api admin <comando>) suporta org criar --slug --nome, usuario criar --email --nome, membro adicionar --org --email, usuario desativar --email e usuario senha --email; senha lida da entrada padrão (sem argumento, env ou arquivo temporário), validada (>= 12 caracteres) e gravada só como hash argon2id; saída nunca mostra senha ou hash; teste de integração cobre criar/desativar/trocar senha."
+      - "LGN-AC-05: make test-integracao compila, sobe um container Postgres descartável (mesma imagem com digest do compose.dev.yml) publicado só em 127.0.0.1 com senha aleatória gerada em memória, roda os testes de integração da API com TEST_DATABASE_URL, e remove o container mesmo em falha (trap); nunca toca nucleos_dev nem imprime a senha."
+    "instructions": "Base: developer @ c5427047db13c8bb84e3a635298e94e89105caea. Rode 'make setup' antes de compilar (worktree nova sem node_modules).\n\nREGRAS DURAS: (1) Banco ÚNICO: tudo em schemas iam e tenancy do banco existente, via migration forward-only apps/api/migrations/0002_iam_tenancy.up.sql aplicada pelo runner atual (apps/api/src/migrar.ts; sem BEGIN/COMMIT; uma transação por arquivo). Não crie banco, container de funcionalidade, papel Postgres novo nem outro runner. Atualize o mapa de schemas em documentacoes/dados/banco-unico-nucleos.md. (2) ZERO dependências novas: argon2id via node:crypto (crypto.argon2 do Node 24.22, parâmetros m=19456 KiB, t=2, p=1, salt 16 bytes aleatório, saída em formato PHC $argon2id$v=19$m=...,t=...,p=...$salt$hash; verificação em tempo constante com timingSafeEqual). Se crypto.argon2 não estiver disponível ou falhar no Node do projeto, PARE com status BLOCKED e explique; não instale pacote. Validação de entrada manual, no padrão de apps/api/src/vendas/vendas.controller.ts. Cabeçalhos de segurança à mão (X-Content-Type-Options nosniff, Referrer-Policy no-referrer, X-Frame-Options DENY, Cache-Control no-store nas rotas de auth futuras, sem X-Powered-By). CORS desligado (a API só é chamada pelo servidor web). (3) citext: se a extensão não existir, crie-a na migration (CREATE EXTENSION IF NOT EXISTS citext) ou normalize e use text + índice único em lower(email) — escolha e documente. PKs uuid gerados na aplicação (crypto.randomUUID) e timestamptz.\n\nCONFIG (packages/config, zod, falha rápida, nomes de variáveis sem valores nas mensagens): SESSION_IDLE_MINUTES=30, SESSION_ABSOLUTE_HOURS=12, LOGIN_MAX_FAILURES=5, LOGIN_LOCK_MINUTES=15, PASSWORD_MIN_LENGTH=12, SESSION_COOKIE_SECURE (padrão true; false só aceito com APP_ENV=local), VENDAS_ORG_SLUG=nucleos. Acrescente só nomes/padrões ao .env.example, nunca valores secretos. Mantenha a paridade TS/Python se packages/config/paridade-casos.json exigir.\n\nTESTES DE INTEGRAÇÃO: siga o padrão de apps/api/src/integracao-pg.test.ts (skip sem TEST_DATABASE_URL, banco temporário próprio criado e removido). Crie scripts/test-integracao.sh (bash, set -euo pipefail) e o alvo 'test-integracao: build' no Makefile que o chama; porta aleatória livre em 127.0.0.1; nome de container único; trap de remoção; senha gerada por openssl/node em memória e passada por env ao docker run e ao node --test, nunca impressa. O alvo deve funcionar no Git Bash do Windows e em Linux.\n\nNão implemente login/sessão/guards nesta unidade (isso é u2), mas deixe repositórios e serviço de senha prontos para u2. O código do run abandonado em C:/Users/vinicius.silva/AppData/Local/contexto/projects/889883841c18419e/runs/31d6724286f0e3bb0542b6818c7971d0/worktree/apps/api (iam/, tenancy/, common/) pode ser consultado como referência, mas ele usa Kysely, banco nucleos_control e papéis control_* — NÃO copie essas decisões.\n\nDOCUMENTAÇÃO (obrigatória pelo CLAUDE.md): crie documentacoes/identidade/2026-11-01-login-multi-org.md (documento único do lote; u2/u3 atualizam) com as seções mínimas, comandos reais e resultados, e o arquivo -diffs.md; lessons aplicáveis (por exemplo hash de senha argon2id com node:crypto; Problem Details; migrations/schemas no banco único) atualizando lesson existente equivalente em vez de duplicar, e lessons/README.md. Rode e registre: make build lint test contracts-check e make test-integracao.\nFLUXO_ENXUTO_V1: execute somente este papel. Sem orquestrador, auditor, QA de tela por IA ou novas sessões. Preserve limites/checkpoints e regras do projeto. Testes de tela serão manuais no final. Não execute commits/merges: a entrega Git é uma etapa determinística posterior."
+    "required":
+      -
+        "path": "documentacoes/dados/banco-unico-nucleos.md"
+      -
+        "path": "apps/api/src/migrar.ts"
+      -
+        "path": "apps/api/src/main.ts"
+      -
+        "path": "apps/api/src/integracao-pg.test.ts"
+      -
+        "path": "documentacoes/arquitetura/adr/0016-autenticacao-de-usuarios-sessao-opaca-propria-vs-idp.md"
+    "initial":
+      -
+        "path": "packages/config/src/api.ts"
+      -
+        "path": "apps/api/migrations/0001_vendas.up.sql"
+      -
+        "path": "apps/api/package.json"
+    "available":
+      -
+        "path": "apps/api/src/vendas/vendas.controller.ts"
+      -
+        "path": "apps/api/src/vendas/vendas.module.ts"
+      -
+        "path": "apps/api/src/banco.ts"
+      -
+        "path": "apps/api/src/app.module.ts"
+      -
+        "path": "packages/config/src/load.ts"
+      -
+        "path": "packages/config/src/vendas.ts"
+      -
+        "path": "packages/config/paridade-casos.json"
+      -
+        "path": "infrastructure/docker/compose.dev.yml"
+      -
+        "path": "infrastructure/docker/scripts/migrar-banco.sh"
+      -
+        "path": "Makefile"
+      -
+        "path": "lessons/README.md"
+      -
+        "path": "documentacoes/arquitetura/adr/0017-acesso-a-dados-e-migrations-multi-database.md"
+    "limits":
+      "timeout_seconds": 5400
+      "max_turns": 250
+      "max_tool_calls": 400
+      "max_cost_usd": 30
+      "max_total_tokens": 15000000
+      "max_context_tokens": 180000
+      "max_prompt_tokens": 40000
+  "u2_implement":
+    "ticket_id": "LGN-U2"
+    "objective": "Autenticação com sessão opaca, bloqueio por força bruta, endpoints de identidade e organizações com isolamento por membership, e troca da chave de serviço do painel de vendas pela sessão do usuário membro da organização de vendas."
+    "scope":
+      - "apps/api/src/auth/ (login, logout, SessionGuard, limitador por e-mail) e controllers /v1/auth, /v1/me, /v1/orgs"
+      - "apps/api/src/vendas/ (remover ChaveServicoGuard; rotas sob sessão + membership da org VENDAS_ORG_SLUG)"
+      - "packages/config/src/vendas.ts (remover VENDAS_API_KEY) e .env.example"
+      - "packages/contracts (OpenAPI de auth/me/orgs + make contracts-gen)"
+      - "testes unitários e de integração; documentacoes/identidade/2026-11-01-login-multi-org.md; lessons"
+    "acceptance":
+      - "LGN-AC-06: POST /v1/auth/login {email, senha} com credencial válida retorna 200 com {token, expiraEm, usuario} e cria sessão com token de 32 bytes aleatórios (base64url) cujo banco guarda só sha256; e-mail inexistente, senha errada, usuário disabled ou bloqueado retornam o MESMO status 401 e o mesmo corpo Problem Details, com custo de hash equalizado (hash fictício para e-mail inexistente); a resposta tem Cache-Control no-store."
+      - "LGN-AC-07: Após LOGIN_MAX_FAILURES falhas consecutivas a conta fica com locked_until = agora + LOGIN_LOCK_MINUTES e recusa inclusive a senha correta até expirar; sucesso zera failed_logins; um limitador em memória por e-mail normalizado limita a taxa de tentativas; teste de integração cobre."
+      - "LGN-AC-08: A sessão é aceita por Authorization: Bearer <token>; SessionGuard busca por sha256, rejeita revogada, idle_expires_at vencido ou absolute_expires_at vencido com 401; renova idle_expires_at no máximo uma vez por minuto; POST /v1/auth/logout revoga (revoked_at) e a requisição seguinte com o mesmo token → 401; revogação direta no banco → 401; usuário desativado perde as sessões; teste de integração cobre."
+      - "LGN-AC-09: GET /v1/me retorna o usuário da sessão; GET /v1/orgs lista só organizações ativas com membership ativa do usuário; GET /v1/orgs/:slug retorna {id, slug, nome} só com membership; slug inexistente e slug sem membership retornam 404 com corpo idêntico; nenhum endpoint aceita tenant_id/organization_id vindo do cliente (campo extra → 400); teste de integração com usuario-a, usuario-b e usuario-ab cobre."
+      - "LGN-AC-10: As rotas de vendas passam a /v1/orgs/:slug/vendas/... (painel, listagem, sincronizacao GET/POST, sincronizacao/atualizar), exigem sessão e membership, e só respondem quando :slug = VENDAS_ORG_SLUG; outra org com membership → 404; sem sessão → 401; ChaveServicoGuard, CHAVE_SERVICO e VENDAS_API_KEY/_FILE removidos de API, config e .env.example; o agendador interno continua funcionando; testes de vendas atualizados."
+      - "LGN-AC-11: Contrato OpenAPI em packages/contracts/openapi/control-plane.openapi.json (ou arquivo irmão seguindo o padrão do pacote) descreve /v1/auth/login, /v1/auth/logout, /v1/me, /v1/orgs, /v1/orgs/{slug} e as rotas de vendas movidas, com Problem Details; make contracts-gen regenera os tipos e make contracts-check passa sem drift; se a mudança for incompatível com a baseline, registre o motivo e não promova a baseline."
+      - "LGN-AC-12: Logs estruturados de login (sucesso/falha/bloqueio) contêm só user_id ou hash do e-mail, correlation_id e motivo; nenhum log, Problem Details ou saída de teste contém senha, token, hash ou cabeçalho Authorization — teste verifica a ausência."
+    "instructions": "Depende de u1 (mesma worktree; leia o documento documentacoes/identidade/2026-11-01-login-multi-org.md e o código de u1 antes). Parâmetros de config criados em u1. ZERO dependências novas; validação manual; pg puro.\n\nSEGURANÇA (ADR-016): token = randomBytes(32) base64url, entregue uma única vez no corpo do login (a API é chamada só pelo servidor web, que guarda o token num cookie HttpOnly da própria origem — isso é feito em u3); banco guarda sha256(token). Compare hashes com timingSafeEqual quando aplicável. Rehash da senha se os parâmetros argon2 mudarem. Mensagem genérica em todas as falhas de login. Respostas de auth com Cache-Control: no-store. O tenant é SEMPRE derivado de membership válida da sessão; o slug da URL é só contexto solicitado. 404 idêntico para slug inexistente e sem membership (sem vazamento de existência). Organização ou membership inativa equivale a ausente. Usuário disabled: login falha e sessões existentes são rejeitadas no guard.\n\nVENDAS: substitua o guard de chave por SessionGuard + guard/serviço de membership que exige :slug === config.VENDAS_ORG_SLUG; mova o controller para v1/orgs/:slug/vendas mantendo os sub-caminhos e o comportamento; remova CHAVE_SERVICO/ChaveServicoGuard e apiKey de packages/config/src/vendas.ts (e testes/paridade). O módulo de auth deve ser registrado quando houver banco (mesma lógica de pool do main.ts).\n\nTESTES: unitários para guard, serviço de senha, limitador e mapeamento de erros; integração (Postgres efêmero via make test-integracao) para LGN-AC-06..10 usando HTTP real do Nest (app.listen em 127.0.0.1 porta 0) ou injeção equivalente.\n\nDOCUMENTAÇÃO: atualize o documento do lote e o -diffs.md (seção u2), documentacoes/dados/banco-unico-nucleos.md se houver mudança de tabela, documentacoes/financeiro/ se a rota de vendas mudou (aponte para a nova rota), e as lessons (sessão opaca, prevenção de enumeração/força bruta, isolamento por membership) + lessons/README.md. Rode e registre make build lint test contracts-check e make test-integracao.\nFLUXO_ENXUTO_V1: execute somente este papel. Sem orquestrador, auditor, QA de tela por IA ou novas sessões. Preserve limites/checkpoints e regras do projeto. Testes de tela serão manuais no final. Não execute commits/merges: a entrega Git é uma etapa determinística posterior."
+    "required":
+      -
+        "path": "documentacoes/arquitetura/adr/0016-autenticacao-de-usuarios-sessao-opaca-propria-vs-idp.md"
+      -
+        "path": "apps/api/src/vendas/vendas.controller.ts"
+      -
+        "path": "apps/api/src/vendas/vendas.module.ts"
+      -
+        "path": "apps/api/src/vendas/chave-servico.guard.ts"
+    "initial":
+      -
+        "path": "packages/config/src/vendas.ts"
+      -
+        "path": "packages/contracts/openapi/control-plane.openapi.json"
+    "available":
+      -
+        "path": "documentacoes/identidade/2026-11-01-login-multi-org.md"
+      -
+        "path": "packages/contracts/src/vendas.ts"
+      -
+        "path": "packages/contracts/src/index.ts"
+      -
+        "path": "packages/contracts/scripts/gerar.mjs"
+      -
+        "path": "packages/contracts/scripts/compat.mjs"
+      -
+        "path": "packages/contracts/schemas/problem-details.schema.json"
+      -
+        "path": "apps/api/src/vendas/vendas.http.test.ts"
+      -
+        "path": "apps/api/src/main.ts"
+      -
+        "path": "documentacoes/financeiro/2026-11-01-painel-de-vendas-hotmart.md"
+    "limits":
+      "timeout_seconds": 5400
+      "max_turns": 250
+      "max_tool_calls": 400
+      "max_cost_usd": 30
+      "max_total_tokens": 15000000
+      "max_context_tokens": 180000
+      "max_prompt_tokens": 40000
+  "u3_implement":
+    "ticket_id": "LGN-U3"
+    "objective": "Front-end Next.js com login real: /login, logout, /orgs com as organizações reais do usuário, área logada sob /orgs/[orgSlug] com organização ativa no layout, painel de vendas chamando a API com a sessão, e remoção dos mocks de autenticação e da chave de serviço."
+    "scope":
+      - "apps/web/app/login/, apps/web/app/orgs/, apps/web/app/orgs/[orgSlug]/ (área que hoje está em apps/web/app/(app)/)"
+      - "apps/web/lib/ (cliente da API servidor-a-servidor com sessão; leitura do cookie; substitui a chave em vendas-api.ts/vendas-atualizacao.ts)"
+      - "apps/web proteção de rotas (proxy/middleware do Next 16 só para UX) e Server Actions de login/logout"
+      - "remoção de apps/web/lib/mock-security.ts e fixtures/telas mock de auth não mais usadas; testes em apps/web/app/**/*.test.ts"
+      - "documentacoes/identidade/2026-11-01-login-multi-org.md, documentacoes/interface-web/manual-frontend.md, lessons"
+    "acceptance":
+      - "LGN-AC-13: /login (Server Component + Server Action) envia e-mail/senha à API real; em sucesso grava o token num cookie 'nucleos_sessao' HttpOnly, SameSite=Lax, Path=/, Secure conforme config (obrigatório fora de local) e expiração igual à absoluta, e redireciona para /orgs (ou para a org única quando houver só uma); em falha mostra mensagem genérica sem distinguir o motivo; a senha nunca é registrada em log nem devolvida ao cliente."
+      - "LGN-AC-14: /orgs lista as organizações reais do usuário (GET /v1/orgs com a sessão); usuario-a vê só 'nucleos', usuario-ab vê as duas; o layout de /orgs/[orgSlug]/... mostra de forma persistente a organização ativa e permite trocar de organização."
+      - "LGN-AC-15: /orgs/[orgSlug]/... valida o slug na API a cada render (GET /v1/orgs/{slug}); org sem membership ou inexistente → notFound() sem dados da outra org; com sessão de usuario-b, /orgs/nucleos/setores/financeiro/vendas → 404."
+      - "LGN-AC-16: Nenhum token em localStorage/sessionStorage nem em props de Client Components; o token só existe no cookie HttpOnly e no servidor; teste automatizado varre o código do web garantindo ausência de localStorage/sessionStorage com o token e de NEXT_PUBLIC_* de credencial."
+      - "LGN-AC-17: Logout (Server Action) chama POST /v1/auth/logout, apaga o cookie e redireciona para /login; qualquer 401 da API (sessão revogada/expirada) apaga o cookie e redireciona para /login; sem cookie, /, /orgs e /orgs/... redirecionam para /login (proxy/middleware só como UX; a verificação real é a API)."
+      - "LGN-AC-18: Estados padronizados (carregando, vazio, erro, 404, offline/API indisponível) existem para /orgs e para a área da organização, com textos pt-BR centralizados, e têm teste com node:test."
+      - "LGN-AC-19: O painel de vendas funciona em /orgs/nucleos/setores/financeiro/vendas usando a sessão (vendas-api.ts passa a enviar o token da sessão para /v1/orgs/{slug}/vendas/...); VENDAS_API_KEY/_FILE deixam de existir no web (código, testes, .env.example); não resta import de mock-security nem tela mock de login/orgs; links internos do menu apontam para o prefixo da org; make build lint test contracts-check passam."
+    "instructions": "Depende de u2 (mesma worktree; leia o documento do lote e os contratos gerados em packages/contracts antes). IMPORTANTE: apps/web/AGENTS.md avisa que este Next.js (16.x) tem breaking changes — leia o guia pertinente em node_modules/next/dist/docs/ antes de escrever código (em especial cookies(), Server Actions, redirect/notFound e a convenção de proxy/middleware). Siga documentacoes/interface-web/manual-frontend.md (o manual proíbe autenticação no cliente: toda lógica de sessão fica no servidor Next). ZERO dependências novas (sem biblioteca de UI/estado, sem Playwright).\n\nARQUITETURA: o navegador só fala com o servidor Next; o servidor Next chama a API (URL em VENDAS_API_URL, renomeie para NUCLEOS_API_URL mantendo compatibilidade ou documente a escolha) enviando Authorization: Bearer <token lido do cookie>. Centralize num único cliente servidor (por exemplo apps/web/lib/api-servidor.ts, com 'server-only' por convenção de pasta/comentário se o pacote não existir) que trata 401 → limpa cookie e redirect('/login'), 404 → notFound(), indisponível → estado de erro/offline. Server Actions são o único ponto de escrita do cookie.\n\nROTAS: mova o conteúdo do grupo (app) para app/orgs/[orgSlug]/ (layout com AppShell + indicador da org ativa + troca de org + botão sair), preservando setores/financeiro/vendas e componentes; '/' redireciona para /orgs (ou /login sem sessão). Remova DashboardClientShell/fixtures/mocks que só serviam a login/orgs; mocks de outras superfícies que ainda forem usados podem ficar, marcados como demonstração.\n\nTESTES: node:test (padrão atual app/**/*.test.ts) para o cliente da API (401/404/erro), opções do cookie (Secure fora de local), redirecionamentos, estados e a varredura de LGN-AC-16. Testes de tela são manuais (roteiro do lote).\n\nDOCUMENTAÇÃO: atualize o documento do lote e o -diffs.md (seção u3), o manual de front-end (nova estrutura de rotas e sessão; remover a menção a /login e /orgs como exceção legada), documentacoes/interface-web se aplicável, lessons (cookies HttpOnly e Server Actions no Next.js; proteção de rotas no servidor) e lessons/README.md. Rode e registre make build lint test contracts-check.\nFLUXO_ENXUTO_V1: execute somente este papel. Sem orquestrador, auditor, QA de tela por IA ou novas sessões. Preserve limites/checkpoints e regras do projeto. Testes de tela serão manuais no final. Não execute commits/merges: a entrega Git é uma etapa determinística posterior."
+    "required":
+      -
+        "path": "apps/web/AGENTS.md"
+      -
+        "path": "documentacoes/interface-web/manual-frontend.md"
+      -
+        "path": "apps/web/lib/vendas-api.ts"
+      -
+        "path": "apps/web/app/(app)/layout.tsx"
+    "initial":
+      -
+        "path": "apps/web/app/components/AppShell.tsx"
+      -
+        "path": "apps/web/lib/vendas-atualizacao.ts"
+      -
+        "path": "apps/web/app/(app)/setores/financeiro/vendas/page.tsx"
+    "available":
+      -
+        "path": "documentacoes/identidade/2026-11-01-login-multi-org.md"
+      -
+        "path": "apps/web/app/login/page.tsx"
+      -
+        "path": "apps/web/app/orgs/page.tsx"
+      -
+        "path": "apps/web/app/components/DashboardClientShell.tsx"
+      -
+        "path": "apps/web/app/components/NavLink.tsx"
+      -
+        "path": "apps/web/lib/mock-security.ts"
+      -
+        "path": "apps/web/app/vendas-env.test.ts"
+      -
+        "path": "apps/web/app/(app)/setores/financeiro/vendas/actions.ts"
+      -
+        "path": "apps/web/app/(app)/page.tsx"
+      -
+        "path": "apps/web/app/(app)/setores/page.tsx"
+      -
+        "path": "apps/web/package.json"
+      -
+        "path": "apps/web/next.config.mjs"
+    "limits":
+      "timeout_seconds": 5400
+      "max_turns": 250
+      "max_tool_calls": 400
+      "max_cost_usd": 30
+      "max_total_tokens": 15000000
+      "max_context_tokens": 180000
+      "max_prompt_tokens": 40000
+  "review_fix":
+    "ticket_id": "LGN-REVIEW"
+    "objective": "Revisão corretiva única do lote de login multi-organização: encontrar e corrigir problemas críticos/altos/médios de segurança, isolamento de tenant, correção e contrato no diff completo."
+    "scope":
+      - "Diff de developer @ c5427047db13c8bb84e3a635298e94e89105caea até o HEAD da worktree (apps/api, apps/web, packages/config, packages/contracts, migrations, scripts, Makefile)"
+      - "Contrato API↔web (OpenAPI e cliente servidor do web)"
+    "acceptance":
+      - "Nenhum problema demonstrado de impacto crítico/alto/médio pendente em LGN-AC-01..19"
+      - "Superfícies críticas conferidas: enumeração de usuário, força bruta/bloqueio, armazenamento e comparação de token, expiração/revogação de sessão, 404 sem vazamento entre organizações, ausência de tenant_id vindo do cliente, cookie HttpOnly/Secure/SameSite, token fora do cliente, logs sem segredo, remoção total de VENDAS_API_KEY"
+      - "make build lint test contracts-check e make test-integracao passam após as correções"
+    "instructions": "MODO=REVISAO_CORRETIVA_ENXUTA\nUma revisão independente consolidada. Procure somente problemas críticos/altos/médios fundamentados e corrija dentro do escopo. Um ciclo de correção e testes; sem auditor/review-loop/QA IA.\nBase SHA: c5427047db13c8bb84e3a635298e94e89105caea (branch developer). Gere o diff com 'git diff c5427047db13c8bb84e3a635298e94e89105caea' na worktree. Critérios: LGN-AC-01..19 (briefs u1/u2/u3 e documentacoes/identidade/2026-11-01-login-multi-org.md). Decisões fixas que NÃO devem ser revertidas: banco único com schemas iam/tenancy; zero dependências novas (argon2id via node:crypto); sessão opaca com sha256 no banco; cookie da origem do web preenchido por Server Action; rotas /orgs/[orgSlug]; vendas restritas à org VENDAS_ORG_SLUG; chave de serviço removida. Fora de escopo (não exigir): MFA, recuperação de senha, cadastro, papéis/permissões, auditoria, E2E de navegador. Corrija dentro do escopo, adicione teste de regressão para cada correção, atualize o documento do lote (seção Revisão) e o -diffs.md, e rode make build lint test contracts-check e make test-integracao.\nFLUXO_ENXUTO_V1: execute somente este papel. Sem orquestrador, auditor, QA de tela por IA ou novas sessões. Preserve limites/checkpoints e regras do projeto. Testes de tela serão manuais no final. Não execute commits/merges: a entrega Git é uma etapa determinística posterior."
+    "required":
+      -
+        "path": "documentacoes/arquitetura/adr/0016-autenticacao-de-usuarios-sessao-opaca-propria-vs-idp.md"
+    "initial":
+      []
+    "available":
+      -
+        "path": "documentacoes/identidade/2026-11-01-login-multi-org.md"
+      -
+        "path": "documentacoes/dados/banco-unico-nucleos.md"
+      -
+        "path": "documentacoes/interface-web/manual-frontend.md"
+    "limits":
+      "timeout_seconds": 3600
+      "max_turns": 200
+      "max_tool_calls": 400
+      "max_total_tokens": 15000000
+      "max_context_tokens": 200000
+      "max_prompt_tokens": 40000

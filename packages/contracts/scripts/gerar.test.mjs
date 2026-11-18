@@ -38,7 +38,7 @@ test("a geracao e deterministica e o repositorio esta sem drift", () => {
 test("geracao cobre TS, SDK, modelos Pydantic e copia dos schemas", () => {
   const arquivos = (d) => compararArvores(gerado, d);
   const vazio = novoTmp();
-  const lista = arquivos(vazio).join("\n");
+  const lista = arquivos(vazio).join("\n").replaceAll("\\", "/");
   for (const d of SAIDAS) assert.ok(lista.includes(d), `sem saida em ${d}`);
   assert.match(lista, /generated\/job-envelope\.ts/);
   assert.match(lista, /models\/job_envelope\.py/);
@@ -54,7 +54,7 @@ test("drift: arquivo gerado alterado a mao e detectado (--check sai com 1)", () 
     const r = check(versionada);
     assert.equal(r.status, 1);
     assert.match(
-      r.stderr,
+      r.stderr.replaceAll("\\", "/"),
       /DRIFT[\s\S]*desatualizado: packages\/contracts\/src\/generated\/job-envelope\.ts/,
     );
   });

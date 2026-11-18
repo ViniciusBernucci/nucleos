@@ -13,11 +13,7 @@ UV=${UV:-uv}
 COMPONENTS=(
   "web:3000:$PNPM --filter @nucleos/web start"
   "api:3001:node apps/api/dist/main.js"
-  "tenant-provisioner:3002:node apps/tenant-provisioner/dist/main.js"
-  "tenant-runtime:8001:$UV run --frozen --package nucleos-tenant-runtime python -m tenant_runtime"
   "ai-gateway:8002:$UV run --frozen --package nucleos-ai-gateway python -m ai_gateway"
-  "tool-gateway:8003:$UV run --frozen --package nucleos-tool-gateway python -m tool_gateway"
-  "event-dispatcher:8004:$UV run --frozen --package nucleos-event-dispatcher python -m event_dispatcher"
 )
 
 porta_em_escuta() { # 0 se algo ja aceita conexao em 127.0.0.1:$1

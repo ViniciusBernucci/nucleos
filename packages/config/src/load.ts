@@ -1,6 +1,8 @@
 import type { z } from "zod";
 import { type SecretFileReason, SecretFileError, readSecretFile } from "./secret.js";
-import type { Secret } from "./secret.js";
+import { Secret, MAX_SECRET_BYTES } from "./secret.js";
+import { loadEnvFile } from "node:process";
+import { fileURLToPath } from "node:url";
 
 export interface ConfigIssue {
   /** Nome da variavel (ou do campo) com problema. Nunca o valor recebido. */
@@ -48,9 +50,9 @@ const SECRET_SUFFIXES = [
 ];
 
 /**
- * Nome de variavel que indica segredo literal (ADR-020 item 1): algum token separado por `_`
+ * Classificador legado de nomes de segredo (nao bloqueia o ambiente do MVP): algum token separado por `_`
  * (PASS, SECRET, TOKEN, KEY, DSN, ...) ou sufixo colado (DBPASSWORD). Nomes terminados em
- * `_FILE`/`_PATH` (caminho) sao o formato permitido. Mesma regra de config-py e deploy-lib.mjs.
+ * `_FILE`/`_PATH` (caminho) indicam caminhos. Mesma regra de config-py e deploy-lib.mjs.
  */
 /** Variaveis POSIX/shell que nao carregam segredo e colidem com os tokens. */
 const NOT_SECRET = new Set(["PWD", "OLDPWD"]);
@@ -87,16 +89,15 @@ type Env = Readonly<Record<string, string | undefined>>;
 
 /**
  * Valida `env` com o esquema (zod) e falha rapido. Regras:
- * - variavel com nome de segredo no ambiente => erro (so `*_FILE` e aceito);
+ * - segredos no ambiente sao permitidos no MVP;
  * - erros do esquema viram `ConfigIssue` por chave, sem o valor recebido.
  * Entradas vazias (`""`) contam como ausentes.
  */
 export function parseConfig<S extends z.ZodType>(schema: S, env: Env): z.output<S> {
-  const issues: ConfigIssue[] = forbiddenSecretEnv(env).map((key) => ({
-    key,
-    message: "segredo por variavel de ambiente e proibido (use <NOME>_FILE com caminho de arquivo)",
-  }));
-  const input = Object.fromEntries(Object.entries(env).filter(([, v]) => v !== undefined && v !== ""));
+  const issues: ConfigIssue[] = [];
+  const input = Object.fromEntries(
+    Object.entries(env).filter(([, v]) => v !== undefined && v !== ""),
+  );
   const result = schema.safeParse(input);
   if (!result.success) {
     for (const issue of result.error.issues) {
@@ -116,4 +117,36 @@ export function loadSecret(key: string, path: string): Secret {
     const reason = e instanceof SecretFileError ? e.reason : "ilegivel";
     throw new ConfigError([{ key, message: SECRET_FILE_MESSAGES[reason] }]);
   }
+}
+
+/** Carrega o .env da raiz sem sobrescrever variaveis ja exportadas pelo operador. */
+export function loadEnvironment(
+  path = fileURLToPath(new URL("../../../.env", import.meta.url)),
+): NodeJS.ProcessEnv {
+  try {
+    loadEnvFile(path);
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw new ConfigError([{ key: ".env", message: "arquivo de ambiente ilegivel" }]);
+    }
+  }
+  return process.env;
+}
+
+/** Valor direto ou arquivo: fontes simultaneas sao erro, sem precedencia silenciosa. */
+export function loadOptionalSecret(
+  key: string,
+  value: string | undefined,
+  path: string | undefined,
+): Secret | undefined {
+  if (value !== undefined && value !== "" && path !== undefined && path !== "") {
+    throw new ConfigError([{ key, message: "informe o valor ou o arquivo, nunca ambos" }]);
+  }
+  if (value !== undefined && value !== "") {
+    if (Buffer.byteLength(value, "utf8") > MAX_SECRET_BYTES) {
+      throw new ConfigError([{ key, message: "segredo grande demais" }]);
+    }
+    return new Secret(value);
+  }
+  return path === undefined || path === "" ? undefined : loadSecret(`${key}_FILE`, path);
 }

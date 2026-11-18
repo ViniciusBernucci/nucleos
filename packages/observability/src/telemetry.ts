@@ -2,7 +2,11 @@ import { type Meter, type Tracer, metrics, trace } from "@opentelemetry/api";
 import { OTLPMetricExporter } from "@opentelemetry/exporter-metrics-otlp-http";
 import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { resourceFromAttributes } from "@opentelemetry/resources";
-import { type IMetricReader, MeterProvider, PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
+import {
+  type IMetricReader,
+  MeterProvider,
+  PeriodicExportingMetricReader,
+} from "@opentelemetry/sdk-metrics";
 import { BatchSpanProcessor, type SpanProcessor, TracerProvider } from "@opentelemetry/sdk-trace";
 
 export interface TelemetryConfig {
@@ -59,10 +63,20 @@ export function createTelemetry(config: TelemetryConfig): Telemetry {
   const spanProcessors = [...(config.spanProcessors ?? [])];
   const readers = [...(config.metricReaders ?? [])];
   if (config.otlpEndpoint) {
-    spanProcessors.push(new BatchSpanProcessor({ exporter: new OTLPTraceExporter({ url: `${config.otlpEndpoint}/v1/traces`, timeoutMillis: 2000 }) }));
+    spanProcessors.push(
+      new BatchSpanProcessor({
+        exporter: new OTLPTraceExporter({
+          url: `${config.otlpEndpoint}/v1/traces`,
+          timeoutMillis: 2000,
+        }),
+      }),
+    );
     readers.push(
       new PeriodicExportingMetricReader({
-        exporter: new OTLPMetricExporter({ url: `${config.otlpEndpoint}/v1/metrics`, timeoutMillis: 2000 }),
+        exporter: new OTLPMetricExporter({
+          url: `${config.otlpEndpoint}/v1/metrics`,
+          timeoutMillis: 2000,
+        }),
         exportIntervalMillis: config.metricIntervalMs ?? 15000,
       }),
     );

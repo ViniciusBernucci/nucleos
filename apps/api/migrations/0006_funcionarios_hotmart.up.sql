@@ -1,0 +1,3 @@
+-- A rotina existente passa ao motor persistente. O intervalo do ambiente só inicializa o seed em runtime.
+INSERT INTO funcionarios.atribuicoes(funcionario_id,definicao_id,setor_id) SELECT f.id,d.id,f.setor_id FROM funcionarios.funcionarios f JOIN funcionarios.definicoes_tarefa d ON d.codigo='financeiro.atualizar_dados' WHERE f.slug='analista-atualizacoes-financeiras' ON CONFLICT(funcionario_id,definicao_id) DO NOTHING;
+INSERT INTO funcionarios.agendamentos(atribuicao_id,gatilho,intervalo_min,proxima_em) SELECT a.id,'INTERVALO',30,now() FROM funcionarios.atribuicoes a JOIN funcionarios.definicoes_tarefa d ON d.id=a.definicao_id WHERE d.codigo='financeiro.atualizar_dados' AND NOT EXISTS(SELECT 1 FROM funcionarios.agendamentos s WHERE s.atribuicao_id=a.id);

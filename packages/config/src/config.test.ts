@@ -3,6 +3,7 @@ import { chmodSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mock, test } from "node:test";
+import { loadEnvironment } from "./load.js";
 import {
   ConfigError,
   MAX_SECRET_BYTES,
@@ -15,6 +16,25 @@ import {
 } from "./index.js";
 
 const SENTINEL = "SENTINELA_valor_que_nunca_deve_vazar_9f3a";
+
+test("dotenv: carrega arquivo, preserva ambiente exportado e nao revela erro de leitura", () => {
+  withDir((dir) => {
+    const path = join(dir, ".env");
+    writeFileSync(path, "NUCLEOS_TEST_SECRET=sentinela-dotenv\nNUCLEOS_TEST_PORT=1234\n");
+    process.env["NUCLEOS_TEST_PORT"] = "4321";
+    try {
+      const env = loadEnvironment(path);
+      assert.equal(env["NUCLEOS_TEST_SECRET"], "sentinela-dotenv");
+      assert.equal(env["NUCLEOS_TEST_PORT"], "4321");
+      assert.doesNotThrow(() => loadEnvironment(join(dir, "ausente")));
+      const e = failure(() => loadEnvironment(dir));
+      assert.ok(!e.message.includes(dir));
+    } finally {
+      delete process.env["NUCLEOS_TEST_SECRET"];
+      delete process.env["NUCLEOS_TEST_PORT"];
+    }
+  });
+});
 
 function withDir<T>(fn: (dir: string) => T): T {
   const dir = mkdtempSync(join(tmpdir(), "cfg-"));
@@ -74,7 +94,7 @@ test("converte duracao, tamanho e URL tipados", () => {
 test("staging/producao exigem banco e segredo (falha rapida, so nomes)", () => {
   for (const appEnv of ["staging", "production"]) {
     const e = failure(() => loadApiConfig({ APP_ENV: appEnv }));
-    assert.deepEqual(e.issues.map((i) => i.key).sort(), ["DATABASE_PASSWORD_FILE", "DATABASE_URL"]);
+    assert.deepEqual(e.issues.map((i) => i.key).sort(), ["DATABASE_PASSWORD", "DATABASE_URL"]);
   }
 });
 
@@ -88,7 +108,8 @@ test("valores invalidos falham sem ecoar o valor recebido", () => {
     }),
   );
   const keys = e.issues.map((i) => i.key);
-  for (const k of ["APP_ENV", "PORT", "REQUEST_TIMEOUT", "DATABASE_URL"]) assert.ok(keys.includes(k), k);
+  for (const k of ["APP_ENV", "PORT", "REQUEST_TIMEOUT", "DATABASE_URL"])
+    assert.ok(keys.includes(k), k);
   assert.ok(!e.message.includes(SENTINEL));
   assert.ok(!JSON.stringify(e.issues).includes(SENTINEL));
   assert.ok(!String(e.stack).includes(SENTINEL));
@@ -106,14 +127,27 @@ test("limites: porta 0, duracao fora da faixa e senha embutida na URL", () => {
   assert.ok(!e.message.includes(SENTINEL));
 });
 
-test("segredo literal por ambiente e proibido; vazio conta como ausente", () => {
+test("segredo literal por ambiente e aceito; vazio conta como ausente", () => {
   assert.deepEqual(
-    forbiddenSecretEnv({ DATABASE_PASSWORD: "x", API_KEY: "y", DATABASE_PASSWORD_FILE: "/a", PORT: "1" }),
+    forbiddenSecretEnv({
+      DATABASE_PASSWORD: "x",
+      API_KEY: "y",
+      DATABASE_PASSWORD_FILE: "/a",
+      PORT: "1",
+    }),
     ["API_KEY", "DATABASE_PASSWORD"],
   );
-  const e = failure(() => loadApiConfig({ DATABASE_PASSWORD: SENTINEL }));
-  assert.deepEqual(e.issues.map((i) => i.key), ["DATABASE_PASSWORD"]);
+  const c = loadApiConfig({ DATABASE_PASSWORD: SENTINEL });
+  assert.equal(c.databasePassword?.reveal(), SENTINEL);
+  assert.ok(!JSON.stringify(c).includes(SENTINEL));
+  const e = failure(() =>
+    loadApiConfig({ DATABASE_PASSWORD: SENTINEL, DATABASE_PASSWORD_FILE: "/unused" }),
+  );
   assert.ok(!e.message.includes(SENTINEL));
+  assert.throws(
+    () => loadApiConfig({ DATABASE_PASSWORD: "a".repeat(MAX_SECRET_BYTES + 1) }),
+    ConfigError,
+  );
   assert.equal(loadApiConfig({ DATABASE_PASSWORD: "", PORT: "" }).port, 3001);
 });
 
@@ -155,7 +189,10 @@ test("dono diferente do processo e recusado (mutante: checagem de dono removida)
     const real = process.getuid?.() ?? 0;
     const m = mock.method(process as { getuid: () => number }, "getuid", () => real + 1);
     try {
-      assert.throws(() => readSecretFile(p), (e: unknown) => e instanceof SecretFileError && e.reason === "dono-diferente");
+      assert.throws(
+        () => readSecretFile(p),
+        (e: unknown) => e instanceof SecretFileError && e.reason === "dono-diferente",
+      );
     } finally {
       m.mock.restore();
     }
@@ -169,7 +206,10 @@ test("limite exato de tamanho aceito; um byte a mais recusado", () => {
     assert.equal(readSecretFile(at).reveal().length, MAX_SECRET_BYTES);
     const over = join(dir, "acima");
     writeFileSync(over, "a".repeat(MAX_SECRET_BYTES + 1), { mode: 0o400 });
-    assert.throws(() => readSecretFile(over), (e: unknown) => e instanceof SecretFileError && e.reason === "grande-demais");
+    assert.throws(
+      () => readSecretFile(over),
+      (e: unknown) => e instanceof SecretFileError && e.reason === "grande-demais",
+    );
   });
 });
 
@@ -177,15 +217,33 @@ test("arquivo com bytes UTF-8 invalidos e ilegivel (paridade com Python)", () =>
   withDir((dir) => {
     const p = join(dir, "bin");
     writeFileSync(p, Buffer.from([0x61, 0xff, 0xfe, 0x62]), { mode: 0o400 });
-    assert.throws(() => readSecretFile(p), (e: unknown) => e instanceof SecretFileError && e.reason === "ilegivel");
+    assert.throws(
+      () => readSecretFile(p),
+      (e: unknown) => e instanceof SecretFileError && e.reason === "ilegivel",
+    );
   });
 });
 
 test("nomes de segredo por token e sufixo; *_FILE e *_PATH permitidos", () => {
-  for (const n of ["API_TOKEN", "X_SECRET", "DB_PASS", "SECRET_KEY", "AWS_SECRET_ACCESS_KEY", "DBPASSWORD", "A_DSN"]) {
+  for (const n of [
+    "API_TOKEN",
+    "X_SECRET",
+    "DB_PASS",
+    "SECRET_KEY",
+    "AWS_SECRET_ACCESS_KEY",
+    "DBPASSWORD",
+    "A_DSN",
+  ]) {
     assert.ok(isSecretName(n), n);
   }
-  for (const n of ["DATABASE_PASSWORD_FILE", "SSH_KEY_PATH", "OTEL_SERVICE_NAME", "KEYBOARD", "PORT", "PASSTHROUGH"]) {
+  for (const n of [
+    "DATABASE_PASSWORD_FILE",
+    "SSH_KEY_PATH",
+    "OTEL_SERVICE_NAME",
+    "KEYBOARD",
+    "PORT",
+    "PASSTHROUGH",
+  ]) {
     assert.ok(!isSecretName(n), n);
   }
 });

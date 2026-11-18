@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "lote": "lote-2026-11-01-login-multi-org",
+  "data": "2026-11-01",
+  "fuso": "America/Sao_Paulo",
+  "demanda": {
+    "chave_local": "LGN-MULTI-ORG",
+    "id_externo": null,
+    "observacao": "Não possui ID vinculado (ClickUp não usado).",
+    "descricao": "Sistema de login front-end e back-end do Nucleos"
+  },
+  "substitui": {
+    "lote": "lote-2026-10-31-web-001-login-real",
+    "motivo": "Previa banco separado nucleos_control e Kysely; contraria a regra de banco único (2026-11-01) e o padrão pg puro já adotado em developer.",
+    "run_abandonado": "31d6724286f0e3bb0542b6818c7971d0 (parou após t1_implement; preservado, não apagado; só consulta)"
+  },
+  "base": {
+    "branch": "developer",
+    "sha": "c5427047db13c8bb84e3a635298e94e89105caea",
+    "arvore": "limpa",
+    "commits_de_preparacao": [
+      { "sha": "43f9bc7", "mensagem": "chore(skills): fluxo enxuto v1 do Context Compiler e limites de recuperacao" },
+      { "sha": "071ed0c", "mensagem": "feat(financeiro): painel de vendas Hotmart, banco unico e configuracao .env do MVP" },
+      { "sha": "c542704", "mensagem": "docs: regras de banco unico e fluxo enxuto no CLAUDE/AGENTS e backlog manual" }
+    ],
+    "autorizacao_dos_commits": "Usuário autorizou no grill-me commitar o trabalho pendente em developer (sem push)."
+  },
+  "decisoes": [
+    { "id": "D1", "texto": "Multi-organização (usuários, organizações, memberships, seletor /orgs, org ativa no layout)", "origem": "usuario" },
+    { "id": "D2", "texto": "Partir do zero sobre developer; run antigo só como referência", "origem": "usuario" },
+    { "id": "D3", "texto": "Toda área logada exige sessão; API de vendas aceita a sessão", "origem": "usuario" },
+    { "id": "D4", "texto": "Seed dev + CLI admin; sem cadastro público, MFA, verificação de e-mail ou recuperação de senha", "origem": "usuario" },
+    { "id": "D5", "texto": "Vendas pertencem à org fixa VENDAS_ORG_SLUG (padrão nucleos); outras orgs recebem 404", "origem": "usuario" },
+    { "id": "D6", "texto": "Rotas web com prefixo /orgs/[orgSlug]/...", "origem": "usuario" },
+    { "id": "D7", "texto": "Remover VENDAS_API_KEY e ChaveServicoGuard", "origem": "usuario" },
+    { "id": "D8", "texto": "Sessão 30 min ociosa / 12 h absoluta; 5 falhas -> 15 min; senha >= 12; argon2id m=19MiB t=2 p=1; configuráveis", "origem": "usuario" },
+    { "id": "D9", "texto": "Zero dependências novas (crypto.argon2 nativo, validação manual, cabeçalhos à mão, pg puro); falha de crypto.argon2 -> BLOCKED", "origem": "usuario" },
+    { "id": "D10", "texto": "Banco único nucleos_dev com schemas iam/tenancy pelo runner existente", "origem": "regra_do_projeto" },
+    { "id": "D11", "texto": "Sessão opaca 32 bytes, sha256 no banco, cookie HttpOnly/SameSite=Lax/Secure fora de local", "origem": "ADR-016" },
+    { "id": "D12", "texto": "Web chama API servidor-a-servidor com Bearer; cookie na origem do web; limite por e-mail + bloqueio por conta (sem limite por IP)", "origem": "inferido_pelo_planejador" }
+  ],
+  "hipoteses_e_lacunas": [
+    "D12 é inferência de arquitetura, não confirmada explicitamente pelo usuário.",
+    "Nome da variável de URL da API no web (VENDAS_API_URL vs NUCLEOS_API_URL) fica a critério de u3, com documentação.",
+    "Playwright/E2E fora; telas validadas pelo roteiro manual."
+  ],
+  "unidades": [
+    { "id": "u1", "ticket": "LGN-U1", "risco": 3, "criterios": "LGN-AC-01..05", "depende_de": [] },
+    { "id": "u2", "ticket": "LGN-U2", "risco": 4, "criterios": "LGN-AC-06..12", "depende_de": ["u1"] },
+    { "id": "u3", "ticket": "LGN-U3", "risco": 3, "criterios": "LGN-AC-13..19", "depende_de": ["u2"] }
+  ],
+  "artefatos": {
+    "manifesto": "lote-2026-11-01-login-multi-org.md",
+    "workflow": "lote-2026-11-01-login-multi-org.workflow.yaml",
+    "bindings": "lote-2026-11-01-login-multi-org.bindings.yaml",
+    "validacoes": ["contexto plan validate: ok", "contexto run --dry-run: ok"]
+  },
+  "entrega": "revisao/2026-11-01-login-multi-org",
+  "status": "PRONTO_PARA_RUN (não iniciado)"
+}

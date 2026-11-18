@@ -497,3 +497,7 @@ Todos os tenants executam a mesma imagem versionada do runtime, com configuraç�
 ---
 
 **Decisão final registrada em 25/10/2026:** iniciar com Cenário A (1 VPS, Docker Compose), Control Plane único, **um runtime containerizado dedicado por cliente**, **database PostgreSQL exclusivo com role/credencial exclusiva por cliente**, políticas de rede e de ferramentas *deny-by-default*, RAG/storage/filas segregados, sem permitir execução arbitrária de código no runtime base, e **gate de testes de isolamento obrigatório antes de produção**. Escala por múltiplas VPSs e depois orquestração conforme métricas e requisitos contratuais, preservando esse modelo de segurança em todas as fases.
+
+> Atualizacao 2026-11-01: o MVP aceita segredos em .env/ambiente. A exclusividade por
+> arquivo abaixo descreve o perfil endurecido ou a decisao historica, nao uma restricao
+> global dos loaders. Veja [ADR-020](../arquitetura/adr/0020-gestao-de-segredos-do-mvp.md).

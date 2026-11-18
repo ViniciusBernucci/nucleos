@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Painel v4</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#1A1918}
+a{color:#5FBF8A;text-decoration:none}a:hover{color:#8FDDB0}
+.nl{display:flex;align-items:center;gap:10px;min-height:32px;box-sizing:border-box;padding:0 10px;border-radius:9px;color:#A8A59D;font-size:12.5px;text-decoration:none}
+.nl:hover{background:#242321;color:#ECEAE4}
+.nl.on{background:#1F5A3D;color:#FFFFFF;font-weight:500}
+.mg{width:20px;height:20px;border-radius:6px;background:#2A2927;border:1px solid #3A3835;color:#8F8C84;font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center;flex:0 0 20px}
+.nl.on .mg{background:rgba(255,255,255,0.14);border-color:transparent;color:#FFFFFF}
+.card{position:relative;background:#232220;border:1px solid #333230;border-radius:14px}
+.lbl{font-size:12px;color:#A19E96}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+.row{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 16px;border-top:1px solid #2D2C2A}
+.row:hover{background:#292826}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 12px;border-radius:999px;background:transparent;border:1px solid #4A4844;color:#D9D6CE;font-size:12px;font-weight:500;text-decoration:none}
+.btn:hover{border-color:#5FBF8A;color:#FFFFFF}
+.chip{font-size:11px;padding:2px 8px;border-radius:999px;background:#2A2927;border:1px solid #3A3835;color:#A8A59D}
+.neon{background:#39FF88;box-shadow:0 0 8px rgba(57,255,136,0.7)}
+.ico{width:28px;height:28px;border-radius:8px;background:#2A2927;border:1px solid #3A3835;display:flex;align-items:center;justify-content:center;flex:0 0 28px}
+.kv{font-size:26px;font-weight:600;letter-spacing:-0.01em;color:#F4F2EC}
+</style>
+</helmet>
+<div style="display:flex;flex-wrap:wrap;min-height:760px;background:#1A1918;color:#ECEAE4;font-family:'Inter',system-ui,sans-serif">
+
+<nav aria-label="Principal" style="flex:1 1 216px;box-sizing:border-box;padding:16px 10px;background:#161514;border-right:1px solid #2A2927;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;align-items:center;gap:10px;padding:0 6px">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="1" y="1" width="22" height="22" rx="7" fill="#1F5A3D"/><path d="M7.5 17V7l9 10V7" stroke="#39FF88" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<span style="font-size:15px;font-weight:600;letter-spacing:-0.01em">Nucleos</span>
+</div>
+<a href="Organizacoes.dc.html" style="display:flex;flex-direction:column;gap:1px;padding:8px 12px;background:#201F1D;border:1px solid #2F2E2B;border-radius:10px;color:#ECEAE4">
+<span style="font-size:10px;color:#8F8C84">Organização</span>
+<span style="font-size:12.5px;font-weight:500">[Nome da empresa]</span>
+</a>
+<div style="display:flex;flex-direction:column;gap:1px">
+<a class="nl on" href="Painel-v4.dc.html"><span class="mg">PN</span>Painel</a>
+</div>
+<div style="display:flex;flex-direction:column;gap:1px">
+<div style="padding:0 10px 4px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#76736C">Setores</div>
+<sc-for list="{{setores}}" as="s" hint-placeholder-count="9">
+<a class="nl" href="{{s.href}}"><span class="mg">{{s.code}}</span>{{s.label}}</a>
+</sc-for>
+</div>
+<div style="display:flex;flex-direction:column;gap:1px">
+<div style="padding:0 10px 4px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:#76736C">Sistema</div>
+<sc-for list="{{sistema}}" as="s" hint-placeholder-count="4">
+<a class="nl" href="{{s.href}}"><span class="mg">{{s.code}}</span>{{s.label}}</a>
+</sc-for>
+</div>
+</nav>
+
+<div style="flex:999 1 560px;min-width:0;display:flex;flex-direction:column">
+
+<header style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 28px;border-bottom:1px solid #2A2927">
+<button type="button" style="flex:1 1 240px;max-width:380px;display:flex;align-items:center;gap:8px;min-height:36px;padding:0 12px;background:#201F1D;border:1px solid #333230;border-radius:999px;color:#8F8C84;font-family:inherit;font-size:12.5px;text-align:left;cursor:pointer">
+<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#8F8C84" stroke-width="1.5" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+<span style="flex:1">Buscar ou executar comando</span>
+<span class="mono" style="font-size:11px">Ctrl K</span>
+</button>
+<div style="flex:1 1 0;display:flex;justify-content:flex-end;align-items:center;gap:10px">
+<button type="button" aria-label="Notificações, há itens novos" style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:#201F1D;border:1px solid #333230;border-radius:50%;cursor:pointer">
+<svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="#C9C6BE" stroke-width="1.5" aria-hidden="true"><path d="M4 13V8a5 5 0 0110 0v5l1.5 1.5h-13z"/><path d="M7.5 16.5h3"/></svg>
+<span class="neon" style="position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%"></span>
+</button>
+<button type="button" aria-label="Conta do usuário" style="width:36px;height:36px;border-radius:50%;background:#1F5A3D;border:none;color:#fff;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer">U</button>
+</div>
+</header>
+
+<main style="width:100%;max-width:1120px;box-sizing:border-box;padding:20px 28px 28px;display:flex;flex-direction:column;gap:16px">
+
+<div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px">
+<div style="display:flex;flex-direction:column;gap:4px">
+<span style="font-size:12.5px;color:#A19E96">Bom dia, [Nome]</span>
+<h1 style="margin:0;font-size:24px;line-height:1.25;font-weight:600;letter-spacing:-0.02em">Toda a operação, com <span style="color:#5FBF8A">clareza e controle</span>.</h1>
+</div>
+<span class="mono" style="font-size:11px;color:#76736C">Atualizado [hh:mm]</span>
+</div>
+
+<section aria-label="Indicadores essenciais" style="display:flex;flex-wrap:wrap;gap:12px">
+<div class="card" style="flex:1 1 220px;display:flex;flex-direction:column;gap:8px;padding:14px 16px">
+<div style="display:flex;align-items:center;gap:10px"><span class="ico"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#5FBF8A" stroke-width="1.5" aria-hidden="true"><path d="M2 12l4-4 3 3 5-6"/></svg></span><span class="lbl">Resultado do período</span></div>
+<span class="kv">R$ [valor]</span>
+<span class="mono" style="font-size:10.5px;color:#76736C">Controladoria · [hh:mm]</span>
+</div>
+<div class="card" style="flex:1 1 220px;display:flex;flex-direction:column;gap:8px;padding:14px 16px">
+<div style="display:flex;align-items:center;gap:10px"><span class="ico"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#5FBF8A" stroke-width="1.5" aria-hidden="true"><rect x="2" y="4" width="12" height="9" rx="2"/><path d="M2 7h12"/></svg></span><span class="lbl">Caixa disponível</span></div>
+<span class="kv">R$ [valor]</span>
+<span class="mono" style="font-size:10.5px;color:#76736C">Financeiro · [hh:mm]</span>
+</div>
+<div class="card" style="flex:1 1 220px;display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-color:#2C5A41">
+<div style="display:flex;align-items:center;gap:10px"><span class="ico"><span class="neon" style="width:8px;height:8px;border-radius:50%"></span></span><span class="lbl">Decisões pendentes</span></div>
+<span class="kv" style="color:#39FF88">[N]</span>
+<span class="mono" style="font-size:10.5px;color:#76736C">Diretoria · [hh:mm]</span>
+</div>
+</section>
+
+<div style="display:flex;flex-wrap:wrap;gap:12px">
+<section class="card" aria-labelledby="h-ev" style="flex:2 1 460px;min-width:0;padding:14px 16px">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+<h2 id="h-ev" style="margin:0;font-size:13.5px;font-weight:600">Evolução do resultado</h2>
+<span class="chip">[período]</span>
+</div>
+<svg viewBox="0 0 560 150" width="100%" role="img" aria-label="Gráfico ilustrativo de evolução do resultado" style="display:block;max-width:100%">
+<defs><linearGradient id="ar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2F8F5F" stop-opacity="0.35"/><stop offset="1" stop-color="#2F8F5F" stop-opacity="0"/></linearGradient></defs>
+<g stroke="#2D2C2A" stroke-width="1"><path d="M0 20H560M0 60H560M0 100H560"/></g>
+<path d="M0 115 C40 108 60 118 100 100 S160 88 200 92 S270 66 320 70 S400 44 440 50 S510 28 560 20 V125 H0 Z" fill="url(#ar)"/>
+<path d="M0 115 C40 108 60 118 100 100 S160 88 200 92 S270 66 320 70 S400 44 440 50 S510 28 560 20" fill="none" stroke="#3FA66F" stroke-width="2" stroke-linecap="round"/>
+<circle cx="556" cy="20" r="4" fill="#39FF88"/><circle cx="556" cy="20" r="8" fill="#39FF88" fill-opacity="0.2"/>
+<g fill="#76736C" font-size="10" font-family="Inter, sans-serif"><text x="0" y="144">[mês]</text><text x="140" y="144">[mês]</text><text x="280" y="144">[mês]</text><text x="420" y="144">[mês]</text><text x="520" y="144">[mês]</text></g>
+</svg>
+</section>
+
+<section class="card" aria-labelledby="h-sa" style="flex:1 1 240px;min-width:0;padding:14px 16px;display:flex;flex-direction:column;gap:6px">
+<h2 id="h-sa" style="margin:0;font-size:13.5px;font-weight:600">Saúde operacional</h2>
+<div style="position:relative;width:120px;height:120px;margin:auto">
+<svg viewBox="0 0 120 120" width="120" height="120" aria-hidden="true"><circle cx="60" cy="60" r="48" fill="none" stroke="#2D2C2A" stroke-width="9"/><circle cx="60" cy="60" r="48" fill="none" stroke="#3FA66F" stroke-width="9" stroke-linecap="round" stroke-dasharray="226 302" transform="rotate(-90 60 60)"/></svg>
+<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center"><span style="font-size:22px;font-weight:600">[N]%</span><span style="font-size:10.5px;color:#A19E96">processos em dia</span></div>
+</div>
+</section>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start">
+<section class="card" aria-labelledby="h-dec" style="flex:1 1 420px;min-width:0;overflow:hidden">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px">
+<h2 id="h-dec" style="margin:0;font-size:13.5px;font-weight:600">Aguardam sua decisão</h2>
+<a href="#" style="font-size:12px">Ver todas</a>
+</div>
+<div class="row"><div style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:13px">Pagamento acima da alçada aprovada</span><span class="chip">Financeiro</span><span class="mono" style="font-size:10.5px;color:#39FF88;letter-spacing:0.06em">URGENTE</span></div><a class="btn" href="#">Revisar</a></div>
+<div class="row"><div style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:13px">Abertura de vaga: [cargo]</span><span class="chip">RH</span></div><a class="btn" href="#">Revisar</a></div>
+<div class="row"><div style="flex:1;min-width:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:13px">Alteração de política de acesso</span><span class="chip">TI</span></div><a class="btn" href="#">Revisar</a></div>
+</section>
+
+<section class="card" aria-labelledby="h-upd" style="flex:1 1 420px;min-width:0;overflow:hidden">
+<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px">
+<h2 id="h-upd" style="margin:0;font-size:13.5px;font-weight:600">Atualizações</h2>
+<a href="#" style="font-size:12px">Histórico</a>
+</div>
+<div class="row" style="min-height:38px"><span style="width:6px;height:6px;border-radius:50%;background:#3FA66F;flex:0 0 6px"></span><span style="flex:1;font-size:12.5px;color:#D2CFC7">Fechamento de [mês] concluído pela Controladoria</span><span class="mono" style="font-size:10.5px;color:#76736C">[hh:mm]</span></div>
+<div class="row" style="min-height:38px"><span style="width:6px;height:6px;border-radius:50%;background:#3FA66F;flex:0 0 6px"></span><span style="flex:1;font-size:12.5px;color:#D2CFC7">Conciliação bancária sem divergências</span><span class="mono" style="font-size:10.5px;color:#76736C">[hh:mm]</span></div>
+<div class="row" style="min-height:38px"><span style="width:6px;height:6px;border-radius:50%;background:#3FA66F;flex:0 0 6px"></span><span style="flex:1;font-size:12.5px;color:#D2CFC7">Relatório de campanha publicado pelo Marketing</span><span class="mono" style="font-size:10.5px;color:#76736C">[hh:mm]</span></div>
+<div class="row" style="min-height:38px"><span style="width:6px;height:6px;border-radius:50%;background:#3FA66F;flex:0 0 6px"></span><span style="flex:1;font-size:12.5px;color:#D2CFC7">Política de acesso publicada por TI</span><span class="mono" style="font-size:10.5px;color:#76736C">[hh:mm]</span></div>
+</section>
+</div>
+
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":760}}'>
+class Component extends DCLogic {
+renderVals() {
+const setores = [
+['DI', 'Diretoria'], ['CT', 'Controladoria'], ['FI', 'Financeiro'], ['RH', 'Recursos Humanos'],
+['TI', 'Tecnologia da Informação'], ['MK', 'Marketing'], ['CM', 'Comercial'], ['JU', 'Jurídico'], ['OP', 'Operações']
+];
+return {
+setores: setores.map(([code, label]) => ({ code, label, href: label === 'Financeiro' ? 'Setor.dc.html' : '#' })),
+sistema: [
+{ code: 'IA', label: 'Agentes de IA', href: '#' },
+{ code: 'AU', label: 'Auditoria', href: '#' },
+{ code: 'PL', label: 'Plataforma', href: 'Plataforma.dc.html' },
+{ code: 'CF', label: 'Configurações', href: '#' }
+]
+};
+}
+}
+</script>
+</body>
+</html>

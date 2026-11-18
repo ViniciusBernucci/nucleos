@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Copia as skills de skills/skills/ para as pastas de descoberta da raiz do projeto.
-// A fonte nunca é alterada; arquivos extras nos destinos (ex.: archify) são preservados.
+// A fonte nunca é alterada; extras são preservados, mas reprovam a conferência.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -59,5 +59,4 @@ for (const target of targets) {
   }
 }
 console.log(`${skills.length} skills; ${files.length} arquivos por destino; ${targets.length} destinos; ${differences} ${apply ? 'arquivos copiados' : 'divergências'}; ${extras} extras preservados.`);
-// Extras são esperados (skills instaladas por outras fontes) e não reprovam o --check.
-process.exitCode = !apply && differences ? 1 : 0;
+process.exitCode = extras || (!apply && differences) ? 1 : 0;

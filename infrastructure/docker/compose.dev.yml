@@ -183,53 +183,12 @@ services:
       timeout: 5s
       retries: 30
 
-  tenant-provisioner:
-    <<: *app-node
-    volumes: ["../../:/workspace:ro", "/dev/null:/workspace/infrastructure/docker/.env.local:ro"]
-    environment: {<<: *app-env, PORT: "3002"}
-    command: ["node", "--watch", "apps/tenant-provisioner/dist/main.js"]
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3002/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-
-  tenant-runtime:
-    <<: *app-python
-    environment: {HOST: 0.0.0.0, PORT: "8001", PYTHONPATH: "/workspace/services/tenant-runtime/src:/workspace/packages/observability-py/src:/workspace/.venv/lib/python3.13/site-packages", PYTHONDONTWRITEBYTECODE: "1"}
-    command: ["python", "-m", "tenant_runtime"]
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8001/healthz', timeout=3)"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
   ai-gateway:
     <<: *app-python
     environment: {HOST: 0.0.0.0, PORT: "8002", PYTHONPATH: "/workspace/services/ai-gateway/src:/workspace/packages/observability-py/src:/workspace/.venv/lib/python3.13/site-packages", PYTHONDONTWRITEBYTECODE: "1"}
     command: ["python", "-m", "ai_gateway"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8002/healthz', timeout=3)"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
-  tool-gateway:
-    <<: *app-python
-    environment: {HOST: 0.0.0.0, PORT: "8003", PYTHONPATH: "/workspace/services/tool-gateway/src:/workspace/packages/observability-py/src:/workspace/.venv/lib/python3.13/site-packages", PYTHONDONTWRITEBYTECODE: "1"}
-    command: ["python", "-m", "tool_gateway"]
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8003/healthz', timeout=3)"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
-  event-dispatcher:
-    <<: *app-python
-    environment: {HOST: 0.0.0.0, PORT: "8004", PYTHONPATH: "/workspace/services/event-dispatcher/src:/workspace/packages/observability-py/src:/workspace/.venv/lib/python3.13/site-packages", PYTHONDONTWRITEBYTECODE: "1"}
-    command: ["python", "-m", "event_dispatcher"]
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8004/healthz', timeout=3)"]
       interval: 5s
       timeout: 5s
       retries: 20

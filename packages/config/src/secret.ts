@@ -4,7 +4,7 @@ import { closeSync, constants, fstatSync, openSync, readSync } from "node:fs";
 export const MAX_SECRET_BYTES = 16 * 1024;
 
 /**
- * Segredo lido de arquivo. Nunca imprime o valor: `toString`, `toJSON` e `inspect` devolvem
+ * Segredo do ambiente ou arquivo. Nunca imprime o valor: `toString`, `toJSON` e `inspect` devolvem
  * `[REDACTED]`. O valor so sai por `reveal()`, chamado no ponto de uso (ex.: abrir conexao).
  */
 export class Secret {
@@ -53,10 +53,7 @@ function openNoFollow(path: string): number {
   try {
     // O_NOFOLLOW: link simbolico no ultimo componente => ELOOP. O_NONBLOCK: nao trava em FIFO.
     // (o Node ja abre com close-on-exec)
-    return openSync(
-      path,
-      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
-    );
+    return openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   } catch (e) {
     const code = (e as NodeJS.ErrnoException).code;
     if (code === "ELOOP") throw new SecretFileError("link-simbolico");
